@@ -1,0 +1,8 @@
+credentials.json
+minio-credentials.json
+.env
+*.env
+data/
+submissions/
+.venv/
+__pycache__/
