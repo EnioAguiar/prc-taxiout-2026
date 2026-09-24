@@ -102,6 +102,8 @@ def build(movements: pd.DataFrame) -> pd.DataFrame:
 
     dep["hour"] = t.dt.hour + t.dt.minute / 60
     dep["dow"] = t.dt.dayofweek
+    # Sem registro no Network Manager: 1% das DEP e 42% do erro quadrático (forense 24/09).
+    dep["nm_missing"] = dep["FLIGHT_ID_mvt"].isna().astype("int8")
     for col in PLAN_REFS:
         if col in dep:
             dep[f"to_takeoff_from_{col}"] = (t - dep[col]).dt.total_seconds()
@@ -153,7 +155,7 @@ def feature_columns(df: pd.DataFrame) -> list[str]:
     derived = [
         c for c in df.columns if c.startswith(("to_takeoff_from_", "apt_", "rwy_", "gap_", "round_"))
     ]
-    return [*CATEGORICAL, "hour", "dow", "ref_p10", *derived]
+    return [*CATEGORICAL, "hour", "dow", "nm_missing", "ref_p10", *derived]
 
 
 def as_categories(frames: list[pd.DataFrame]) -> None:

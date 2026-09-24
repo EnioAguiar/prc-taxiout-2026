@@ -67,4 +67,56 @@ class SingleLGBM:
         return self.model.predict(df[self.cols])
 
 
-MODELS = {"single": SingleLGBM}
+SCHED_GAP = "to_takeoff_from_SCHED_TIME_UTC_mvt"  # MVT − SCHED, em segundos
+COPY_TOL_S = 60
+
+
+def copied_from_sched(df: pd.DataFrame) -> pd.Series:
+    """Rótulo do estágio 1: BLOCK oficial a ≤ 60 s do horário programado."""
+    gap = (df["BLOCK_TIME_UTC_mvt"] - df["SCHED_TIME_UTC_mvt"]).dt.total_seconds()
+    return gap.abs() <= COPY_TOL_S
+
+
+def combine(p, ms, reg) -> np.ndarray:
+    """Esperança da mistura p·(MVT−SCHED) + (1−p)·regressor, com piso 0.
+
+    Sem SCHED (ms nulo) usa só o regressor. Nunca argmax: errar a classe custa horas².
+    """
+    p, ms, reg = (np.asarray(v, float) for v in (p, ms, reg))
+    mix = np.where(np.isnan(ms), reg, p * ms + (1 - p) * reg)
+    return np.clip(mix, 0, None)
+
+
+class TwoStage:
+    """Classificador 'BLOCK copiado do SCHED' + regressor L2 nos voos normais."""
+
+    def __init__(self, cfg: dict) -> None:
+        self.cls_rounds = int(cfg.get("cls_rounds", 400))
+        self.reg_rounds = int(cfg.get("reg_rounds", 400))
+        self.best_iter: int | None = None
+
+    def fit(self, train, cols, run=None, valid=None) -> "TwoStage":
+        self.cols = cols
+        copied = copied_from_sched(train)
+        cls_params = {**PARAMS, "objective": "binary", "metric": "binary_logloss"}
+
+        def cb(rounds: int, label: str, start: float) -> list:
+            return [run.lgb_callback(rounds, label, start=start, span=0.5)] if run else []
+
+        self.cls = lgb.train(
+            cls_params, lgb.Dataset(train[cols], copied.astype("int8")), self.cls_rounds,
+            callbacks=cb(self.cls_rounds, "classificador", 0.0),
+        )
+        normal = train[~copied]
+        self.reg = lgb.train(
+            PARAMS, lgb.Dataset(normal[cols], normal[F.TARGET]), self.reg_rounds,
+            callbacks=cb(self.reg_rounds, "regressor", 0.5),
+        )
+        return self
+
+    def predict(self, df: pd.DataFrame) -> np.ndarray:
+        x = df[self.cols]
+        return combine(self.cls.predict(x), df[SCHED_GAP], self.reg.predict(x))
+
+
+MODELS = {"single": SingleLGBM, "two_stage": TwoStage}

@@ -1,9 +1,10 @@
 {
-  "id": "20260924-183304-base_v2",
+  "id": "20260924-185134-dois_estagios",
   "config": {
-    "model": "single",
-    "rounds": 400
+    "model": "two_stage",
+    "cls_rounds": 400,
+    "reg_rounds": 400
   },
-  "best_iter": 300,
-  "rmse_simulacao": 454.93
+  "best_iter": null,
+  "rmse_simulacao": 388.16
 }
