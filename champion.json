@@ -6,5 +6,7 @@
     "reg_rounds": 400
   },
   "best_iter": null,
-  "rmse_simulacao": 388.16
+  "rmse_simulacao": 388.16,
+  "src_hash": "21e22a712a37",
+  "git_commit": "8c99e75"
 }

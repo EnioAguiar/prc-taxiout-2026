@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import pytest
 
 import features as F
 from train import build_submission, final_config
@@ -7,9 +8,18 @@ from train import build_submission, final_config
 
 def test_submissao_segue_a_ordem_do_template_sem_nulos():
     template = pd.DataFrame({F.ID: [1.0, 2.0, 3.0], F.TARGET: np.nan})
-    out = build_submission(template, np.array([3.0, 1.0]), np.array([30.0, 10.0]))
+    out, preenchidas = build_submission(
+        template, np.array([3.0, 1.0]), np.array([30.0, 10.0]), max_fill_frac=0.5
+    )
     assert out[F.ID].tolist() == [1.0, 2.0, 3.0]
     assert out[F.TARGET].tolist() == [10.0, 20.0, 30.0]  # ID 2 sem previsão: mediana
+    assert preenchidas == 1
+
+
+def test_submissao_recusa_preencher_demais():
+    template = pd.DataFrame({F.ID: [1.0, 2.0, 3.0], F.TARGET: np.nan})
+    with pytest.raises(SystemExit, match="sem previsão"):
+        build_submission(template, np.array([1.0]), np.array([10.0]))
 
 
 def test_rodadas_finais_escalam_o_melhor_ponto():

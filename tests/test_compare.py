@@ -1,6 +1,6 @@
 import numpy as np
 
-from compare import is_better, paired_bootstrap
+from compare import is_better, may_promote, paired_bootstrap
 
 
 def _data(seed=1):
@@ -27,3 +27,11 @@ def test_novo_claramente_melhor_vence_com_ganho_positivo():
     assert r["ganho"] > 50 and r["ic_baixo"] > 0
     assert is_better(r)
     assert not is_better(paired_bootstrap(y, new, base, days))
+
+
+def test_so_promove_contra_o_campeao():
+    champ = {"id": "A", "config": {"model": "single", "rounds": 400}}
+    assert may_promote({"id": "A", "config": champ["config"]}, champ)
+    assert may_promote({"id": "A2", "config": champ["config"]}, champ)  # repetição do campeão
+    assert not may_promote({"id": "B", "config": {"model": "single", "rounds": 200}}, champ)
+    assert may_promote({"id": "B", "config": {"model": "single", "rounds": 200}}, None)

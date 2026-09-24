@@ -95,11 +95,16 @@ Campeão em `champion.json`: **dois estágios**, 388,16 s na simulação.
 - Validação: `src/experiment.py` simula o ranking (jan+jul/2025 com o alvo
   apagado como no oficial) e grava a corrida em `experiments.jsonl`;
   `src/compare.py` decide por bootstrap pareado por dia (ganho + IC 95%) e
-  atualiza `champion.json`. É pessimista: razão oficial/simulação de 0,836
-  na v2 e 0,873 na v3.
-- `src/train.py submit N` refaz o campeão no ano inteiro com as rodadas do
-  `best_iter` × 1,2 (full2025 tem 2,085 M linhas contra 1,741 M do treino)
-  e só gera o arquivo — o envio é um comando à parte.
+  atualiza `champion.json` (que também guarda `src_hash` e `git_commit` do
+  código que mediu o campeão). É pessimista, mas as duas razões
+  oficial/simulação não são comparáveis: 0,836 na v2 veio da simulação antiga
+  (`sim_ranking.py`) e 0,873 na v3 do holdout novo — a v2 medida no holdout
+  novo daria 0,846.
+- `src/train.py submit N` refaz o campeão no ano inteiro com o `best_iter`
+  (ou as rodadas configuradas, se não houver) × 1,2 (full2025 tem 2,085 M
+  linhas contra 1,741 M do treino) e só gera o arquivo — o envio é um comando
+  à parte. Aborta se o código mudou desde a promoção do campeão; `--forcar`
+  ignora a checagem.
 
 ## Submissões
 
@@ -146,7 +151,7 @@ cp .env.example .env                              # chaves e TEAM_NAME
 bin/run src/cache.py                              # features em cache (uma vez, sozinho)
 bin/run src/experiment.py <nome> --model two_stage
 bin/run src/compare.py <id> --promover            # decide contra o campeão
-bin/run src/train.py submit N                     # gera a vN (não envia)
+bin/run src/train.py submit N [--forcar]          # gera a vN (não envia)
 .venv/bin/python src/s3.py submit submissions/<TEAM>_vN.parquet   # só após aprovação
 .venv/bin/python -m pytest -q
 ```

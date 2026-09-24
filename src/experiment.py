@@ -17,7 +17,7 @@ import pandas as pd
 
 import features as F
 from cache import TRUTH, load_split
-from models import MODELS, prepare
+from models import MODELS, leaky_columns, prepare
 from runlog import ROOT, Run
 
 RUNS = ROOT / "runs"
@@ -68,8 +68,15 @@ def main() -> None:
         run.set(nota=a.nota)
         with run.phase("dados", 0.15):
             train, hold = load_split("train2025"), load_split("holdout2025")
+            rk = load_split("ranking2026")
             cols = prepare(train, [hold])
-            run.log(f"treino {len(train):,} · holdout {len(hold):,} · {len(cols)} features")
+            drop = leaky_columns(train, rk, cols)
+            cols = [c for c in cols if c not in drop]
+            del rk
+            run.log(
+                f"treino {len(train):,} · holdout {len(hold):,} · {len(cols)} features"
+                f" · ignoradas: {drop or 'nenhuma'}"
+            )
         with run.phase("treino", 0.75):
             model = MODELS[a.model](cfg).fit(train, cols, run=run, valid=hold)
         with run.phase("métricas", 0.10):

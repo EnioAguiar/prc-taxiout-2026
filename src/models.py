@@ -39,6 +39,15 @@ def prepare(train: pd.DataFrame, others: list[pd.DataFrame]) -> list[str]:
     return F.feature_columns(train)
 
 
+def leaky_columns(train: pd.DataFrame, ranking: pd.DataFrame, cols: list[str]) -> list[str]:
+    """Colunas preenchidas no treino mas apagadas no ranking: o modelo não pode usá-las."""
+    return [
+        c for c in cols
+        if c in train and c in ranking
+        and train[c].isna().mean() < 0.5 and ranking[c].isna().mean() > 0.95
+    ]
+
+
 class SingleLGBM:
     """Um LightGBM L2 no alvo bruto (modelo da v2)."""
 
