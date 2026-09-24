@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import resource
 import subprocess
 import threading
 import time
@@ -121,7 +122,8 @@ class Run:
         self._stop.set()
         self._resources()
         self.rec["total_s"] = round(time.perf_counter() - self._t0, 1)
-        self.rec["rss_pico_gb"] = round(self._rss_peak, 2)
+        kernel_peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 2**20  # KiB → GB
+        self.rec["rss_pico_gb"] = round(max(self._rss_peak, kernel_peak), 2)
         self.rec["ok"] = exc_type is None
         if exc is not None:
             self.rec["erro"] = repr(exc)
