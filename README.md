@@ -63,7 +63,10 @@ Colunas mais úteis: `ADEP_mvt`, `RUNWAY_mvt`, `STAND_mvt`,
 **Vazamento (verificado em 24/09):** `AOBT_3_flt` (off-block real do NM)
 está preenchido em 98,5% das DEP do ranking, então pode ser usado. Ele
 bate com o off-block oficial (±2 min) em 38% dos voos; EOBT/LOBT em ~20%;
-SCHED em 17%. O off-block oficial costuma ser *cópia* de um desses horários.
+SCHED em 17%. O BLOCK oficial tem resolução de segundo e AOBT_3/EOBT/SCHED
+de minuto: a proximidade de 38% com AOBT_3 não é cópia. Cópia existe só na
+cauda, e do SCHED: 84,7% dos y > 3 h têm |BLOCK − SCHED| ≤ 60 s
+(`docs/research/2026-09-24-forense-dados.md`).
 
 **Outliers entram na nota:** a verdade oficial mantém taxi-outs de horas
 (até 36 h). Eles são ~37% do erro quadrático. Cortá-los do treino/validação
@@ -71,32 +74,43 @@ deixa a validação otimista e o modelo cego para eles (erro da v1).
 
 ## Modelo atual (`src/`)
 
-- Referência P10 por (aeroporto, stand, pista) com fallback para
-  (aeroporto, pista) e aeroporto; calculada só no fold de treino.
-- Tempo entre horários planejados/NM (SCHED, LOBT, IOBT, EOBT, AOBT_3)
-  e a decolagem.
-- Diferenças entre esses horários (pares) e flag de arredondamento
-  (segundos zerados, minuto múltiplo de 5), para indicar qual foi copiado
-  como off-block.
-- Congestionamento: decolagens do aeroporto, pousos do aeroporto e
-  decolagens da mesma pista, antes e depois da decolagem, em janelas
-  de 10/20/30/60 min.
-- Hora do dia, dia da semana e as categóricas (aeroporto, pista,
-  stand, avião, companhia...).
-- LightGBM, objetivo L2 (alinhado ao RMSE), 1500 rodadas, todos os
-  núcleos da CPU; mostra progresso a cada 100 rodadas.
+Campeão em `champion.json`: **dois estágios**, 388,16 s na simulação.
+
+- **Estágio 1:** classificador LightGBM de `eq = |BLOCK − SCHED| ≤ 60 s`,
+  a cópia que existe na cauda.
+- **Estágio 2:** regressor L2 treinado só nos voos normais (`~eq`).
+- **Combinação pela esperança:** `ŷ = p·(MVT − SCHED) + (1 − p)·ŷ_normal`,
+  com piso 0; nunca argmax, porque errar a classe custa horas². Sem SCHED,
+  só o regressor.
+- Features: referência P10 por (aeroporto, stand, pista) com fallback,
+  calculada só no fold de treino; tempos entre os horários planejados/NM
+  (SCHED, LOBT, IOBT, EOBT, AOBT_3) e a decolagem; diferenças entre esses
+  horários e flags de arredondamento; congestionamento (decolagens e pousos
+  do aeroporto e da pista, janelas de 10/20/30/60 min); hora, dia da semana,
+  categóricas; `nm_missing` (voo sem linha do Network Manager).
+- LightGBM com `num_threads=12` (6 núcleos físicos × 2; 24 threads é 2–4×
+  mais lento — `docs/research/2026-09-24-hardware-benchmark.md`).
 - Treina com **todos** os voos (sem corte de outliers) e sem limitar a
   previsão.
-- Validação: `sim_ranking.py` monta jan+jul/2025 à parte, com o alvo
-  apagado como no ranking, e mede RMSE com e sem outliers. É a que mais
-  se aproxima da nota oficial (pessimista: 460 local vs 385 oficial na v2).
+- Validação: `src/experiment.py` simula o ranking (jan+jul/2025 com o alvo
+  apagado como no oficial) e grava a corrida em `experiments.jsonl`;
+  `src/compare.py` decide por bootstrap pareado por dia (ganho + IC 95%) e
+  atualiza `champion.json`. É pessimista: razão oficial/simulação de 0,836
+  na v2 e 0,873 na v3.
+- `src/train.py submit N` refaz o campeão no ano inteiro com as rodadas do
+  `best_iter` × 1,2 (full2025 tem 2,085 M linhas contra 1,741 M do treino)
+  e só gera o arquivo — o envio é um comando à parte.
 
 ## Submissões
 
 | Versão | Data | Mudança | Simulação (completo / sem outliers) | Oficial |
 |---|---|---|---|---|
 | v1 | 24/09 | modelo base; treino sem y ≥ 3 h, previsão limitada a 3 h | 535,9 / 264,4 | 514,5 |
-| v2 | 24/09 | treino com outliers, sem limite; bug de unidade das janelas de congestionamento corrigido; features de diferença e arredondamento | 460,4 / 290,2 | **384,7** (~132º de 188) |
+| v2 | 24/09 | treino com outliers, sem limite; bug de unidade das janelas de congestionamento corrigido; features de diferença e arredondamento | 460,4 / 290,2 | **384,7** |
+| v3 | 24/09 | dois estágios (classificador da cópia do SCHED + regressor) e `nm_missing`; base de experimentos nova | 388,16 / 269,87 | **338,7** |
+
+A simulação da v3 vem do holdout novo (`experiment.py`), mais rigoroso que o
+`sim_ranking.py` que mediu a v1 e a v2.
 
 ## Roadmap
 
@@ -106,52 +120,68 @@ Feito:
 - [x] Primeira submissão (v1) e diagnóstico da diferença validação × oficial.
 - [x] Correção: outliers no treino; bug de unidade de tempo nas janelas (`// 10**9` com timestamps em µs virava janela de ~7 dias).
 - [x] Features de diferença entre horários e arredondamento (v2).
-- [x] Progresso do treino visível.
+- [x] Base de experimentos: `bin/run` (metade do PC), cache de features, progresso com ETA e RAM, `experiments.jsonl` e `compare.py` com bootstrap pareado.
+- [x] Item 0 da parte 2 — linha de base na base nova (`base_v2`, 400 rodadas): **454,93 s**, 2m15s, pico de 2,38 GB, `best_iter` 300.
+- [x] Item 2 da parte 2 — `nm_missing` (`base_nm`): 454,49 s, ganho de 0,4 s (IC 95% −1,8 a 2,5) → **não promovido sozinho**; ficou no código por entrar sem custo.
+- [x] Item 1 da parte 2 — dois estágios (`dois_estagios`, 400+400 rodadas): **388,16 s**
+  (sem outliers 269,87; NM presente 242,2; NM ausente 2442,18; LIRF 1280,8 → 957,1),
+  ganho de 66,8 s (IC 95% 26,3 a 111,0) → **novo campeão**. Virou a v3
+  (480+480 rodadas, 5m23s): **338,7 s** oficiais.
 
-Próximo:
+Próximo (itens 3–4 da parte 2, com plano próprio):
 
-1. [ ] Separar em duas partes: classificador "voo extremo / off-block copiado de qual horário" + regressão por caso; combinar pela esperança (minimiza RMSE). Hoje o modelo único piora os voos normais (264 → 290 s).
-2. [ ] Treinos mais rápidos: cache das features em parquet, parada antecipada, configuração leve para experimentos.
-3. [ ] Investigar LIRF (Roma): 1,2% dos voos > 1 h, pior aeroporto.
-4. [ ] Ler repositórios públicos de outras equipes e o Discord sobre os outliers.
-5. [ ] Depois: tuning, meteorologia (METAR), ensemble com CatBoost/XGBoost em GPU.
-6. [ ] Antes de 11/10: repositório público GPLv3 (condição do prêmio).
+3. [ ] Modelo linear por aeroporto em `ms = MVT − SCHED` para os voos `nm_missing` (subgrupo ainda em 2442 s).
+4. [ ] Célula LIRF ∧ `nm_missing` ∧ `ms` > 2 h com `p` calibrado por aeroporto × mês × faixa de `ms`.
+
+Depois: alvo residual `y − (MVT − AOBT_3)`, features de vizinhos, ensemble
+(XGBoost CUDA + seeds LightGBM), METAR e poda de features. E, antes de
+11/10, repositório público GPLv3 (condição do prêmio).
 
 ## Uso
 
 ```bash
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-cp .env.example .env              # preencher chaves e TEAM_NAME
-
-.venv/bin/python src/s3.py ls        # conferir acesso
-.venv/bin/python src/s3.py download  # baixa para data/
-.venv/bin/python src/train.py validate
-.venv/bin/python src/train.py submit 1           # gera submissions/<TEAM>_v1.parquet
-.venv/bin/python src/s3.py submit submissions/<TEAM>_v1.parquet
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+cp .env.example .env                              # chaves e TEAM_NAME
+.venv/bin/python src/s3.py download               # dados em data/
+bin/run src/cache.py                              # features em cache (uma vez, sozinho)
+bin/run src/experiment.py <nome> --model two_stage
+bin/run src/compare.py <id> --promover            # decide contra o campeão
+bin/run src/train.py submit N                     # gera a vN (não envia)
+.venv/bin/python src/s3.py submit submissions/<TEAM>_vN.parquet   # só após aprovação
+.venv/bin/python -m pytest -q
 ```
 
-Limite: 5 envios por dia, 1 GB por bucket. Conta a melhor submissão.
-A organização monitora quem tenta "aprender com o placar": testar
-localmente e enviar só o que melhorou.
+Todo comando pesado passa pelo `bin/run`, que limita a 6 núcleos físicos e
+prioridade baixa. Limite do placar: 5 envios por dia, 1 GB por bucket. Conta
+a melhor submissão. A organização monitora quem tenta "aprender com o
+placar": testar localmente e enviar só o que melhorou.
 
 ## Estrutura
 
 ```
 prc-taxiout-2026/
-  src/s3.py        # listar, baixar e enviar (MinIO)
-  src/features.py  # features e referência P10
-  src/train.py     # validação e geração da submissão
-  sim_ranking.py   # simula o ranking em jan+jul/2025 (validação principal)
-  data/            # parquet baixados (ignorado pelo git)
-  submissions/     # arquivos gerados (ignorado pelo git)
-  LICENSE          # GPLv3 (exigido para prêmio)
+  bin/run             # orçamento de hardware (taskset + nice) para tudo que é pesado
+  src/s3.py           # listar, baixar e enviar (MinIO)
+  src/runlog.py       # progresso por fase, ETA, RAM/CPU/GPU e registro das corridas
+  src/cache.py        # splits com features prontas (train2025, holdout2025, full2025, ranking)
+  src/features.py     # features e referência P10
+  src/models.py       # SingleLGBM, TwoStage e a combinação por esperança
+  src/experiment.py   # experimento na simulação calibrada
+  src/compare.py      # bootstrap pareado por dia, veredito e campeão
+  src/train.py        # versão final a partir do campeão (só gera o arquivo)
+  tests/              # pytest
+  experiments.jsonl   # uma linha por corrida (versionado)
+  champion.json       # config campeã (versionado)
+  docs/               # specs, planos e pesquisa
+  data/               # parquet baixados (ignorado pelo git)
+  submissions/        # arquivos gerados (ignorado pelo git)
+  LICENSE             # GPLv3 (exigido para prêmio)
 ```
 
 ## Leaderboard
 
 <https://prc-challenge-2026.vercel.app/>. Em 24/09/2026: 188 equipes,
-melhor RMSE 234,1 s, mediana ~305 s. Nós: 384,7 s (~132º).
+melhor RMSE 234,1 s, mediana ~305 s. Nós: 338,7 s (v3; antes 384,7).
 
 ## Referências
 
