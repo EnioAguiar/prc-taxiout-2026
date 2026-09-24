@@ -1,0 +1,9 @@
+{
+  "id": "20260924-183304-base_v2",
+  "config": {
+    "model": "single",
+    "rounds": 400
+  },
+  "best_iter": 300,
+  "rmse_simulacao": 454.93
+}
