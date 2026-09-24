@@ -50,11 +50,11 @@ competições/placar, forense dos dados, benchmark de hardware).
 
 | Módulo | Responsabilidade | Interface |
 |---|---|---|
-| `runlog.py` | Progresso e registro | `Run(name, config)` como context manager; `run.phase(nome, peso)`; `run.lgb_callback(every)`; amostra RSS/CPU (psutil) e GPU (`nvidia-smi`) a cada 30 s; ao sair grava uma linha em `experiments.jsonl`. Log espelhado em `logs/<data>_<nome>.log`. |
-| `cache.py` | Cache de features | `load_features(split)` → DataFrame; chave = hash de `features.py` + nomes/tamanhos dos parquet; guarda em `data/cache/`. Splits: `train2025` (10 meses), `holdout2025` (jan+jul montados à parte, alvo apagado nas DEP, verdade guardada separada), `full2025`, `ranking2026`. |
-| `models.py` | Modelos com interface única | `fit(train_df, cfg) -> Model`; `Model.predict(df) -> ndarray`. Começa com `single_lgbm`; recebe os modelos da parte 2. |
-| `experiment.py` | Experimento na simulação calibrada | `python src/experiment.py <nome> [--cfg ...]`: treina em `train2025`, prevê `holdout2025`, calcula RMSE completo, sem outliers (0<y<3 h), por aeroporto e por grupo (NM presente/ausente, y>1 h); salva previsões em `runs/<id>.parquet`; early stopping(150) para registrar `best_iter`. |
-| `compare.py` | Decisão | `python src/compare.py <id_novo> [<id_campeão>]`: bootstrap pareado por dia (1000 reamostras) → ganho médio, IC 95%, veredito. Campeão atual em `runs/champion.json`. |
+| `runlog.py` | Progresso e registro | `Run(name, config)` como context manager; `run.phase(nome, peso)`; `run.lgb_callback(rodadas)`; amostra RAM/CPU (psutil) e GPU (`nvidia-smi`) a cada 30 s; ao sair (inclusive com erro) grava uma linha em `experiments.jsonl` na raiz (versionado). Log espelhado em `logs/<id>.log`. |
+| `cache.py` | Cache de features | `load_split(nome)` → DataFrame; chave = hash de `features.py` + nomes/tamanhos dos parquet; guarda em `data/cache/`. Splits: `train2025` (10 meses), `holdout2025` (jan+jul montados à parte, BLOCK e alvo apagados nas DEP, verdade na coluna `y_true`), `full2025`, `ranking2026`. |
+| `models.py` | Modelos com interface única | `prepare(train, outros) -> colunas`; `Modelo(cfg).fit(train, cols, run, valid) -> self`; `.predict(df) -> ndarray`; `.best_iter`. Começa com `SingleLGBM`; recebe os modelos da parte 2. |
+| `experiment.py` | Experimento na simulação calibrada | `bin/run src/experiment.py <nome> --model ...`: treina em `train2025`, prevê `holdout2025`, calcula RMSE completo, sem outliers (0<y<3 h), por aeroporto e por grupo (NM presente/ausente, y>1 h); salva previsões em `runs/<id>.parquet`; grava a curva de RMSE no holdout e registra `best_iter` (mínimo da curva) sem parar o treino. |
+| `compare.py` | Decisão | `bin/run src/compare.py <id_novo> [<id_base>] [--promover]`: bootstrap pareado por dia (1000 reamostras) → ganho, IC 95%, veredito. Campeão atual em `champion.json` na raiz (versionado). |
 | `train.py submit N` | Versão final | Treina a config campeã em `full2025` com `rodadas = best_iter × 1,20`; gera `submissions/<time>_vN.parquet`; valida IDs contra o template. **Não envia.** |
 | `s3.py submit` | Envio | Inalterado; só roda após ok do usuário. |
 
@@ -102,7 +102,7 @@ Regras de modelagem: L2 no alvo bruto; sem log, Huber ou corte de outliers
 1. Pegar o próximo item do roadmap.
 2. `experiment.py` (~2 min) → linha em `experiments.jsonl`.
 3. `compare.py` contra o campeão.
-   - Ganho ≥ 10 s e IC 95% acima de 0 → novo campeão (`runs/champion.json`).
+   - Ganho ≥ 10 s e IC 95% acima de 0 → novo campeão (`champion.json`).
    - Senão → roadmap marca "descartado: <motivo>".
 4. Novo campeão → `train.py submit N` → mostrar ao usuário: simulação,
    ganho ± IC, nota oficial projetada (× relação atual) → **esperar ok**.
