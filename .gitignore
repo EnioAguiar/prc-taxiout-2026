@@ -6,3 +6,5 @@ data/
 submissions/
 .venv/
 __pycache__/
+runs/
+logs/
