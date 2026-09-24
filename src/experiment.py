@@ -2,6 +2,7 @@
 
     bin/run src/experiment.py <nome> --model single [--rounds 400] [--nota "texto"]
     bin/run src/experiment.py <nome> --model two_stage [--cls-rounds 400] [--reg-rounds 400]
+    bin/run src/experiment.py <nome> --model two_stage_nm [--nm-split-ms]
 
 Treina em train2025 (10 meses), prevê holdout2025 (jan+jul/2025 montados como o
 ranking) e registra RMSE completo, sem outliers, por grupo e por aeroporto.
@@ -50,7 +51,10 @@ def metrics(df: pd.DataFrame, pred: np.ndarray) -> dict:
 def config(a: argparse.Namespace) -> dict:
     if a.model == "single":
         return {"model": a.model, "rounds": a.rounds}
-    return {"model": a.model, "cls_rounds": a.cls_rounds, "reg_rounds": a.reg_rounds}
+    cfg = {"model": a.model, "cls_rounds": a.cls_rounds, "reg_rounds": a.reg_rounds}
+    if a.model == "two_stage_nm":
+        cfg["nm_split_ms"] = a.nm_split_ms
+    return cfg
 
 
 def main() -> None:
@@ -60,6 +64,8 @@ def main() -> None:
     ap.add_argument("--rounds", type=int, default=400)
     ap.add_argument("--cls-rounds", type=int, default=400)
     ap.add_argument("--reg-rounds", type=int, default=400)
+    ap.add_argument("--nm-split-ms", action="store_true",
+                    help="two_stage_nm: retas separadas para atraso > 2 h (célula de Roma)")
     ap.add_argument("--nota", default="")
     a = ap.parse_args()
     cfg = config(a)

@@ -128,4 +128,71 @@ class TwoStage:
         return combine(self.cls.predict(x), df[SCHED_GAP], self.reg.predict(x))
 
 
-MODELS = {"single": SingleLGBM, "two_stage": TwoStage}
+NM_MIN_ROWS = 50  # grupos menores usam a reta global
+NM_SPLIT_S = 7200  # célula de Roma: atraso > 2 h
+
+
+def nm_groups(df: pd.DataFrame, split_ms: bool) -> np.ndarray:
+    """Chave da reta: aeroporto, ou aeroporto × (atraso > 2 h)."""
+    keys = df[F.AIRPORT].astype(str).to_numpy()
+    if not split_ms:
+        return keys
+    late = np.where(df[SCHED_GAP].to_numpy(float) > NM_SPLIT_S, ">2h", "<=2h")
+    return np.char.add(np.char.add(keys.astype(str), "|"), late)
+
+
+def _line(ms: np.ndarray, y: np.ndarray) -> tuple[float, float]:
+    b, a = np.polyfit(ms, y, 1)
+    return float(a), float(b)
+
+
+def fit_lines(ms, y, keys, min_rows: int = NM_MIN_ROWS):
+    """Mínimos quadrados y = a + b·ms por grupo (L2, alinhado ao RMSE) e reta global."""
+    ms, y, keys = np.asarray(ms, float), np.asarray(y, float), np.asarray(keys)
+    ok = ~np.isnan(ms) & ~np.isnan(y)
+    ms, y, keys = ms[ok], y[ok], keys[ok]
+    lines = {
+        str(k): _line(ms[keys == k], y[keys == k])
+        for k in np.unique(keys)
+        if (keys == k).sum() >= min_rows
+    }
+    return lines, _line(ms, y)
+
+
+def apply_lines(ms, keys, lines: dict, fallback: tuple[float, float]) -> np.ndarray:
+    ms, keys = np.asarray(ms, float), np.asarray(keys)
+    a = np.array([lines.get(str(k), fallback)[0] for k in keys])
+    b = np.array([lines.get(str(k), fallback)[1] for k in keys])
+    return np.clip(a + b * ms, 0, None)  # NaN em ms continua NaN
+
+
+class TwoStageNM(TwoStage):
+    """Dois estágios para voos com NM; reta por aeroporto no atraso para voos sem NM."""
+
+    def __init__(self, cfg: dict) -> None:
+        super().__init__(cfg)
+        self.split_ms = bool(cfg.get("nm_split_ms", False))
+
+    def fit(self, train, cols, run=None, valid=None) -> "TwoStageNM":
+        super().fit(train, cols, run=run, valid=valid)
+        nm = train[train["nm_missing"] == 1]
+        self.lines, self.fallback = fit_lines(
+            nm[SCHED_GAP], nm[F.TARGET], nm_groups(nm, self.split_ms)
+        )
+        if run:
+            run.log(
+                f"retas NM ausente: {len(self.lines)} grupos"
+                f" · global a={self.fallback[0]:.0f} b={self.fallback[1]:.3f}"
+            )
+        return self
+
+    def predict(self, df: pd.DataFrame) -> np.ndarray:
+        pred = super().predict(df)
+        nm = (df["nm_missing"] == 1).to_numpy()
+        lines = apply_lines(df[SCHED_GAP], nm_groups(df, self.split_ms), self.lines, self.fallback)
+        use = nm & ~np.isnan(lines)
+        pred[use] = lines[use]
+        return pred
+
+
+MODELS = {"single": SingleLGBM, "two_stage": TwoStage, "two_stage_nm": TwoStageNM}
