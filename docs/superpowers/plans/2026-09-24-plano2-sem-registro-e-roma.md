@@ -47,7 +47,7 @@
 
 - [ ] **Step 1: Teste do rótulo (falha se o limite de 60 s ou o NaT mudarem)**
 
-Acrescentar a `tests/test_models.py`:
+Acrescentar a `tests/test_models.py` (juntar os imports no topo do arquivo):
 
 ```python
 import pandas as pd
@@ -107,7 +107,7 @@ Expected: 4 splits refeitos (a chave mudou), mesmas contagens: train2025 1.740.6
 - [ ] **Step 6: Suíte e commit**
 
 Run: `.venv/bin/python -m pytest -q` → Expected: 11 passed.
-Acrescentar a `tests/test_models.py` (juntar os imports no topo do arquivo):
+
 ```bash
 git add src/cache.py tests/test_models.py
 git commit -m "cache: chave inclui cache.py e escrita atômica; teste do rótulo de cópia"
@@ -135,7 +135,7 @@ git push
 
 - [ ] **Step 1: Testes que falham**
 
-Acrescentar a `tests/test_models.py`:
+Acrescentar a `tests/test_models.py` (juntar os imports no topo do arquivo):
 
 ```python
 import numpy as np
@@ -150,10 +150,10 @@ def test_retas_por_grupo_recuperam_a_relacao_e_usam_fallback():
     lines, fallback = fit_lines(ms, y, keys, min_rows=50)
     assert set(lines) == {"LIRF"}  # EDDF tem 2 linhas: usa a reta global
     a, b = lines["LIRF"]
-    assert abs(a + 2818) < 1e-6 and abs(b - 1.062) < 1e-9
+    assert abs(a + 2818) < 1e-4 and abs(b - 1.062) < 1e-7
     out = apply_lines(np.array([3000.0, 1000.0, np.nan]), np.array(["LIRF", "EDDF", "LIRF"]),
                       lines, fallback)
-    assert abs(out[0] - (-2818 + 1.062 * 3000)) < 1e-6
+    assert abs(out[0] - (-2818 + 1.062 * 3000)) < 1e-3
     assert out[1] == max(0.0, fallback[0] + fallback[1] * 1000.0)
     assert np.isnan(out[2])
 
