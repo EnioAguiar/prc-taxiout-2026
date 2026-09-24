@@ -4,3 +4,5 @@ numpy>=2.0
 lightgbm>=4.5
 minio>=7.2
 python-dotenv>=1.0
+psutil>=6.0
+pytest>=8.0

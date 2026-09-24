@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+# Roda com metade do PC: 6 núcleos físicos (0-5 e os irmãos de hyperthreading 12-17)
+# e prioridade baixa, para o PC continuar usável. Ex.: bin/run src/experiment.py base
+cd "$(dirname "$0")/.." || exit 1
+exec taskset -c 0-5,12-17 nice -n 5 .venv/bin/python "$@"
