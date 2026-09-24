@@ -74,7 +74,8 @@ deixa a validação otimista e o modelo cego para eles (erro da v1).
 
 ## Modelo atual (`src/`)
 
-Campeão em `champion.json`: **dois estágios**, 388,16 s na simulação.
+Campeão em `champion.json`: **dois estágios com retas para voos sem NM**
+(`two_stage_nm`), 345,89 s na simulação.
 
 - **Estágio 1:** classificador LightGBM de `eq = |BLOCK − SCHED| ≤ 60 s`,
   a cópia que existe na cauda.
@@ -82,6 +83,10 @@ Campeão em `champion.json`: **dois estágios**, 388,16 s na simulação.
 - **Combinação pela esperança:** `ŷ = p·(MVT − SCHED) + (1 − p)·ŷ_normal`,
   com piso 0; nunca argmax, porque errar a classe custa horas². Sem SCHED,
   só o regressor.
+- **Voos sem registro NM (`nm_missing`):** a previsão acima é trocada por
+  uma reta `y = a + b·(MVT − SCHED)` ajustada por aeroporto (com
+  `--nm-split-ms`, por aeroporto × atraso > 2 h); grupos com < 50 voos usam
+  a reta global; piso 0.
 - Features: referência P10 por (aeroporto, stand, pista) com fallback,
   calculada só no fold de treino; tempos entre os horários planejados/NM
   (SCHED, LOBT, IOBT, EOBT, AOBT_3) e a decolagem; diferenças entre esses
@@ -113,8 +118,9 @@ Campeão em `champion.json`: **dois estágios**, 388,16 s na simulação.
 | v1 | 24/09 | modelo base; treino sem y ≥ 3 h, previsão limitada a 3 h | 535,9 / 264,4 | 514,5 |
 | v2 | 24/09 | treino com outliers, sem limite; bug de unidade das janelas de congestionamento corrigido; features de diferença e arredondamento | 460,4 / 290,2 | **384,7** |
 | v3 | 24/09 | dois estágios (classificador da cópia do SCHED + regressor) e `nm_missing`; base de experimentos nova | 388,16 / 269,87 | **338,7** |
+| v4 | 24/09 | `two_stage_nm`: retas por aeroporto em `MVT − SCHED` para os voos sem NM | 345,89 / 285,52 | aguardando aprovação/envio |
 
-A simulação da v3 vem do holdout novo (`experiment.py`), mais rigoroso que o
+A simulação da v3 e da v4 vem do holdout novo (`experiment.py`), mais rigoroso que o
 `sim_ranking.py` que mediu a v1 e a v2.
 
 ## Roadmap
@@ -132,13 +138,19 @@ Feito:
   (sem outliers 269,87; NM presente 242,2; NM ausente 2442,18; LIRF 1280,8 → 957,1),
   ganho de 66,8 s (IC 95% 26,3 a 111,0) → **novo campeão**. Virou a v3
   (480+480 rodadas, 5m23s): **338,7 s** oficiais.
+- [x] Re-medida da campeã no código novo (`dois_estagios_r`): 388,16 s, idêntica à v3.
+- [x] Item 3 da parte 2 — retas por aeroporto em `ms = MVT − SCHED` para os
+  voos `nm_missing` (`nm_retas`, `two_stage_nm`): **345,89 s** (NM ausente
+  2442 → 1993; LIRF 957 → 717), ganho de 42,3 s (IC 95% 2,0 a 86,5) →
+  **novo campeão**. Virou a v4 (480+480 rodadas), aguardando aprovação/envio.
+- [x] Item 4 da parte 2 — célula aeroporto × `ms` > 2 h (`nm_retas_2h`,
+  `--nm-split-ms`): 341,49 s (NM ausente 1944; LIRF 687), ganho de 4,4 s
+  sobre `nm_retas` (IC 95% 1,5 a 7,7) → **não comprovado** (abaixo de 10 s);
+  fica para re-teste com seeds no plano 3.
 
-Próximo (itens 3–4 da parte 2, com plano próprio):
+Próximo: item 5 — alvo residual sobre `MVT − AOBT_3`.
 
-3. [ ] Modelo linear por aeroporto em `ms = MVT − SCHED` para os voos `nm_missing` (subgrupo ainda em 2442 s).
-4. [ ] Célula LIRF ∧ `nm_missing` ∧ `ms` > 2 h com `p` calibrado por aeroporto × mês × faixa de `ms`.
-
-Depois: alvo residual `y − (MVT − AOBT_3)`, features de vizinhos, ensemble
+Depois: features de vizinhos, ensemble
 (XGBoost CUDA + seeds LightGBM), METAR e poda de features. E, antes de
 11/10, repositório público GPLv3 (condição do prêmio).
 
@@ -153,6 +165,11 @@ contínua mesmo quando a campeã vai bem, e caça a "ouro falso" e lixo:
   lixo e sai.
 - [ ] Teste do teste: `mutmut` periódico em `compare`, `train` e `cache`
   (mutação que não derruba nenhum teste = teste fraco).
+- [ ] Re-testar `nm_retas_2h` (`--nm-split-ms`) com seeds: o ganho de 4,4 s
+  (IC 1,5 a 7,7) pode ser real, mas está abaixo do limiar de 10 s.
+- [ ] Híbrido para voos sem NM: a reta piora os voos normais sem NM
+  (1.088 → 1.324 s) e ganha nos 56 extremos; combinar reta e regressor
+  (ex.: pela probabilidade de cópia) em vez de trocar tudo pela reta.
 
 ## Uso
 
@@ -162,6 +179,7 @@ cp .env.example .env                              # chaves e TEAM_NAME
 .venv/bin/python src/s3.py download               # dados em data/
 bin/run src/cache.py                              # features em cache (uma vez, sozinho)
 bin/run src/experiment.py <nome> --model two_stage
+bin/run src/experiment.py <nome> --model two_stage_nm [--nm-split-ms]
 bin/run src/compare.py <id> --promover            # decide contra o campeão
 bin/run src/train.py submit N [--forcar]          # gera a vN (não envia)
 .venv/bin/python src/s3.py submit submissions/<TEAM>_vN.parquet   # só após aprovação
