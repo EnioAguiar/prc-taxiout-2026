@@ -118,10 +118,15 @@ Campeão em `champion.json`: **dois estágios com retas para voos sem NM**
 | v1 | 24/09 | modelo base; treino sem y ≥ 3 h, previsão limitada a 3 h | 535,9 / 264,4 | 514,5 |
 | v2 | 24/09 | treino com outliers, sem limite; bug de unidade das janelas de congestionamento corrigido; features de diferença e arredondamento | 460,4 / 290,2 | **384,7** |
 | v3 | 24/09 | dois estágios (classificador da cópia do SCHED + regressor) e `nm_missing`; base de experimentos nova | 388,16 / 269,87 | **338,7** |
-| v4 | 24/09 | `two_stage_nm`: retas por aeroporto em `MVT − SCHED` para os voos sem NM | 345,89 / 285,52 | aguardando aprovação/envio |
+| v4 | 24/09 | `two_stage_nm`: retas por aeroporto em `MVT − SCHED` para os voos sem NM | 345,89 / 285,52 | **337,2** |
 
 A simulação da v3 e da v4 vem do holdout novo (`experiment.py`), mais rigoroso que o
 `sim_ranking.py` que mediu a v1 e a v2.
+
+**Alerta v4:** a simulação previa −42 s e o oficial deu só −1,5 s (relação
+oficial/simulação 0,975, fora de 0,84 ± 0,05). Pela regra do ciclo, parar e
+investigar por que o ganho nos voos sem NM não se transferiu para 2026 antes
+de novas versões.
 
 ## Roadmap
 
@@ -142,7 +147,8 @@ Feito:
 - [x] Item 3 da parte 2 — retas por aeroporto em `ms = MVT − SCHED` para os
   voos `nm_missing` (`nm_retas`, `two_stage_nm`): **345,89 s** (NM ausente
   2442 → 1993; LIRF 957 → 717), ganho de 42,3 s (IC 95% 2,0 a 86,5) →
-  **novo campeão**. Virou a v4 (480+480 rodadas), aguardando aprovação/envio.
+  **novo campeão**. Virou a v4 (480+480 rodadas): **337,2 s** oficiais — ganho
+  oficial de só 1,5 s (ver alerta em Submissões).
 - [x] Item 4 da parte 2 — célula aeroporto × `ms` > 2 h (`nm_retas_2h`,
   `--nm-split-ms`): 341,49 s (NM ausente 1944; LIRF 687), ganho de 4,4 s
   sobre `nm_retas` (IC 95% 1,5 a 7,7) → **não comprovado** (abaixo de 10 s);
