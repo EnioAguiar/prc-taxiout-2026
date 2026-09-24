@@ -49,7 +49,9 @@ def split_paths(name: str) -> list[Path]:
 
 
 def cache_key(paths: list[Path]) -> str:
+    """Muda quando features.py, cache.py (montagem/filtros) ou os dados mudam."""
     h = hashlib.sha256(Path(F.__file__).read_bytes())
+    h.update(Path(__file__).read_bytes())
     for p in paths:
         h.update(f"{p.name}:{p.stat().st_size}".encode())
     return h.hexdigest()[:12]
@@ -81,9 +83,12 @@ def load_split(name: str) -> pd.DataFrame:
         df = df[df[F.TARGET].notna()]
     df = df.reset_index(drop=True)
     CACHE.mkdir(parents=True, exist_ok=True)
+    tmp = target.with_suffix(".tmp")
+    df.to_parquet(tmp, compression="zstd", index=False)
+    tmp.replace(target)  # arquivo pela metade nunca vira cache válido
     for old in CACHE.glob(f"{name}-*.parquet"):
-        old.unlink()
-    df.to_parquet(target, compression="zstd", index=False)
+        if old != target:
+            old.unlink()
     return df
 
 
