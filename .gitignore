@@ -8,3 +8,4 @@ submissions/
 __pycache__/
 runs/
 logs/
+.superpowers/
