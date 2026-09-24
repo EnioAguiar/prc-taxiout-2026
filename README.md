@@ -142,6 +142,18 @@ Depois: alvo residual `y − (MVT − AOBT_3)`, features de vizinhos, ensemble
 (XGBoost CUDA + seeds LightGBM), METAR e poda de features. E, antes de
 11/10, repositório público GPLv3 (condição do prêmio).
 
+Plano 3 (depois do plano 2, antes das próximas ideias de modelo) — melhoria
+contínua mesmo quando a campeã vai bem, e caça a "ouro falso" e lixo:
+
+- [ ] `sweep.py`: grade de variantes da campeã (lr, folhas, rodadas), CPU e
+  XGBoost GPU em paralelo dentro de metade do PC; tudo passa pelo `compare.py`.
+- [ ] Estabilidade: a campeã com 3 seeds, para medir o ruído do próprio modelo
+  (ganho menor que esse ruído não conta).
+- [ ] `ablation.py`: tirar um grupo de features por vez; o que não faz falta é
+  lixo e sai.
+- [ ] Teste do teste: `mutmut` periódico em `compare`, `train` e `cache`
+  (mutação que não derruba nenhum teste = teste fraco).
+
 ## Uso
 
 ```bash
