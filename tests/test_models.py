@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from models import apply_lines, combine, copied_from_sched, fit_lines
+from models import apply_lines, combine, copied_from_sched, fit_lines, line_rows, nm_groups
 
 
 def test_combina_pela_esperanca_da_mistura():
@@ -43,3 +43,20 @@ def test_retas_por_grupo_recuperam_a_relacao_e_usam_fallback():
 def test_retas_nunca_preveem_negativo():
     lines = {"LIRF": (-2818.0, 1.062)}
     assert apply_lines(np.array([0.0]), np.array(["LIRF"]), lines, (0.0, 0.0)).tolist() == [0.0]
+
+
+def test_reta_so_troca_voos_sem_nm_acima_do_limiar():
+    nm = np.array([1, 1, 1, 0, 1], bool)
+    ms = np.array([30_000.0, 3_000.0, np.nan, 30_000.0, 21_600.0])
+    line = np.array([29_000.0, 2_000.0, np.nan, 29_000.0, 20_000.0])
+    assert line_rows(nm, ms, line, 21_600).tolist() == [True, False, False, False, False]
+    assert line_rows(nm, ms, line, 0).tolist() == [True, True, False, False, True]
+
+
+def test_grupos_com_corte_de_2h():
+    df = pd.DataFrame({
+        "AIRPORT": pd.Categorical(["LIRF", "LIRF", "EDDF"]),
+        "to_takeoff_from_SCHED_TIME_UTC_mvt": [9000.0, 600.0, np.nan],
+    })
+    assert nm_groups(df, split_ms=True).tolist() == ["LIRF|>2h", "LIRF|<=2h", "EDDF|<=2h"]
+    assert nm_groups(df, split_ms=False).tolist() == ["LIRF", "LIRF", "EDDF"]

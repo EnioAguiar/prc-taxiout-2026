@@ -174,12 +174,20 @@ def apply_lines(ms, keys, lines: dict, fallback: tuple[float, float]) -> np.ndar
     return np.clip(a + b * ms, 0, None)  # NaN em ms continua NaN
 
 
+def line_rows(nm, ms, line_pred, min_ms: float) -> np.ndarray:
+    """Voos em que a reta substitui o dois estágios: sem NM, com reta e atraso > limiar."""
+    nm, ms, line_pred = np.asarray(nm, bool), np.asarray(ms, float), np.asarray(line_pred, float)
+    over = np.nan_to_num(ms, nan=-np.inf) > min_ms if min_ms > 0 else np.ones(ms.size, bool)
+    return nm & ~np.isnan(line_pred) & over
+
+
 class TwoStageNM(TwoStage):
     """Dois estágios para voos com NM; reta por aeroporto no atraso para voos sem NM."""
 
     def __init__(self, cfg: dict) -> None:
         super().__init__(cfg)
         self.split_ms = bool(cfg.get("nm_split_ms", False))
+        self.min_ms = float(cfg.get("nm_min_ms", 0))
 
     def fit(self, train, cols, run=None, valid=None) -> "TwoStageNM":
         super().fit(train, cols, run=run, valid=valid)
@@ -198,7 +206,7 @@ class TwoStageNM(TwoStage):
         pred = super().predict(df)
         nm = (df["nm_missing"] == 1).to_numpy()
         lines = apply_lines(df[SCHED_GAP], nm_groups(df, self.split_ms), self.lines, self.fallback)
-        use = nm & ~np.isnan(lines)
+        use = line_rows(nm, df[SCHED_GAP], lines, self.min_ms)
         pred[use] = lines[use]
         return pred
 

@@ -2,7 +2,7 @@
 
     bin/run src/experiment.py <nome> --model single [--rounds 400] [--nota "texto"]
     bin/run src/experiment.py <nome> --model two_stage [--cls-rounds 400] [--reg-rounds 400]
-    bin/run src/experiment.py <nome> --model two_stage_nm [--nm-split-ms]
+    bin/run src/experiment.py <nome> --model two_stage_nm [--nm-split-ms] [--nm-min-ms S]
 
 Treina em train2025 (10 meses), prevê holdout2025 (jan+jul/2025 montados como o
 ranking) e registra RMSE completo, sem outliers, por grupo e por aeroporto.
@@ -59,6 +59,7 @@ def config(a: argparse.Namespace) -> dict:
     }
     if a.model == "two_stage_nm":
         cfg["nm_split_ms"] = a.nm_split_ms
+        cfg["nm_min_ms"] = a.nm_min_ms
     return cfg
 
 
@@ -71,9 +72,13 @@ def main() -> None:
     ap.add_argument("--reg-rounds", type=int, default=400)
     ap.add_argument("--nm-split-ms", action="store_true",
                     help="two_stage_nm: retas separadas para atraso > 2 h (célula de Roma)")
+    ap.add_argument("--nm-min-ms", type=float, default=0.0,
+                    help="two_stage_nm: só usa a reta com atraso acima de S segundos")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--nota", default="")
     a = ap.parse_args()
+    if a.model != "two_stage_nm" and (a.nm_split_ms or a.nm_min_ms):
+        ap.error("--nm-split-ms e --nm-min-ms só valem com --model two_stage_nm")
     cfg = config(a)
 
     with Run(a.nome, cfg) as run:

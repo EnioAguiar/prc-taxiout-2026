@@ -1,6 +1,6 @@
 """Comparação pareada entre dois experimentos (bootstrap por dia).
 
-    bin/run src/compare.py <id_novo> [<id_base>] [--promover]
+    bin/run src/compare.py <id_novo> [<id_base>] [--promover] [--aceitar-fragil]
 
 Sem <id_base>, compara com o campeão (champion.json). Veredito MELHOR exige ganho ≥ 10 s,
 IC 95% > 0, ganho sem os 10 maiores voos > 0 e ≥ 10 % do cheio, e ganho com IC > 0 em cada
