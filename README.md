@@ -320,9 +320,21 @@ gravado na data do SCHED) e 4,5 % normais; 25 desses no ranking 2026.
     troca a parametrização (e tira do LightGBM a liberdade de ignorar `ref` onde ela é
     ruim, daí os alarmes falsos subirem em 4a). Código removido (`residual_ref`, a flag
     `--residual` e os testes); `experiments.jsonl` guarda as duas corridas.
+- [ ] **A. adsb.lol (prioridade 1, pesquisa de 25/09).** Discord do desafio: o 3º
+  colocado (SoK) usa adsb.lol + clima + stands do X-Plane; GREKI "subiu muito" com
+  jan+jul completos; o organizador confirmou que dado aberto declarado vale.
+  Teste de 1 dia (EDDM, 15/01/2025, 2,2 GB, parse 8 min): 357 de 361 decolagens
+  casadas por callsign + decolagem (mediana 19 s do MVT); off-block = 1º ponto no
+  chão do rastro: |erro| mediana **82 s**, 41 % a ±60 s, 75 % a ±300 s — contra
+  `MVT − AOBT_3` nos mesmos voos: mediana 356 s, 14 % a ±60 s. Próximo: pipeline dia
+  a dia (baixa → recorte dos 10 aeroportos em zst → apaga), 124 dias ≈ 350 GB de
+  download (~25 MB/s), cobertura por aeroporto, features `adsb_taxi` + flag de
+  cobertura. Cuidado: cobertura de chão fraca em LFPG, LIRF, LEMD, LTFM (relato).
 - [ ] 5. Features de vizinhos (item 6).
-- [ ] 6. Ensemble XGBoost CUDA + seeds LightGBM (item 7).
-- [ ] 7. `sweep.py` (polimento).
+- [ ] 6. Ensemble XGBoost CUDA + seeds LightGBM (item 7) — **baixa prioridade**:
+  no Discord, XGBoost ganhou peso zero e pesos de blend ajustados perderam 4/4.
+- [ ] 7. `sweep.py` (polimento) — **baixa prioridade**: tuning não significativo
+  em LightGBM/CatBoost/XGBoost (relato no Discord).
 - [ ] 8. `ablation.py` (poda de features) e `mutmut` (teste do teste).
 
 ## Uso
