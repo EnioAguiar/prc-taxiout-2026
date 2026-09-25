@@ -29,7 +29,7 @@ import pandas as pd
 RAIZ = Path("/mnt/c0399cd8-7cca-4664-884d-e89d4a1e81a2/prc-adsb")
 MESES = ["2025-01", "2025-07", "2026-01", "2026-07"]
 ALT_MAX_FT = 3000
-BOX_DEG = 0.06  # meia largura em latitude; longitude corrigida por cos(lat)
+BOX_DEG = 0.10  # meia largura em latitude (~11 km); longitude corrigida por cos(lat). Cobre a Polderbaan (EHAM).
 
 AEROPORTOS = {  # ARP (graus)
     "EDDF": (50.0333, 8.5706),
@@ -63,14 +63,24 @@ def aeroporto_do_ponto(lat: float, lon: float, cx: np.ndarray) -> int:
     return int(idx[0]) if idx.size else -1
 
 
+COLS = ["icao", "reg", "tipo", "t", "apt", "lat", "lon", "chao", "alt", "gs", "track", "vrate", "fonte", "callsign"]
+
+
+def _campo(p: list, i: int):
+    return p[i] if len(p) > i else None
+
+
 def recortar_rastro(d: dict, cx: np.ndarray) -> list[tuple]:
-    """Pontos do rastro dentro de uma caixa e baixos: (icao, t, apt, lat, lon, chao, alt, gs, callsign)."""
+    """Pontos do rastro dentro de uma caixa e baixos, na ordem de COLS.
+
+    Ponto do readsb: [dt, lat, lon, alt|"ground", gs, track, flags, vrate, aircraft, fonte, ...].
+    """
     t0 = d["timestamp"]
-    icao = d["icao"]
+    icao, reg, tipo = d["icao"], d.get("r"), d.get("t")
     cs = None
     rows = []
     for p in d.get("trace", []):
-        if len(p) > 8 and isinstance(p[8], dict) and p[8].get("flight"):
+        if isinstance(_campo(p, 8), dict) and p[8].get("flight"):
             cs = p[8]["flight"].strip()
         alt = p[3]
         chao = alt == "ground"
@@ -79,7 +89,8 @@ def recortar_rastro(d: dict, cx: np.ndarray) -> list[tuple]:
         a = aeroporto_do_ponto(p[1], p[2], cx)
         if a < 0:
             continue
-        rows.append((icao, t0 + p[0], a, p[1], p[2], chao, None if chao else alt, p[4], cs))
+        rows.append((icao, reg, tipo, t0 + p[0], a, p[1], p[2], chao, None if chao else alt,
+                     p[4], _campo(p, 5), _campo(p, 7), _campo(p, 9), cs))
     return rows
 
 
@@ -124,11 +135,12 @@ def processar_dia(dia: str, raiz: Path) -> str:
     finally:
         cat.stdout.close()
         cat.wait()
-    cols = ["icao", "t", "apt", "lat", "lon", "chao", "alt", "gs", "callsign"]
-    df = pd.DataFrame(rows, columns=cols)
+    df = pd.DataFrame(rows, columns=COLS)
     df["apt"] = pd.Categorical.from_codes(df["apt"], list(AEROPORTOS))
-    df["alt"] = pd.to_numeric(df["alt"], errors="coerce").astype("float32")
-    df["gs"] = pd.to_numeric(df["gs"], errors="coerce").astype("float32")
+    for c in ["alt", "gs", "track", "vrate"]:
+        df[c] = pd.to_numeric(df[c], errors="coerce").astype("float32")
+    for c in ["reg", "tipo", "fonte", "callsign"]:
+        df[c] = df[c].astype("category")
     part = out.with_suffix(".part")
     df.to_parquet(part, compression="zstd", index=False)
     part.rename(out)
