@@ -103,92 +103,12 @@ def combine(p, ms, reg) -> np.ndarray:
     return np.clip(mix, 0, None)
 
 
-CAL_FOLDS = 5  # folds por dia dentro do treino: p fora do fold para calibrar
-CAL_BINS = 256  # bins de quantil de p antes do PAVA
-CAL_MIN_ROWS = 500  # célula menor que isso fica com p bruto
-CAL_MIN_CLASS = 20  # idem se uma das classes tem poucos exemplos
-CAL_EDGES = (7200.0, 21600.0, 43200.0)  # faixas de ms: ≤2 h, 2–6 h, 6–12 h, > 12 h
-CAL_START, CAL_SPAN = 0.30, 0.14  # fatia da barra de progresso de cada fold
-
-
-def ms_band(ms) -> np.ndarray:
-    """Faixa do atraso MVT − SCHED usada como célula da calibração."""
-    ms = np.asarray(ms, float)
-    names = np.array(["<=2h", "2-6h", "6-12h", ">12h"])
-    band = names[np.digitize(np.nan_to_num(ms, nan=0.0), CAL_EDGES)]
-    return np.where(np.isnan(ms), "sem_ms", band)
-
-
-def calib_groups(df: pd.DataFrame) -> np.ndarray:
-    """Célula da calibração: LIRF ou não × com ou sem NM × faixa de ms."""
-    lirf = np.where(df[F.AIRPORT].astype(str).to_numpy() == "LIRF", "LIRF", "outros")
-    nm = np.where(df["nm_missing"].to_numpy() == 1, "semNM", "comNM")
-    join = np.char.add
-    return join(join(lirf, "|"), join(join(nm, "|"), ms_band(df[SCHED_GAP])))
-
-
-def _pava(y: np.ndarray, w: np.ndarray) -> np.ndarray:
-    """Pool adjacent violators: melhor ajuste não decrescente por mínimos quadrados."""
-    val, wgt = np.empty(len(y)), np.empty(len(y))
-    size = np.empty(len(y), int)
-    k = 0
-    for i in range(len(y)):
-        val[k], wgt[k], size[k] = y[i], w[i], 1
-        k += 1
-        while k > 1 and val[k - 1] < val[k - 2]:
-            total = wgt[k - 2] + wgt[k - 1]
-            val[k - 2] = (val[k - 2] * wgt[k - 2] + val[k - 1] * wgt[k - 1]) / total
-            wgt[k - 2], size[k - 2] = total, size[k - 2] + size[k - 1]
-            k -= 1
-    return np.repeat(val[:k], size[:k])
-
-
-def isotonic_fit(p, label, bins: int = CAL_BINS) -> tuple[np.ndarray, np.ndarray]:
-    """Taxa de cópia por bin de quantil de p, monotonizada: (p do bin, p calibrado)."""
-    p, y = np.asarray(p, float), np.asarray(label, float)
-    edges = np.unique(np.quantile(p, np.linspace(0, 1, bins + 1)))
-    if len(edges) < 2:  # p constante: a calibração é a taxa média
-        return np.array([float(p.mean())]), np.array([float(y.mean())])
-    idx = np.clip(np.searchsorted(edges, p, side="right") - 1, 0, len(edges) - 2)
-    w = np.bincount(idx, minlength=len(edges) - 1).astype(float)
-    ok = w > 0
-    x = np.bincount(idx, p, minlength=len(edges) - 1)[ok] / w[ok]
-    mean = np.bincount(idx, y, minlength=len(edges) - 1)[ok] / w[ok]
-    return x, _pava(mean, w[ok])
-
-
-def fit_calibration(p, label, keys) -> dict:
-    """Um calibrador isotônico por célula, só onde há dados das duas classes."""
-    p, label, keys = np.asarray(p, float), np.asarray(label, float), np.asarray(keys)
-    cal = {}
-    for k in np.unique(keys):
-        m = keys == k
-        pos = label[m].sum()
-        if m.sum() < CAL_MIN_ROWS or min(pos, m.sum() - pos) < CAL_MIN_CLASS:
-            continue
-        cal[str(k)] = isotonic_fit(p[m], label[m])
-    return cal
-
-
-def apply_calibration(p, keys, cal: dict) -> np.ndarray:
-    """p calibrado dentro da célula (monótono em p, em [0, 1]); sem calibrador, p bruto."""
-    p, keys = np.asarray(p, float), np.asarray(keys)
-    out = p.copy()
-    for k, (x, fitted) in cal.items():
-        m = keys == k
-        if m.any():
-            out[m] = np.interp(p[m], x, fitted)
-    return np.clip(out, 0.0, 1.0)
-
-
 class TwoStage:
     """Classificador 'BLOCK copiado do SCHED' + regressor L2 nos voos normais."""
 
     def __init__(self, cfg: dict) -> None:
         self.cls_rounds = int(cfg.get("cls_rounds", 400))
         self.reg_rounds = int(cfg.get("reg_rounds", 400))
-        self.calibrar = bool(cfg.get("calibrar", False))
-        self.calib: dict = {}
         self.best_iter: int | None = None
         self.params = params_for(cfg)
 
@@ -196,53 +116,25 @@ class TwoStage:
     def _cb(run, rounds: int, label: str, start: float, span: float) -> list:
         return [run.lgb_callback(rounds, label, start=start, span=span)] if run else []
 
-    def _fit_calibration(self, train, cols, copied, cls_params, run=None) -> None:
-        """p fora do fold (5 folds por dia) e um calibrador isotônico por célula."""
-        day = train["MVT_TIME_UTC_mvt"].dt.strftime("%Y-%m-%d").to_numpy()
-        fold = pd.factorize(day)[0] % CAL_FOLDS
-        x, y = train[cols], copied.to_numpy("int8")
-        p = np.zeros(len(train))
-        for f in range(CAL_FOLDS):
-            out = fold == f
-            model = lgb.train(
-                cls_params, lgb.Dataset(x[~out], y[~out]), self.cls_rounds,
-                callbacks=self._cb(run, self.cls_rounds, f"fold {f + 1}/{CAL_FOLDS}",
-                                   CAL_START + f * CAL_SPAN, CAL_SPAN),
-            )
-            p[out] = model.predict(x[out])
-            del model
-        self.calib = fit_calibration(p, y, calib_groups(train))
-        if run:
-            run.log(
-                f"calibração: {len(self.calib)} células calibradas"
-                f" · p fora do fold {p.mean():.4f} · cópias {y.mean():.4f}"
-            )
-
     def fit(self, train, cols, run=None, valid=None) -> "TwoStage":
         self.cols = cols
         copied = copied_from_sched(train)
         cls_params = {**self.params, "objective": "binary", "metric": "binary_logloss"}
-        span = 0.15 if self.calibrar else 0.5
         self.cls = lgb.train(
             cls_params, lgb.Dataset(train[cols], copied.astype("int8")), self.cls_rounds,
-            callbacks=self._cb(run, self.cls_rounds, "classificador", 0.0, span),
+            callbacks=self._cb(run, self.cls_rounds, "classificador", 0.0, 0.5),
         )
         normal = train[~copied]
         self.reg = lgb.train(
             self.params, lgb.Dataset(normal[cols], normal[F.TARGET]), self.reg_rounds,
-            callbacks=self._cb(run, self.reg_rounds, "regressor", span, span),
+            callbacks=self._cb(run, self.reg_rounds, "regressor", 0.5, 0.5),
         )
-        if self.calibrar:
-            self._fit_calibration(train, cols, copied, cls_params, run=run)
         return self
 
     def parts(self, df: pd.DataFrame) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """(p da cópia, ms, previsão do regressor); p calibrado quando há calibrador."""
+        """(p da cópia, ms, previsão do regressor)."""
         x = df[self.cols]
-        p = self.cls.predict(x)
-        if self.calib:
-            p = apply_calibration(p, calib_groups(df), self.calib)
-        return p, df[SCHED_GAP].to_numpy(float), self.reg.predict(x)
+        return self.cls.predict(x), df[SCHED_GAP].to_numpy(float), self.reg.predict(x)
 
     def predict(self, df: pd.DataFrame) -> np.ndarray:
         return combine(*self.parts(df))

@@ -247,6 +247,15 @@ gravado na data do SCHED) e 4,5 % normais; 25 desses no ranking 2026.
   a queda de 332,86 → 274,42). Ruído entre seeds nas fatias novas: ver
   "Modelo atual".
 - [ ] 2. Alarmes falsos (teto −15 s): calibração de `p` por célula; híbrido reta/regressor sem NM.
+  - **2a, calibração de `p` por célula (`cal_celula`, `--calibrar`): descartada —
+    ganho 0,1 s (IC 95% −0,1 a 0,3), "não comprovado".** Isotônica fora do fold
+    (5 folds por dia) por célula (LIRF × `nm_missing` × faixa de `ms`) em cima da
+    campeã: 332,79 (contra 332,86), `normais_nm` 220,81 (contra 220,68), alarmes
+    falsos 207 voos = 10,2 % do erro² (contra 204 = 10,0 %). Motivo: o
+    classificador **já é calibrado** — `p` médio fora do fold 0,0949 contra taxa
+    real de cópia 0,0972 — e só 5 das 20 células têm cópias suficientes (≥ 20)
+    para ajustar um calibrador; os alarmes falsos não vêm de `p` mal calibrado em
+    média, vêm de voos individuais com `p·ms` grande. Código removido.
 - [ ] 3. Mistura por horário copiado (SCHED/EOBT/LOBT/AOBT_3/"24 h + taxi"; teto −13 s).
 - [ ] 4. Alvo residual sobre `MVT − AOBT_3` (item 5).
 - [ ] 5. Features de vizinhos (item 6).
