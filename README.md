@@ -302,7 +302,24 @@ gravado na data do SCHED) e 4,5 % normais; 25 desses no ranking 2026.
   87 k), então a classe 5 quase não tem o que ganhar. Código removido (`copy_mix`,
   `copy_class`, `days_shift` e os testes); `experiments.jsonl` guarda as duas corridas
   e o cache foi refeito com as 58 features da campeã.
-- [ ] 4. Alvo residual sobre `MVT − AOBT_3` (item 5).
+- [x] 4. Alvo residual sobre `MVT − AOBT_3` (teto do cenário: −13 s): **descartado — as
+  duas formas empatam com a campeã e a campeã não mudou.** `ref = MVT − AOBT_3` quando
+  cai em [0, 7200] s, senão `MVT − EOBT_1`, `MVT − LOBT`, `ref_p10`, senão 0 (cobre
+  98,4 % dos voos, igual no holdout e no ranking).
+  - **4a, alvo residual (`residual_aobt`, `--residual alvo`): o regressor normal aprende
+    `y − ref` e prevê `ref + ŷ_res`** — completo 333,06 (contra 332,86), `normais_nm`
+    **221,02** (contra 220,68), alarmes falsos 229 voos = 10,4 % (contra 204 = 10,0 %);
+    ganho −0,2 s (IC 95% −1,1 a 0,8), nos voos normais com NM −0,3 s (IC −0,9 a 0,1) →
+    "não comprovado".
+  - **4b, `ref` como feature extra do regressor (`residual_feat`, `--residual feature`):**
+    completo 333,43, `normais_nm` 221,08; ganho −0,6 s (IC 95% −1,2 a 0,1), normais com NM
+    −0,4 s (IC −0,7 a −0,1) → "não comprovado".
+  - Motivo: `ref` **já é feature** do regressor (`to_takeoff_from_AOBT_3_flt`) e ele já a
+    usa — a correlação entre `ŷ − ref` da campeã e `y − ref` é 0,806, e `ref` sozinha
+    erra 372,7 s contra 220,7 da campeã nessa fatia. Reescrever o alvo em torno dela só
+    troca a parametrização (e tira do LightGBM a liberdade de ignorar `ref` onde ela é
+    ruim, daí os alarmes falsos subirem em 4a). Código removido (`residual_ref`, a flag
+    `--residual` e os testes); `experiments.jsonl` guarda as duas corridas.
 - [ ] 5. Features de vizinhos (item 6).
 - [ ] 6. Ensemble XGBoost CUDA + seeds LightGBM (item 7).
 - [ ] 7. `sweep.py` (polimento).

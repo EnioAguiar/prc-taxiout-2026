@@ -128,9 +128,9 @@ Teto do oráculo de cópias: −13 s. Generaliza o estágio 1 de binário para m
 **Files:** `src/models.py`, `src/experiment.py`, testes.
 
 - Referência `ref = MVT − AOBT_3` quando existe e fica em [0, 7200] s; senão `MVT − EOBT_1`, `MVT − LOBT`, `ref_p10`. O regressor normal aprende `y − ref` e prevê `ref + ŷ_res`. Flag `--residual`; vale para o regressor de qualquer modelo de dois estágios/mistura.
-- [ ] Teste: `ref` segue a ordem de fallback e o intervalo [0, 7200].
-- [ ] Experimento contra a campeã; olhar `normais_nm` (cenário: 220,7 → 200 vale −13 s).
-- [ ] Commit + push.
+- [x] Teste: `ref` segue a ordem de fallback e o intervalo [0, 7200] (mais um teste de que o alvo residual reconstrói `ref + ŷ_res`); removidos com o código do experimento.
+- [x] Experimento contra a campeã: `20260925-120711-residual_aobt` (alvo residual) completo 333,06 e `normais_nm` **221,02**, ganho −0,2 s (IC −1,1 a 0,8); variante `20260925-121112-residual_feat` (`ref` como feature) 333,43 e 221,08, ganho −0,6 s (IC −1,2 a 0,1) → **as duas "não comprovadas"**, `ref` já é feature do regressor (correlação 0,806 entre `ŷ − ref` e `y − ref`). Código removido.
+- [x] Commit + push.
 
 ### Task 5: Voos normais — features de vizinhos (item 6)
 
