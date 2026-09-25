@@ -5,6 +5,8 @@
 Sem <id_base>, compara com o campeão (champion.json). Veredito MELHOR exige ganho ≥ 10 s,
 IC 95% > 0, ganho sem os 10 maiores voos > 0 e ≥ 10 % do cheio, e ganho com IC > 0 em cada
 mês. Se só os critérios de robustez falham: FRÁGIL (não promove sem --aceitar-fragil).
+O ganho nos voos normais com NM e o ganho sem os voos "loteria" saem como informação
+para decidir; nenhum dos dois entra no veredito.
 --promover grava o novo campeão quando o veredito é MELHOR e a base é o próprio campeão
 (ou uma repetição da configuração dele); sem campeão, promove direto.
 """
@@ -17,8 +19,9 @@ import json
 import numpy as np
 import pandas as pd
 
-from cache import TRUTH
-from features import ID
+from cache import TRUTH, load_split
+from experiment import TAIL_S, lottery_mask
+from features import ID, PLAN_REFS
 from runlog import REGISTRY, ROOT
 
 CHAMPION = ROOT / "champion.json"
@@ -67,6 +70,24 @@ def by_month(y, base, new, days) -> dict:
     return {
         m: paired_bootstrap(y[months == m], base[months == m], new[months == m], days[months == m])
         for m in sorted(set(months))
+    }
+
+
+HOLD_COLS = [ID, "FLIGHT_ID_mvt", *(f"to_takeoff_from_{c}" for c in PLAN_REFS)]
+
+
+def slice_masks(m: pd.DataFrame) -> dict[str, np.ndarray]:
+    """Fatias informativas alinhadas às linhas de `m`, com as features do holdout.
+
+    Voos normais com NM são 43 % do erro² e é neles que dá para melhorar de verdade;
+    os 11 voos "loteria" são 32 % do erro² e só adicionam ruído ao ganho.
+    """
+    hold = load_split("holdout2025")[HOLD_COLS]
+    j = m[[ID]].merge(hold, on=ID, how="left", validate="one_to_one")
+    y = m[TRUTH].to_numpy(float)
+    return {
+        "voos normais com NM": (y <= TAIL_S) & j["FLIGHT_ID_mvt"].notna().to_numpy(),
+        "sem loteria": ~lottery_mask(j, y),
     }
 
 
@@ -144,6 +165,13 @@ def main() -> None:
     print(f"  sem os {TOP_K} maiores voos: {sem_top:.1f} s")
     for mes, r in meses.items():
         print(f"  mês {mes}: ganho {r['ganho']:.1f} s (IC 95% {r['ic_baixo']:.1f} a {r['ic_alto']:.1f})")
+    print("  informativo (fora do veredito):")
+    for nome, mask in slice_masks(m).items():
+        r = paired_bootstrap(y[mask], pb_[mask], pn_[mask], m["dia"][mask])
+        print(
+            f"    {nome} ({int(mask.sum()):,} voos): ganho {r['ganho']:.1f} s"
+            f" (IC 95% {r['ic_baixo']:.1f} a {r['ic_alto']:.1f})"
+        )
     print(f"  veredito: {v}")
     promote_ok = v == "MELHOR" or (v == "FRÁGIL" and a.aceitar_fragil)
     if a.promover and promote_ok:

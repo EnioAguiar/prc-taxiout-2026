@@ -65,15 +65,15 @@ Holdout jan+jul/2025, 344.419 voos, RMSE 332,86.
 **Files:** Modify `src/experiment.py`, `src/compare.py`; Test `tests/test_compare.py` (e `tests/test_experiment.py` novo se preciso).
 
 **Interfaces:**
-- `experiment.metrics` passa a incluir `"normais_nm"` (y ≤ 1 h e NM presente), `"alarmes_falsos"` (dict `n`, `parte_erro2`: y ≤ 1 h e previsão > 3600), `"cauda_copia"` (RMSE em y > 1 h), `"sem_loteria"` (RMSE sem os voos com y > 3 h cuja distância a todos os horários em `PLAN_REFS` é > 300 s).
+- `experiment.metrics` passa a incluir `"normais_nm"` (y ≤ 1 h e NM presente), `"alarmes_falsos"` (dict `n`, `parte_erro2`: y ≤ 1 h e previsão > 3600), `"cauda_copia"` (RMSE na cauda y > 1 h que é cópia, a ≤ 5 min de algum horário de `PLAN_REFS`), `"sem_loteria"` (RMSE sem os voos com y > 3 h cuja distância a todos os horários em `PLAN_REFS` é > 300 s).
 - `compare.py` imprime também ganho e IC 95% do bootstrap pareado restrito a `normais_nm` e a `sem_loteria`. **Não muda o veredito** (é informação para decidir, a regra de promoção continua a do plano 3a).
 
-- [ ] Step 1: teste que falha para a função `lottery_mask(df, y) -> np.ndarray[bool]` (em `experiment.py`): voo y = 84.240 com ms = 1.740 e demais horários nulos → True; voo y = 30.000 com ms = 29.900 → False; voo y = 900 → False.
-- [ ] Step 2: implementar `lottery_mask` e as métricas novas; `compare.py` monta as máscaras a partir do holdout (`cache.load_split("holdout2025")` juntado por `MVT_ID_mvt`).
-- [ ] Step 3: `.venv/bin/python -m pytest -q` verde.
-- [ ] Step 4: re-medir a campeã (`bin/run src/experiment.py base_3b --model two_stage_nm --nm-min-ms 21600 --seed 0`). Esperado: completo 332,86 (idêntico), `normais_nm` ≈ 220,7, `alarmes_falsos.n` = 204, `sem_loteria` ≈ 285.
-- [ ] Step 5: `bin/run src/compare.py <id_seed1> <id_base_3b>` com uma corrida `--seed 1` da mesma config: anotar no README o IC dos voos normais entre seeds (é o novo "ruído" útil; esperado bem menor que ±10 s).
-- [ ] Step 6: commit + push (`experiment/compare: métricas por fatia e sem loteria`).
+- [x] Step 1: teste que falha para a função `lottery_mask(df, y) -> np.ndarray[bool]` (em `experiment.py`): voo y = 84.240 com ms = 1.740 e demais horários nulos → True; voo y = 30.000 com ms = 29.900 → False; voo y = 900 → False.
+- [x] Step 2: implementar `lottery_mask` e as métricas novas; `compare.py` monta as máscaras a partir do holdout (`cache.load_split("holdout2025")` juntado por `MVT_ID_mvt`).
+- [x] Step 3: `.venv/bin/python -m pytest -q` verde (21 testes).
+- [x] Step 4: re-medir a campeã (`bin/run src/experiment.py base_3b --model two_stage_nm --nm-min-ms 21600 --seed 0`). `20260925-105318-base_3b`: completo 332,86 (idêntico), `normais_nm` 220,68, `alarmes_falsos.n` = 204 (10,0 % do erro²), `cauda_copia` 2.287,20, `sem_loteria` **274,42** — a estimativa de ≈ 285 do plano estava errada: tirar 32,0 % do erro² dá 332,86 × √0,6797 = 274,4.
+- [x] Step 5: `20260925-105705-base_3b_s1` (seed 1) contra `base_3b`: completo 0,0 s (IC −1,6 a 2,2); voos normais com NM −0,5 s (IC −0,9 a −0,2); sem loteria 0,2 s (IC −1,8 a 2,7). Anotado no README.
+- [x] Step 6: commit + push (`experiment/compare: métricas por fatia e sem loteria`).
 
 **Acceptance:** o README registra o ruído entre seeds nas métricas novas; a regra de promoção não mudou.
 

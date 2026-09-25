@@ -110,6 +110,20 @@ novo `submit` pode variar alguns segundos (ruído de seeds).
   maiores voos" fica em ≈−6 s a efeito zero (−6,2 e −5,9): tirar os k voos
   que mais contribuem sempre favorece a base, então esse critério tem viés
   negativo embutido.
+- **Métricas por fatia (plano 3b):** além do RMSE completo, `experiment.py`
+  grava `normais_nm` (y ≤ 1 h com registro NM), `alarmes_falsos` (voo normal
+  previsto > 1 h: `n` e parte do erro²), `cauda_copia` (y > 1 h a ≤ 5 min de
+  algum horário planejado) e `sem_loteria` (RMSE sem os voos com y > 3 h que
+  nenhum horário planejado explica — 11 no holdout, 32 % do erro²).
+  `compare.py` imprime ganho e IC pareados nos voos normais com NM e sem
+  loteria como **informação**; o veredito continua o do plano 3a.
+- **Ruído entre seeds nas fatias novas** (`base_3b` seed 0 → `base_3b_s1`
+  seed 1, mesma configuração da campeã): completo 332,86 → 332,83, ganho
+  0,0 s (IC 95% −1,6 a 2,2); **voos normais com NM −0,5 s (IC −0,9 a −0,2)**;
+  sem loteria 0,2 s (IC −1,8 a 2,7). A fatia dos normais é ~5× mais precisa
+  que o RMSE completo, mas o IC dela nem contém zero: só leia como melhoria
+  real um ganho acima de ~1 s. Os alarmes falsos oscilam de 204 para 224 voos
+  (10,0 % → 10,1 % do erro²) só por troca de seed.
 - Treina com **todos** os voos (sem corte de outliers) e sem limitar a
   previsão.
 - Validação: `src/experiment.py` simula o ranking (jan+jul/2025 com o alvo
@@ -215,7 +229,7 @@ Plano 3a (feito) — regra robusta, seeds e variante > 6 h:
 - [x] Re-teste de `nm_retas_2h` com seed (`nm_retas_2h_s0`): 339,79 s; sem os
   10 maiores voos −6,3 s; IC de jan com limite inferior −7,0 → **FRÁGIL**.
 
-Plano 3b (pendente) — saltos, em ordem de teto (análise de 25/09 na campeã):
+Plano 3b (em andamento) — saltos, em ordem de teto (análise de 25/09 na campeã):
 
 Onde está o erro (holdout, 332,86): voos normais com NM = 43 % do erro²
 (RMSE 220,7); 204 alarmes falsos (voo normal previsto > 1 h) = 10 %; cauda
@@ -224,7 +238,14 @@ quais 2 voos do LFPG = 27 %. Achado: voos LIRF sem NM que decolam no dia
 seguinte ao programado são 79 % cópia do SCHED, 16 % "24 h + taxi" (off-block
 gravado na data do SCHED) e 4,5 % normais; 25 desses no ranking 2026.
 
-- [ ] 1. Medir melhor: métricas por fatia e "sem loteria"; ruído entre seeds nelas.
+- [x] 1. Medir melhor: `normais_nm`, `alarmes_falsos`, `cauda_copia` e
+  `sem_loteria` no `experiment.py`; ganho e IC das duas fatias úteis no
+  `compare.py` (informativo, veredito intocado). Campeã re-medida
+  (`base_3b`): completo 332,86 (idêntico), normais com NM **220,68**,
+  alarmes falsos **204 voos = 10,0 % do erro²**, cauda que é cópia 2.287,20
+  (576 voos), **sem loteria 274,42** (as 11 loterias são 32,0 % do erro², daí
+  a queda de 332,86 → 274,42). Ruído entre seeds nas fatias novas: ver
+  "Modelo atual".
 - [ ] 2. Alarmes falsos (teto −15 s): calibração de `p` por célula; híbrido reta/regressor sem NM.
 - [ ] 3. Mistura por horário copiado (SCHED/EOBT/LOBT/AOBT_3/"24 h + taxi"; teto −13 s).
 - [ ] 4. Alvo residual sobre `MVT − AOBT_3` (item 5).
