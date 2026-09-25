@@ -3,11 +3,12 @@
     bin/run src/teto.py <base.parquet> <novo.parquet> --oficial-base 338.67 \
         [--min-ms 21600] [--salvar submissions/<TEAM>_vN.parquet]
 
-Compara dois arquivos de envio nas linhas onde diferem (> 1 s) e têm atraso
-MVT − SCHED acima de --min-ms. Oráculo otimista do mecanismo "BLOCK copiado do
-SCHED": y = MVT − SCHED nessas linhas. O teto é o ganho de RMSE oficial se o
-oráculo fosse verdade; ganho simulado > 2 × teto = a simulação mede folga que o
-modelo final não tem.
+Compara dois arquivos de envio nas linhas onde diferem (> 1 s); com --min-ms,
+só as que também têm atraso MVT − SCHED acima do limiar. Oráculo otimista do
+mecanismo "BLOCK copiado do SCHED": y = MVT − SCHED nessas linhas (as sem
+SCHED ficam de fora do teto, porque não há oráculo). O teto é o ganho de RMSE
+oficial se o oráculo fosse verdade; ganho simulado > 2 × teto = a simulação
+mede folga que o modelo final não tem.
 
 --salvar grava um candidato: o arquivo base com as previsões do novo só nessas
 linhas (NÃO envia).
@@ -47,11 +48,12 @@ def main() -> None:
         raise SystemExit("os dois arquivos não têm os mesmos IDs")
     ms = m[SCHED_GAP].to_numpy(float)
     diff = np.abs(m[f"{TARGET}_novo"] - m[f"{TARGET}_base"]).to_numpy() > 1
-    rows = diff & (np.nan_to_num(ms, nan=-np.inf) > a.min_ms)
+    rows = diff & (ms > a.min_ms) if a.min_ms > 0 else diff
+    ora = rows & ~np.isnan(ms)
     teto = ceiling_gain(
-        m.loc[rows, f"{TARGET}_base"], m.loc[rows, f"{TARGET}_novo"], ms[rows], len(m), a.oficial_base
+        m.loc[ora, f"{TARGET}_base"], m.loc[ora, f"{TARGET}_novo"], ms[ora], len(m), a.oficial_base
     )
-    print(f"linhas diferentes: {diff.sum():,} · acima de {a.min_ms:.0f} s: {rows.sum():,}")
+    print(f"linhas diferentes: {diff.sum():,} · trocadas: {rows.sum():,} · com oráculo: {ora.sum():,}")
     print(f"teto do ganho oficial (oráculo y = MVT − SCHED): {teto:.2f} s")
     if a.salvar:
         out = b.copy()
