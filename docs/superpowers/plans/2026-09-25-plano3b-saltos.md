@@ -108,11 +108,16 @@ Teto do oráculo de cópias: −13 s. Generaliza o estágio 1 de binário para m
 - `ŷ = Σ p_k·c_k` (componente com horário nulo: `p_k` redistribuído para `c_0`), piso 0. Classificador LightGBM `multiclass` com as mesmas features + `days_shift`.
 - Regressor normal treinado só na classe 0.
 
-- [ ] Step 1: testes que falham para `copy_class` (um caso por classe, incluindo empate e horário nulo) e para a combinação (p = one-hot reproduz o componente; `p_k` de horário nulo vai para o normal).
-- [ ] Step 2: implementar; a reta de voos sem NM > 6 h continua por cima (como na campeã) numa flag, para medir com e sem.
-- [ ] Step 3: `experiment.py copy_mix --model copy_mix --seed 0` e variante sem reta; `compare.py`.
-- [ ] Step 4: checagem no ranking antes de qualquer envio: `teto.py` com o último envio, e contagem dos 25 voos LIRF sem NM com troca de data (a previsão deles deve cair entre ms e 86400·k + taxi).
-- [ ] Commit + push.
+- [x] Step 1: testes de `copy_class` (um caso por classe, empate e horário nulo) e da
+  combinação (one-hot reproduz o componente; massa de horário nulo vai para o normal).
+- [x] Step 2: implementado (`CopyMixture`, `days_shift`, reta > 6 h numa flag `--sem-retas`).
+- [x] Step 3: `20260925-114324-copy_mix` **336,87** (−4,0 s, IC −9,4 a 0,9) e
+  `20260925-115129-copy_mix_sr` (sem reta) **370,65** (−37,8 s) → **não comprovado** nos dois.
+- [x] Step 4: 25 voos LIRF sem NM com troca de data no ranking (confere); no holdout são
+  20 (14 cópias do SCHED, 5 "24 h + taxi", 1 normal) e a mistura deixa 18/20 na faixa mas
+  piora o RMSE deles de 9.311 para 12.417 — a taxa fixa 0,164 soma ~14.170 s a todos. Sem
+  candidato a envio (nenhum veredito MELHOR/FRÁGIL), logo sem `teto.py` e sem `submit`.
+- [x] Commit + push; código do perdedor removido (README: "descartada").
 
 **Acceptance:** RMSE `y_gt_1h` e `alarmes_falsos` registrados; veredito no README. Se a classe 5 não tiver exemplos suficientes para o multiclasse (13–14 por ano), usar para ela a taxa empírica suavizada por (LIRF, nm_missing, days_shift ≥ 1) = 0,164 em vez do classificador; documentar a escolha.
 

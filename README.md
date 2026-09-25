@@ -271,7 +271,36 @@ gravado na data do SCHED) e 4,5 % normais; 25 desses no ranking 2026.
     demais para proteger normal e baixo demais para não estragar cópia. Código
     removido. Achado para o item 3: o que falta não é escala em `p`, é **saber qual
     horário foi copiado** — é exatamente a mistura multiclasse do item 3.
-- [ ] 3. Mistura por horário copiado (SCHED/EOBT/LOBT/AOBT_3/"24 h + taxi"; teto −13 s).
+- [x] 3. Mistura por horário copiado (teto −13 s): **descartada — perde 4,0 s com a
+  reta da campeã (336,87) e 37,8 s sem ela (370,65); a campeã não mudou.**
+  `copy_mix` (`CopyMixture`): classificador LightGBM `multiclass` de qual horário o
+  BLOCK copiou (0 normal 1.167.071 · SCHED 169.206 · EOBT 87.506 · LOBT 12.028 ·
+  AOBT_3 304.811 voos do treino), regressor só na classe 0, `ŷ = Σ p_k·(MVT −
+  horário_k)` com a massa de horário nulo voltando ao normal, mais `days_shift`
+  como feature. A classe "24 h + taxi" tem **6 exemplos em train2025**, longe do
+  que o multiclasse precisa, então usou-se a taxa empírica de 2025 na única célula
+  onde ela existe (LIRF × sem NM × `days_shift` ≥ 1) = 0,164, como manda o plano.
+
+  | métrica | campeã | copy_mix | sem reta |
+  |---|---|---|---|
+  | completo | 332,86 | 336,87 | 370,65 |
+  | normais_nm | 220,68 | 220,80 | 220,80 |
+  | y_gt_1h | 4.164,31 | 4.337,89 | 5.216,81 |
+  | cauda_copia | 2.287,20 | 2.779,10 | 3.316,82 |
+  | alarmes_falsos | 204 voos = 10,0 % | **188 = 8,7 %** | 188 = 7,2 % |
+
+  Ganho pareado: −4,0 s (IC 95% −9,4 a 0,9), sem os 10 maiores −6,5 s, jan −1,3 e
+  jul −6,4 → **não comprovado**. A parte multiclasse em si não é o problema: ela
+  baixa os alarmes falsos (10,0 % → 8,7 % do erro²) sem mexer nos voos normais com
+  NM (−0,1 s, IC −0,6 a 0,4). Quem custa é a **taxa fixa de 0,164 da classe 5**:
+  ela soma 0,164 × 86.400 ≈ 14.170 s a *todo* voo da célula, e nos 20 voos LIRF sem
+  NM com troca de data do holdout (14 cópias puras do SCHED, 5 "24 h + taxi", 1
+  normal) o RMSE vai de 9.311 para 12.417 — sozinho isso vale ≈ +5,8 s no RMSE
+  completo, mais do que os 4,0 s perdidos. Nas cópias de `ms` pequeno (ex.: y =
+  5.950 s) a previsão pula de 4.854 para 18.876 s; nos 5 voos que são mesmo "24 h +
+  taxi" o componente do SCHED já entregava a ordem certa (ms 58–93 k contra y ≈
+  87 k), então a classe 5 quase não tem o que ganhar. Código removido (`copy_mix`,
+  `copy_class`, `days_shift` e os testes); fica no histórico.
 - [ ] 4. Alvo residual sobre `MVT − AOBT_3` (item 5).
 - [ ] 5. Features de vizinhos (item 6).
 - [ ] 6. Ensemble XGBoost CUDA + seeds LightGBM (item 7).
