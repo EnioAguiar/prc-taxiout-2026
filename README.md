@@ -192,11 +192,9 @@ Feito:
   sobre `nm_retas` (IC 95% 1,5 a 7,7) → **não comprovado** (abaixo de 10 s);
   re-testado com seed no plano 3a: FRÁGIL.
 
-Próximo: item 5 — alvo residual sobre `MVT − AOBT_3`.
+Próximo: plano 3b (`docs/superpowers/plans/2026-09-25-plano3b-saltos.md`).
 
-Depois: features de vizinhos, ensemble
-(XGBoost CUDA + seeds LightGBM), METAR e poda de features. E, antes de
-11/10, repositório público GPLv3 (condição do prêmio).
+E, antes de 11/10, repositório público GPLv3 (condição do prêmio).
 
 Plano 3a (feito) — regra robusta, seeds e variante > 6 h:
 
@@ -217,17 +215,23 @@ Plano 3a (feito) — regra robusta, seeds e variante > 6 h:
 - [x] Re-teste de `nm_retas_2h` com seed (`nm_retas_2h_s0`): 339,79 s; sem os
   10 maiores voos −6,3 s; IC de jan com limite inferior −7,0 → **FRÁGIL**.
 
-Plano 3b (pendente) — melhoria contínua e caça a "ouro falso" e lixo:
+Plano 3b (pendente) — saltos, em ordem de teto (análise de 25/09 na campeã):
 
-- [ ] `sweep.py`: grade de variantes da campeã (lr, folhas, rodadas), CPU e
-  XGBoost GPU em paralelo dentro de metade do PC; tudo passa pelo `compare.py`.
-- [ ] `ablation.py`: tirar um grupo de features por vez; o que não faz falta é
-  lixo e sai.
-- [ ] Teste do teste: `mutmut` periódico em `compare`, `train` e `cache`
-  (mutação que não derruba nenhum teste = teste fraco).
-- [ ] Híbrido para voos sem NM: a reta piora os voos normais sem NM
-  (1.088 → 1.324 s) e ganha nos 56 extremos; combinar reta e regressor
-  (ex.: pela probabilidade de cópia) em vez de trocar tudo pela reta.
+Onde está o erro (holdout, 332,86): voos normais com NM = 43 % do erro²
+(RMSE 220,7); 204 alarmes falsos (voo normal previsto > 1 h) = 10 %; cauda
+que é cópia de um horário = ~10 %; 11 voos "loteria" (sem cópia) = 32 %, dos
+quais 2 voos do LFPG = 27 %. Achado: voos LIRF sem NM que decolam no dia
+seguinte ao programado são 79 % cópia do SCHED, 16 % "24 h + taxi" (off-block
+gravado na data do SCHED) e 4,5 % normais; 25 desses no ranking 2026.
+
+- [ ] 1. Medir melhor: métricas por fatia e "sem loteria"; ruído entre seeds nelas.
+- [ ] 2. Alarmes falsos (teto −15 s): calibração de `p` por célula; híbrido reta/regressor sem NM.
+- [ ] 3. Mistura por horário copiado (SCHED/EOBT/LOBT/AOBT_3/"24 h + taxi"; teto −13 s).
+- [ ] 4. Alvo residual sobre `MVT − AOBT_3` (item 5).
+- [ ] 5. Features de vizinhos (item 6).
+- [ ] 6. Ensemble XGBoost CUDA + seeds LightGBM (item 7).
+- [ ] 7. `sweep.py` (polimento).
+- [ ] 8. `ablation.py` (poda de features) e `mutmut` (teste do teste).
 
 ## Uso
 
