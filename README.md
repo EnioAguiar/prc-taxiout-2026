@@ -78,7 +78,9 @@ Campeão em `champion.json`: **dois estágios com retas só para voos sem NM e
 atraso > 6 h** (`two_stage_nm` com `--nm-min-ms 21600`, id
 `20260924-215852-nm_retas_6h_r`), 332,86 s na simulação. É a configuração da
 v5, a melhor submissão oficial (331,0 s), re-medida no código final do plano
-3a; `train.py submit N` reconstrói exatamente esse modelo.
+3a. `train.py submit N` reconstrói essa **configuração**, não o arquivo da v5
+(montado pelo `teto.py` a partir da v3 + 96 linhas da v4); a nota oficial de um
+novo `submit` pode variar alguns segundos (ruído de seeds).
 
 - **Estágio 1:** classificador LightGBM de `eq = |BLOCK − SCHED| ≤ 60 s`,
   a cópia que existe na cauda.
