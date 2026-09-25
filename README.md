@@ -300,7 +300,8 @@ gravado na data do SCHED) e 4,5 % normais; 25 desses no ranking 2026.
   5.950 s) a previsão pula de 4.854 para 18.876 s; nos 5 voos que são mesmo "24 h +
   taxi" o componente do SCHED já entregava a ordem certa (ms 58–93 k contra y ≈
   87 k), então a classe 5 quase não tem o que ganhar. Código removido (`copy_mix`,
-  `copy_class`, `days_shift` e os testes); fica no histórico.
+  `copy_class`, `days_shift` e os testes); `experiments.jsonl` guarda as duas corridas
+  e o cache foi refeito com as 58 features da campeã.
 - [ ] 4. Alvo residual sobre `MVT − AOBT_3` (item 5).
 - [ ] 5. Features de vizinhos (item 6).
 - [ ] 6. Ensemble XGBoost CUDA + seeds LightGBM (item 7).
