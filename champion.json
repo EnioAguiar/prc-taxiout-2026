@@ -1,13 +1,15 @@
 {
-  "id": "20260924-213143-ref_dois_estagios_s0",
+  "id": "20260924-215852-nm_retas_6h_r",
   "config": {
-    "model": "two_stage",
+    "model": "two_stage_nm",
     "cls_rounds": 400,
     "reg_rounds": 400,
-    "seed": 0
+    "seed": 0,
+    "nm_split_ms": false,
+    "nm_min_ms": 21600.0
   },
   "best_iter": null,
-  "rmse_simulacao": 383.09,
-  "src_hash": "1a0946115773",
-  "git_commit": "39e4efd"
+  "rmse_simulacao": 332.86,
+  "src_hash": "30621a814528",
+  "git_commit": "dde228e"
 }

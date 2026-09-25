@@ -74,8 +74,11 @@ deixa a validação otimista e o modelo cego para eles (erro da v1).
 
 ## Modelo atual (`src/`)
 
-Campeão em `champion.json`: **dois estágios com retas para voos sem NM**
-(`two_stage_nm`), 345,89 s na simulação.
+Campeão em `champion.json`: **dois estágios com retas só para voos sem NM e
+atraso > 6 h** (`two_stage_nm` com `--nm-min-ms 21600`, id
+`20260924-215852-nm_retas_6h_r`), 332,86 s na simulação. É a configuração da
+v5, a melhor submissão oficial (331,0 s), re-medida no código final do plano
+3a; `train.py submit N` reconstrói exatamente esse modelo.
 
 - **Estágio 1:** classificador LightGBM de `eq = |BLOCK − SCHED| ≤ 60 s`,
   a cópia que existe na cauda.
@@ -98,7 +101,13 @@ Campeão em `champion.json`: **dois estágios com retas para voos sem NM**
   mais lento — `docs/research/2026-09-24-hardware-benchmark.md`).
 - **Seeds determinísticas:** `--seed N` fixa as seeds do LightGBM com
   `deterministic` e `force_row_wise`; a mesma seed reproduz o mesmo número.
-  Ruído do treino medido com 3 seeds da campeã de referência: ≤ 1,5 s.
+  Ruído do treino com 3 seeds da campeã de referência: ≤ 1,5 s no RMSE
+  completo agregado, mas esse número é o piso errado para julgar ganhos.
+  Pareado no `compare.py`, duas seeds da mesma configuração dão IC 95% de
+  ≈−10 a ≈+14 s (s1: −10,5 a 13,9; s2: −7,9 a 14,1), e o ganho "sem os 10
+  maiores voos" fica em ≈−6 s a efeito zero (−6,2 e −5,9): tirar os k voos
+  que mais contribuem sempre favorece a base, então esse critério tem viés
+  negativo embutido.
 - Treina com **todos** os voos (sem corte de outliers) e sem limitar a
   previsão.
 - Validação: `src/experiment.py` simula o ranking (jan+jul/2025 com o alvo
@@ -141,7 +150,9 @@ determinísticas, código do plano 3a).
 **Candidato v5:** `teto.py` v3→v4 com `ms` > 6 h acha 96 linhas e teto de
 8,53 s. O candidato é a v3 com essas 96 linhas da v4
 (`submissions/outgoing-boat_v5.parquet`); veredito FRÁGIL no `compare.py`,
-não enviado, aguardando decisão do usuário.
+enviado com o ok do usuário depois do `teto.py`. O oficial deu 331,0 s,
+−7,7 s sobre a v3: dentro do teto de 8,53 s e a primeira vez que um ganho
+simulado se confirmou no placar.
 
 **Alerta v4:** a simulação previa −42 s e o oficial deu só −1,5 s (relação
 oficial/simulação 0,975, fora de 0,84 ± 0,05). Diagnóstico em
@@ -197,6 +208,10 @@ Plano 3a (feito) — regra robusta, seeds e variante > 6 h:
   de 50,2 s (IC 95% 11,5 a 92,6); sem os 10 maiores voos só +1,5 s (3%); IC
   jan 0,2 a 33,2, jul 19,2 a 145,4 → **FRÁGIL** (reprova no critério dos 10
   maiores). Gerou o candidato v5 (ver Submissões).
+- [x] Promoção da v5 a campeã: re-medida no código final (`nm_retas_6h_r`,
+  332,86 s, ganho 0,0 s contra `nm_retas_6h`) e promovida com
+  `--aceitar-fragil` — teto de 8,53 s, ok do usuário e oficial de −7,7 s já
+  confirmados.
 - [x] Re-teste de `nm_retas_2h` com seed (`nm_retas_2h_s0`): 339,79 s; sem os
   10 maiores voos −6,3 s; IC de jan com limite inferior −7,0 → **FRÁGIL**.
 
@@ -260,7 +275,7 @@ prc-taxiout-2026/
 ## Leaderboard
 
 <https://prc-challenge-2026.vercel.app/>. Em 24/09/2026: 188 equipes,
-melhor RMSE 234,1 s, mediana ~305 s. Nós: 338,7 s (v3; antes 384,7).
+melhor RMSE 234,1 s, mediana ~305 s. Nós: 331,0 s (v5; antes 338,7 e 384,7).
 
 ## Referências
 
