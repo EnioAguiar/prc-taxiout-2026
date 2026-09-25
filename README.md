@@ -132,7 +132,7 @@ Campeão em `champion.json`: **dois estágios com retas para voos sem NM**
 | v2 | 24/09 | treino com outliers, sem limite; bug de unidade das janelas de congestionamento corrigido; features de diferença e arredondamento | 460,4 / 290,2 | **384,7** |
 | v3 | 24/09 | dois estágios (classificador da cópia do SCHED + regressor) e `nm_missing`; base de experimentos nova | 388,16 / 269,87 | **338,7** |
 | v4 | 24/09 | `two_stage_nm`: retas por aeroporto em `MVT − SCHED` para os voos sem NM | 345,89 / 285,52 | **337,2** |
-| v5 | 24/09 | v3 + retas só em NM ausente com atraso > 6 h (96 linhas) | 332,86 (com o novo código) / 269,66 | candidato não enviado |
+| v5 | 24/09 | v3 + retas só em NM ausente com atraso > 6 h (96 linhas) | 332,86 (com o novo código) / 269,66 | **331,0** (−7,7 s sobre a v3; teto calculado 8,5 s) |
 
 A simulação da v3 e da v4 vem do holdout novo (`experiment.py`), mais rigoroso que o
 `sim_ranking.py` que mediu a v1 e a v2. A da v5 é a de `nm_retas_6h` (seeds
