@@ -112,32 +112,28 @@ class TwoStage:
         self.best_iter: int | None = None
         self.params = params_for(cfg)
 
-    @staticmethod
-    def _cb(run, rounds: int, label: str, start: float, span: float) -> list:
-        return [run.lgb_callback(rounds, label, start=start, span=span)] if run else []
-
     def fit(self, train, cols, run=None, valid=None) -> "TwoStage":
         self.cols = cols
         copied = copied_from_sched(train)
         cls_params = {**self.params, "objective": "binary", "metric": "binary_logloss"}
+
+        def cb(rounds: int, label: str, start: float) -> list:
+            return [run.lgb_callback(rounds, label, start=start, span=0.5)] if run else []
+
         self.cls = lgb.train(
             cls_params, lgb.Dataset(train[cols], copied.astype("int8")), self.cls_rounds,
-            callbacks=self._cb(run, self.cls_rounds, "classificador", 0.0, 0.5),
+            callbacks=cb(self.cls_rounds, "classificador", 0.0),
         )
         normal = train[~copied]
         self.reg = lgb.train(
             self.params, lgb.Dataset(normal[cols], normal[F.TARGET]), self.reg_rounds,
-            callbacks=self._cb(run, self.reg_rounds, "regressor", 0.5, 0.5),
+            callbacks=cb(self.reg_rounds, "regressor", 0.5),
         )
         return self
 
-    def parts(self, df: pd.DataFrame) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """(p da cópia, ms, previsão do regressor)."""
-        x = df[self.cols]
-        return self.cls.predict(x), df[SCHED_GAP].to_numpy(float), self.reg.predict(x)
-
     def predict(self, df: pd.DataFrame) -> np.ndarray:
-        return combine(*self.parts(df))
+        x = df[self.cols]
+        return combine(self.cls.predict(x), df[SCHED_GAP], self.reg.predict(x))
 
 
 NM_MIN_ROWS = 50  # grupos menores usam a reta global
@@ -186,17 +182,12 @@ def line_rows(nm, ms, line_pred, min_ms: float) -> np.ndarray:
 
 
 class TwoStageNM(TwoStage):
-    """Dois estágios para voos com NM; reta por aeroporto no atraso para voos sem NM.
-
-    Com `nm_hibrido`, a reta não substitui a previsão: entra como componente de cópia
-    da mistura, `p·reta + (1 − p)·regressor`.
-    """
+    """Dois estágios para voos com NM; reta por aeroporto no atraso para voos sem NM."""
 
     def __init__(self, cfg: dict) -> None:
         super().__init__(cfg)
         self.split_ms = bool(cfg.get("nm_split_ms", False))
         self.min_ms = float(cfg.get("nm_min_ms", 0))
-        self.hibrido = bool(cfg.get("nm_hibrido", False))
 
     def fit(self, train, cols, run=None, valid=None) -> "TwoStageNM":
         super().fit(train, cols, run=run, valid=valid)
@@ -212,12 +203,11 @@ class TwoStageNM(TwoStage):
         return self
 
     def predict(self, df: pd.DataFrame) -> np.ndarray:
-        p, ms, reg = self.parts(df)
-        pred = combine(p, ms, reg)
+        pred = super().predict(df)
         nm = (df["nm_missing"] == 1).to_numpy()
-        lines = apply_lines(ms, nm_groups(df, self.split_ms), self.lines, self.fallback)
-        use = line_rows(nm, ms, lines, self.min_ms)
-        pred[use] = combine(p, lines, reg)[use] if self.hibrido else lines[use]
+        lines = apply_lines(df[SCHED_GAP], nm_groups(df, self.split_ms), self.lines, self.fallback)
+        use = line_rows(nm, df[SCHED_GAP], lines, self.min_ms)
+        pred[use] = lines[use]
         return pred
 
 

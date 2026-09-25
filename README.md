@@ -246,16 +246,31 @@ gravado na data do SCHED) e 4,5 % normais; 25 desses no ranking 2026.
   (576 voos), **sem loteria 274,42** (as 11 loterias são 32,0 % do erro², daí
   a queda de 332,86 → 274,42). Ruído entre seeds nas fatias novas: ver
   "Modelo atual".
-- [ ] 2. Alarmes falsos (teto −15 s): calibração de `p` por célula; híbrido reta/regressor sem NM.
-  - **2a, calibração de `p` por célula (`cal_celula`, `--calibrar`): descartada —
+- [x] 2. Alarmes falsos (teto −15 s): **os dois experimentos foram descartados e a
+  campeã não mudou.** Nenhum dos dois mecanismos consegue o que a tarefa pedia
+  (baixar `alarmes_falsos.parte_erro2` sem piorar a cauda).
+  - **2a, calibração de `p` por célula (`cal_celula`, `--calibrar`): descartado —
     ganho 0,1 s (IC 95% −0,1 a 0,3), "não comprovado".** Isotônica fora do fold
     (5 folds por dia) por célula (LIRF × `nm_missing` × faixa de `ms`) em cima da
     campeã: 332,79 (contra 332,86), `normais_nm` 220,81 (contra 220,68), alarmes
     falsos 207 voos = 10,2 % do erro² (contra 204 = 10,0 %). Motivo: o
     classificador **já é calibrado** — `p` médio fora do fold 0,0949 contra taxa
     real de cópia 0,0972 — e só 5 das 20 células têm cópias suficientes (≥ 20)
-    para ajustar um calibrador; os alarmes falsos não vêm de `p` mal calibrado em
-    média, vêm de voos individuais com `p·ms` grande. Código removido.
+    para ajustar um calibrador; os alarmes falsos não vêm de `p` enviesado na
+    média da célula, vêm de voos isolados com `p·ms` grande. Código removido.
+  - **2b, híbrido `ŷ = p·reta + (1 − p)·ŷ_regressor` nos voos sem NM
+    (`nm_hibrido`, `nm_hibrido_6h`, `--nm-hibrido`): descartado — −46,5 s sem
+    limiar (379,37) e −48,0 s só acima de 6 h (380,90).** Sem limiar ele até faz o
+    que prometia na fatia-alvo (alarmes falsos 204 → 173 voos, 10,0 % → 5,6 % do
+    erro², voos normais com NM intactos), mas paga caro na cauda: cauda que é
+    cópia 2.287 → 3.540, LIRF 634,5 → 912,1. Medido nas 52 linhas trocadas pela
+    variante de 6 h: cobertura mediana `híbrido/reta` = 0,83, e nas **16 cópias
+    verdadeiras** (|y − ms| ≤ 60 s) o RMSE vai de 816 para 15.101 s — cortar 17 %
+    de um `ms` de 10 h custa milhares de segundos ao quadrado. Nos 30 voos normais
+    dessas linhas o híbrido também piora (565 → 734), porque `p` ≈ 0,83 é alto
+    demais para proteger normal e baixo demais para não estragar cópia. Código
+    removido. Achado para o item 3: o que falta não é escala em `p`, é **saber qual
+    horário foi copiado** — é exatamente a mistura multiclasse do item 3.
 - [ ] 3. Mistura por horário copiado (SCHED/EOBT/LOBT/AOBT_3/"24 h + taxi"; teto −13 s).
 - [ ] 4. Alvo residual sobre `MVT − AOBT_3` (item 5).
 - [ ] 5. Features de vizinhos (item 6).

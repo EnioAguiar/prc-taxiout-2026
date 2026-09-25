@@ -3,7 +3,6 @@
     bin/run src/experiment.py <nome> --model single [--rounds 400] [--nota "texto"]
     bin/run src/experiment.py <nome> --model two_stage [--cls-rounds 400] [--reg-rounds 400]
     bin/run src/experiment.py <nome> --model two_stage_nm [--nm-split-ms] [--nm-min-ms S]
-                                     [--nm-hibrido]
 
 Treina em train2025 (10 meses), prevê holdout2025 (jan+jul/2025 montados como o
 ranking) e registra RMSE completo, sem outliers, por grupo, por fatia de erro
@@ -93,7 +92,6 @@ def config(a: argparse.Namespace) -> dict:
     if a.model == "two_stage_nm":
         cfg["nm_split_ms"] = a.nm_split_ms
         cfg["nm_min_ms"] = a.nm_min_ms
-        cfg["nm_hibrido"] = a.nm_hibrido
     return cfg
 
 
@@ -108,13 +106,11 @@ def main() -> None:
                     help="two_stage_nm: retas separadas para atraso > 2 h (célula de Roma)")
     ap.add_argument("--nm-min-ms", type=float, default=0.0,
                     help="two_stage_nm: só usa a reta com atraso acima de S segundos")
-    ap.add_argument("--nm-hibrido", action="store_true",
-                    help="two_stage_nm: reta como componente de cópia (p·reta + (1−p)·regressor)")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--nota", default="")
     a = ap.parse_args()
-    if a.model != "two_stage_nm" and (a.nm_split_ms or a.nm_min_ms or a.nm_hibrido):
-        ap.error("--nm-split-ms, --nm-min-ms e --nm-hibrido só valem com --model two_stage_nm")
+    if a.model != "two_stage_nm" and (a.nm_split_ms or a.nm_min_ms):
+        ap.error("--nm-split-ms e --nm-min-ms só valem com --model two_stage_nm")
     cfg = config(a)
 
     with Run(a.nome, cfg) as run:

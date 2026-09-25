@@ -1,15 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from models import (
-    TwoStageNM,
-    apply_lines,
-    combine,
-    copied_from_sched,
-    fit_lines,
-    line_rows,
-    nm_groups,
-)
+from models import apply_lines, combine, copied_from_sched, fit_lines, line_rows, nm_groups
 
 
 def test_combina_pela_esperanca_da_mistura():
@@ -68,32 +60,3 @@ def test_grupos_com_corte_de_2h():
     })
     assert nm_groups(df, split_ms=True).tolist() == ["LIRF|>2h", "LIRF|<=2h", "EDDF|<=2h"]
     assert nm_groups(df, split_ms=False).tolist() == ["LIRF", "LIRF", "EDDF"]
-
-
-class _Fixo:
-    """Modelo de mentira: devolve sempre o mesmo vetor."""
-
-    def __init__(self, valores) -> None:
-        self.valores = np.asarray(valores, float)
-
-    def predict(self, x) -> np.ndarray:
-        return self.valores
-
-
-def _modelo_nm(hibrido: bool, p, reg) -> TwoStageNM:
-    m = TwoStageNM({"nm_hibrido": hibrido, "nm_min_ms": 0})
-    m.cols = ["nm_missing"]
-    m.cls, m.reg = _Fixo(p), _Fixo(reg)
-    m.lines, m.fallback = {"LIRF": (0.0, 1.0)}, (0.0, 1.0)  # reta = ms
-    return m
-
-
-def test_hibrido_mistura_a_reta_em_vez_de_substituir():
-    df = pd.DataFrame({
-        "AIRPORT": pd.Categorical(["LIRF", "LIRF"]),
-        "nm_missing": [1, 1],
-        "to_takeoff_from_SCHED_TIME_UTC_mvt": [10_000.0, 10_000.0],
-    })
-    p, reg = np.array([0.25, 1.0]), np.array([900.0, 900.0])
-    assert _modelo_nm(False, p, reg).predict(df).tolist() == [10_000.0, 10_000.0]
-    assert _modelo_nm(True, p, reg).predict(df).tolist() == [0.25 * 10_000 + 0.75 * 900, 10_000.0]
