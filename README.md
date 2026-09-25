@@ -124,9 +124,14 @@ A simulação da v3 e da v4 vem do holdout novo (`experiment.py`), mais rigoroso
 `sim_ranking.py` que mediu a v1 e a v2.
 
 **Alerta v4:** a simulação previa −42 s e o oficial deu só −1,5 s (relação
-oficial/simulação 0,975, fora de 0,84 ± 0,05). Pela regra do ciclo, parar e
-investigar por que o ganho nos voos sem NM não se transferiu para 2026 antes
-de novas versões.
+oficial/simulação 0,975, fora de 0,84 ± 0,05). Diagnóstico em
+`docs/research/2026-09-24-diagnostico-v4.md`: o ganho simulado vinha de 10 voos
+do LIRF (120,9 % do ganho; sem eles a v4 é 9,7 s pior) e media folga que a v3
+enviada não tinha (cobertura de `ms` nos extremos do LIRF: 0,905 no ranking
+contra 0,679 no holdout); o teto do ganho oficial era −8,5 s. Recomendação:
+aplicar as retas só em `nm_missing` com `MVT − SCHED` > 6 h (holdout 334,51 s) e
+endurecer a regra de promoção (ganho fora dos 10 maiores voos, ganho em jan e em
+jul separados, teto no ranking).
 
 ## Roadmap
 
