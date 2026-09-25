@@ -73,13 +73,13 @@ def test_ganho_espalhado_e_melhor():
     res = paired_bootstrap(y, base, new, dia)
     assert verdict(res, gain_without_top(y, base, new), by_month(y, base, new, dia)) == "MELHOR"
 
-    idx = rng.choice(y.size, 10, replace=False)
-    base[idx] = y[idx] + 40_000  # 10 voos em que a base erra horas (= TOP_K)
-    new[idx] = y[idx]
+
+def test_ganho_de_poucos_voos_e_fragil():
+    rng, y, dia = _jan_jul()
     base = y + rng.normal(0, 300, y.size)
     new = base + rng.normal(0, 30, y.size)  # um pouco pior em quase tudo
-    idx = rng.choice(y.size, 5, replace=False)
-    base[idx] = y[idx] + 40_000  # 5 voos em que a base erra horas
+    idx = rng.choice(y.size, 10, replace=False)
+    base[idx] = y[idx] + 40_000  # 10 voos (= TOP_K) em que a base erra horas
     new[idx] = y[idx]
     res = paired_bootstrap(y, base, new, dia)
     sem_top = gain_without_top(y, base, new)
