@@ -26,8 +26,14 @@ PARAMS = dict(
     cat_smooth=20,
     max_cat_to_onehot=8,
     num_threads=12,  # 6 núcleos físicos × 2; 24 threads é 2–4× mais lento (benchmark 24/09)
+    deterministic=True,  # mesma seed → mesmo modelo, mesmo com 12 threads
+    force_row_wise=True,
     verbose=-1,
 )
+
+
+def params_for(cfg: dict) -> dict:
+    return {**PARAMS, "seed": int(cfg.get("seed", 0))}
 
 
 def prepare(train: pd.DataFrame, others: list[pd.DataFrame]) -> list[str]:
@@ -54,6 +60,7 @@ class SingleLGBM:
     def __init__(self, cfg: dict) -> None:
         self.rounds = int(cfg.get("rounds", 400))
         self.best_iter: int | None = None
+        self.params = params_for(cfg)
 
     def fit(self, train, cols, run=None, valid=None) -> "SingleLGBM":
         self.cols = cols
@@ -64,7 +71,7 @@ class SingleLGBM:
             valid_sets = [lgb.Dataset(valid[cols], valid[TRUTH], reference=data)]
             callbacks.append(lgb.record_evaluation(curve))
         self.model = lgb.train(
-            PARAMS, data, self.rounds, valid_sets=valid_sets,
+            self.params, data, self.rounds, valid_sets=valid_sets,
             valid_names=["holdout"] if valid_sets else None,
             callbacks=callbacks,
         )
@@ -103,11 +110,12 @@ class TwoStage:
         self.cls_rounds = int(cfg.get("cls_rounds", 400))
         self.reg_rounds = int(cfg.get("reg_rounds", 400))
         self.best_iter: int | None = None
+        self.params = params_for(cfg)
 
     def fit(self, train, cols, run=None, valid=None) -> "TwoStage":
         self.cols = cols
         copied = copied_from_sched(train)
-        cls_params = {**PARAMS, "objective": "binary", "metric": "binary_logloss"}
+        cls_params = {**self.params, "objective": "binary", "metric": "binary_logloss"}
 
         def cb(rounds: int, label: str, start: float) -> list:
             return [run.lgb_callback(rounds, label, start=start, span=0.5)] if run else []
@@ -118,7 +126,7 @@ class TwoStage:
         )
         normal = train[~copied]
         self.reg = lgb.train(
-            PARAMS, lgb.Dataset(normal[cols], normal[F.TARGET]), self.reg_rounds,
+            self.params, lgb.Dataset(normal[cols], normal[F.TARGET]), self.reg_rounds,
             callbacks=cb(self.reg_rounds, "regressor", 0.5),
         )
         return self

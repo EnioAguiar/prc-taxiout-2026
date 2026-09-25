@@ -50,8 +50,13 @@ def metrics(df: pd.DataFrame, pred: np.ndarray) -> dict:
 
 def config(a: argparse.Namespace) -> dict:
     if a.model == "single":
-        return {"model": a.model, "rounds": a.rounds}
-    cfg = {"model": a.model, "cls_rounds": a.cls_rounds, "reg_rounds": a.reg_rounds}
+        return {"model": a.model, "rounds": a.rounds, "seed": a.seed}
+    cfg = {
+        "model": a.model,
+        "cls_rounds": a.cls_rounds,
+        "reg_rounds": a.reg_rounds,
+        "seed": a.seed,
+    }
     if a.model == "two_stage_nm":
         cfg["nm_split_ms"] = a.nm_split_ms
     return cfg
@@ -66,6 +71,7 @@ def main() -> None:
     ap.add_argument("--reg-rounds", type=int, default=400)
     ap.add_argument("--nm-split-ms", action="store_true",
                     help="two_stage_nm: retas separadas para atraso > 2 h (célula de Roma)")
+    ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--nota", default="")
     a = ap.parse_args()
     cfg = config(a)
