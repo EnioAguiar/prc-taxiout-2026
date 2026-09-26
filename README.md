@@ -333,7 +333,7 @@ gravado na data do SCHED) e 4,5 % normais; 25 desses no ranking 2026.
     (download ~1,5–3 min/dia, leitura 14–30 min/dia). Sobreviveu a uma queda de
     energia (dias prontos íntegros; retomar pula os feitos). 29/01/2026 tinha um
     rastro corrompido (`zlib.error`): agora o rastro é pulado e contado.
-  - [ ] Fev–jun e ago–dez de 2025 (serviço `prc-adsb-2025`, iniciado 26/09 de
+  - [ ] Fev–jun e ago–dez de 2025 (serviço `prc-adsb`, iniciado 26/09 de
     madrugada, ~15 h) — para ter as features também no treino.
   - [ ] Plano 4: eventos por voo → cobertura por aeroporto → teto barato → features
     no modelo → candidato. Cuidado: cobertura de chão fraca em LFPG, LIRF, LEMD,
