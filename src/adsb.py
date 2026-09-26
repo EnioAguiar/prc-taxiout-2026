@@ -19,6 +19,7 @@ import sys
 import tarfile
 import time
 import urllib.request
+import zlib
 from concurrent.futures import ProcessPoolExecutor
 from datetime import date, timedelta
 from pathlib import Path
@@ -119,7 +120,7 @@ def processar_dia(dia: str, raiz: Path) -> str:
         partes.append(str(dest))
     t_dl = time.time() - t
     cx = caixas()
-    rows = []
+    rows, ruins = [], 0
     cat = subprocess.Popen(["cat", *partes], stdout=subprocess.PIPE)
     try:
         with tarfile.open(fileobj=cat.stdout, mode="r|") as tf:
@@ -129,8 +130,9 @@ def processar_dia(dia: str, raiz: Path) -> str:
                 raw = tf.extractfile(m).read()
                 try:
                     d = json.loads(gzip.decompress(raw) if raw[:2] == b"\x1f\x8b" else raw)
-                except (OSError, ValueError, EOFError):
-                    continue  # rastro corrompido: pula (ver réplicas no README do adsb.lol)
+                except (OSError, ValueError, EOFError, zlib.error):
+                    ruins += 1  # rastro corrompido: pula só ele (o resto do dia vale)
+                    continue
                 rows.extend(recortar_rastro(d, cx))
     finally:
         cat.stdout.close()
@@ -148,7 +150,8 @@ def processar_dia(dia: str, raiz: Path) -> str:
         Path(p).unlink()
     tmp.rmdir()
     mb = out.stat().st_size / 1e6
-    return f"{dia}: {len(df):,} pontos, {mb:.1f} MB · download {t_dl:.0f}s · total {time.time() - t:.0f}s"
+    return (f"{dia}: {len(df):,} pontos, {mb:.1f} MB, {ruins} rastros corrompidos pulados"
+            f" · download {t_dl:.0f}s · total {time.time() - t:.0f}s")
 
 
 def dias_dos_meses(meses: list[str]) -> list[str]:
