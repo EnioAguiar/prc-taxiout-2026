@@ -164,7 +164,7 @@ def dias_dos_meses(meses: list[str]) -> list[str]:
     return out
 
 
-def main() -> None:
+def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     ap.add_argument("acao", choices=["baixar"])
     ap.add_argument("--raiz", type=Path, default=RAIZ)
@@ -176,7 +176,7 @@ def main() -> None:
     dias = [a.dia] if a.dia else dias_dos_meses(a.dias.split(","))
     pend = [d for d in dias if not (a.raiz / "cut" / f"{d}.parquet").exists()]
     print(f"{len(dias)} dias, {len(pend)} pendentes → {a.raiz}", flush=True)
-    feitos, t0 = 0, time.time()
+    feitos, erros, t0 = 0, 0, time.time()
     with ProcessPoolExecutor(a.procs) as ex:
         futs = {ex.submit(processar_dia, d, a.raiz): d for d in pend}
         for f in futs:
@@ -184,9 +184,12 @@ def main() -> None:
                 msg = f.result()
             except Exception as e:  # noqa: BLE001 — um dia ruim não derruba o lote; rodar de novo retoma
                 msg = f"{futs[f]}: ERRO {e}"
+                erros += 1
             feitos += 1
             eta = (time.time() - t0) / feitos * (len(pend) - feitos)
             print(f"[{feitos}/{len(pend)} · ETA {eta / 3600:.1f} h] {msg}", flush=True)
+    # código ≠ 0 faz o serviço (Restart=on-failure) tentar de novo os dias que falharam
+    return 1 if erros else 0
 
 
 if __name__ == "__main__":
