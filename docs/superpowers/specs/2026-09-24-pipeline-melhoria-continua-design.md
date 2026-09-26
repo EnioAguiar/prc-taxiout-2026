@@ -115,6 +115,27 @@ oficial/simulação sair de 0,84 ± 0,05, parar e investigar antes de seguir.
 
 Antes de 11/10: README com reprodução, repositório público GPLv3.
 
+## Parte 4 — Dados externos: adsb.lol (adendo de 26/09)
+
+Decisão de 25/09, depois de os planos 3b (itens 2–4) não moverem a nota e de o
+Discord do desafio mostrar que times do topo usam adsb.lol (organizador: dado
+aberto declarado é permitido; o modelo é pós-operação).
+
+- Fonte: `adsblol/globe_history_2025` e `_2026` no GitHub (ODbL 1.0), um arquivo
+  por dia (2–4 GB), lista de réplicas em `PREFERRED_RELEASES.txt`.
+- Armazenamento: só o recorte perto dos 10 aeroportos (`src/adsb.py`), parquet
+  zstd no SSD `/mnt/c0399cd8-…/prc-adsb/cut/`, ~7–19 MB por dia; bruto apagado.
+- Uso no modelo: features `adsb_*` por `MVT_ID_mvt` (NaN sem cobertura); o
+  classificador de cópia continua decidindo a cauda (o ADS-B vê o off-block real,
+  não a cópia do SCHED).
+- Processo mais barato: **teste barato antes de treino** (script sobre as
+  previsões salvas; treino só se o teto ≥ 10 s); download/processamento como
+  serviço `systemd-run --user`, fora da sessão; sem revisor para experimento
+  descartado.
+- Documentar a fonte no README (condição do prêmio).
+
+Plano: `docs/superpowers/plans/2026-09-26-plano4-adsb.md`.
+
 ## Verificação
 
 - Infra: `experiment.py baseline` reproduz 460 ± 5 s; tempo total ≤ 3 min;

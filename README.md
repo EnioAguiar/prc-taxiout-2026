@@ -206,7 +206,8 @@ Feito:
   sobre `nm_retas` (IC 95% 1,5 a 7,7) → **não comprovado** (abaixo de 10 s);
   re-testado com seed no plano 3a: FRÁGIL.
 
-Próximo: plano 3b (`docs/superpowers/plans/2026-09-25-plano3b-saltos.md`).
+Próximo: **plano 4 — adsb.lol** (`docs/superpowers/plans/2026-09-26-plano4-adsb.md`).
+Plano 3b pausado depois da tarefa 4 (itens 5–8 abaixo ficam atrás do plano 4).
 
 E, antes de 11/10, repositório público GPLv3 (condição do prêmio).
 
@@ -229,7 +230,7 @@ Plano 3a (feito) — regra robusta, seeds e variante > 6 h:
 - [x] Re-teste de `nm_retas_2h` com seed (`nm_retas_2h_s0`): 339,79 s; sem os
   10 maiores voos −6,3 s; IC de jan com limite inferior −7,0 → **FRÁGIL**.
 
-Plano 3b (em andamento) — saltos, em ordem de teto (análise de 25/09 na campeã):
+Plano 3b (pausado em 25/09 depois da tarefa 4; 1 feita, 2–4 descartadas) — saltos, em ordem de teto (análise de 25/09 na campeã):
 
 Onde está o erro (holdout, 332,86): voos normais com NM = 43 % do erro²
 (RMSE 220,7); 204 alarmes falsos (voo normal previsto > 1 h) = 10 %; cauda
@@ -320,22 +321,43 @@ gravado na data do SCHED) e 4,5 % normais; 25 desses no ranking 2026.
     troca a parametrização (e tira do LightGBM a liberdade de ignorar `ref` onde ela é
     ruim, daí os alarmes falsos subirem em 4a). Código removido (`residual_ref`, a flag
     `--residual` e os testes); `experiments.jsonl` guarda as duas corridas.
-- [ ] **A. adsb.lol (prioridade 1, pesquisa de 25/09).** Discord do desafio: o 3º
-  colocado (SoK) usa adsb.lol + clima + stands do X-Plane; GREKI "subiu muito" com
-  jan+jul completos; o organizador confirmou que dado aberto declarado vale.
-  Teste de 1 dia (EDDM, 15/01/2025, 2,2 GB, parse 8 min): 357 de 361 decolagens
-  casadas por callsign + decolagem (mediana 19 s do MVT); off-block = 1º ponto no
-  chão do rastro: |erro| mediana **82 s**, 41 % a ±60 s, 75 % a ±300 s — contra
-  `MVT − AOBT_3` nos mesmos voos: mediana 356 s, 14 % a ±60 s. Próximo: pipeline dia
-  a dia (baixa → recorte dos 10 aeroportos em zst → apaga), 124 dias ≈ 350 GB de
-  download (~25 MB/s), cobertura por aeroporto, features `adsb_taxi` + flag de
-  cobertura. Cuidado: cobertura de chão fraca em LFPG, LIRF, LEMD, LTFM (relato).
+- [ ] **A. adsb.lol → plano 4 (prioridade 1).** Discord do desafio: o 3º colocado
+  (SoK) usa adsb.lol + clima + stands do X-Plane; GREKI "subiu muito" com jan+jul
+  completos; o organizador confirmou que dado aberto declarado vale.
+  Teste de 1 dia (EDDM, 15/01/2025): 357 de 361 decolagens casadas por callsign +
+  decolagem (mediana 19 s do MVT); off-block = 1º ponto no chão do rastro: |erro|
+  mediana **82 s**, 41 % a ±60 s, 75 % a ±300 s — contra `MVT − AOBT_3` nos mesmos
+  voos: mediana 356 s, 14 % a ±60 s.
+  - [x] `src/adsb.py`: recorte diário (caixa ~11 km, chão ou ≤ 3.000 ft, parquet
+    zstd, retomável). Jan+jul 2025/2026: 124 dias, ~1,7 GB, ~7 h com 5 processos
+    (download ~1,5–3 min/dia, leitura 14–30 min/dia). Sobreviveu a uma queda de
+    energia (dias prontos íntegros; retomar pula os feitos). 29/01/2026 tinha um
+    rastro corrompido (`zlib.error`): agora o rastro é pulado e contado.
+  - [ ] Fev–jun e ago–dez de 2025 (serviço `prc-adsb-2025`, iniciado 26/09 de
+    madrugada, ~15 h) — para ter as features também no treino.
+  - [ ] Plano 4: eventos por voo → cobertura por aeroporto → teto barato → features
+    no modelo → candidato. Cuidado: cobertura de chão fraca em LFPG, LIRF, LEMD,
+    LTFM (relato); na cauda "cópia do SCHED" o ADS-B mostra o off-block real, não a
+    verdade oficial.
 - [ ] 5. Features de vizinhos (item 6).
 - [ ] 6. Ensemble XGBoost CUDA + seeds LightGBM (item 7) — **baixa prioridade**:
   no Discord, XGBoost ganhou peso zero e pesos de blend ajustados perderam 4/4.
 - [ ] 7. `sweep.py` (polimento) — **baixa prioridade**: tuning não significativo
   em LightGBM/CatBoost/XGBoost (relato no Discord).
 - [ ] 8. `ablation.py` (poda de features) e `mutmut` (teste do teste).
+
+Pesquisa de 25/09 (Discord do desafio), para não repetir:
+
+- Âncora `MVT − AOBT_3` foi o único passo grande de um time; o resto < 1 s cada.
+- Não funcionou para outros times no placar: tuning de hiperparâmetros, pesos de
+  blend ajustados no holdout (pesos iguais ganharam 4/4), XGBoost como 3º modelo
+  (peso zero), tirar colunas sazonais, pesar linhas por (aeroporto, mês).
+- Funcionou: clima com temperatura e spread de ponto de orvalho (degelo em manhãs
+  limpas) > flag de neve; um time ganhou 3,4 s consertando fuso no join do clima.
+  Sequência de esteira: +0,25 s.
+- Regras de validação sugeridas: jan e jul melhorando separados (já temos) e
+  rejeitar ganho concentrado em < 100 voos.
+- Organização pode criar fase 2 se houver "engenharia reversa do placar".
 
 ## Uso
 
@@ -351,6 +373,7 @@ bin/run src/compare.py <id> --promover --aceitar-fragil   # só após teto.py e 
 bin/run src/teto.py <base.parquet> <novo.parquet> --oficial-base <RMSE> [--min-ms 21600] [--salvar submissions/<TEAM>_vN.parquet]
 bin/run src/train.py submit N [--forcar]          # gera a vN (não envia)
 .venv/bin/python src/s3.py submit submissions/<TEAM>_vN.parquet   # só após aprovação
+bin/run src/adsb.py baixar [--dias 2025-01,2025-07] [--dia AAAA-MM-DD] [--procs 5]   # recortes adsb.lol no SSD
 .venv/bin/python -m pytest -q
 ```
 
@@ -373,6 +396,7 @@ prc-taxiout-2026/
   src/compare.py      # bootstrap pareado por dia, regra robusta (MELHOR/FRÁGIL) e campeão
   src/teto.py         # teto do ganho oficial antes de enviar; grava candidato
   src/train.py        # versão final a partir do campeão (só gera o arquivo)
+  src/adsb.py         # recorte diário do adsb.lol (ODbL) perto dos 10 aeroportos
   tests/              # pytest
   experiments.jsonl   # uma linha por corrida (versionado)
   champion.json       # config campeã (versionado)
