@@ -358,6 +358,13 @@ Pesquisa de 25/09 (Discord do desafio), para não repetir:
 - Regras de validação sugeridas: jan e jul melhorando separados (já temos) e
   rejeitar ganho concentrado em < 100 voos.
 - Organização pode criar fase 2 se houver "engenharia reversa do placar".
+- Atualização de 26/09: o organizador reafirmou que dado aberto vale ("open data
+  sources can be usable to devise a better model"), sem vetar posições de chão
+  depois do pushback. Pode haver uma **etapa final oculta** ("possibly a 1 final
+  submission"; formato — arquivo novo ou código rodado por eles — e período **não
+  decididos**). Consequência: o pipeline inteiro (download do adsb.lol →
+  `adsb_events.py` → features → modelo) precisa rodar em outro período/aeroportos
+  com um comando, e o ganho tem que vir de generalização, não do placar atual.
 
 ## Uso
 
