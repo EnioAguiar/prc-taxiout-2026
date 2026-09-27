@@ -21,8 +21,9 @@ Uso:
     bin/run src/stack.py <nome> [--base <id>] [--crossfit [--seeds N] [--conjunto]] [--sem-adsb]
                                 [--sem-feature COLUNA]
 
-`--sem-feature COLUNA` (pode repetir) tira a coluna da base e do corretor e grava
-`sem_features` na config da corrida e na `base_config`; sem a flag, nada muda.
+`--sem-feature COLUNA` (pode repetir, só com `--crossfit`) tira a coluna da base e do
+corretor e grava `sem_features` na config da corrida e na `base_config`; sem a flag, nada
+muda. Nos folds a base vem pronta e ninguém confere o nome, então a flag é recusada.
 
 `--conjunto` (só com `--crossfit`) troca o corretor único pela média de três treinados
 nas mesmas entradas: LightGBM global, um LightGBM por aeroporto (aeroporto sem modelo
@@ -295,6 +296,8 @@ def main() -> None:
         ap.error("--seeds só vale com --crossfit (a base do holdout vem pronta em --base)")
     if a.conjunto and not a.crossfit:
         ap.error("--conjunto só vale com --crossfit")
+    if a.sem_feature and not a.crossfit:
+        ap.error("--sem-feature só vale com --crossfit (nos folds nada confere o nome)")
     base_id = a.base or json.loads((ROOT / "champion.json").read_text())["id"]
     adsb = not a.sem_adsb
     cfg = config_da_corrida(a, base_id)

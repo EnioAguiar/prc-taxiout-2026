@@ -1,4 +1,5 @@
 import json
+import sys
 
 import lightgbm as lgb
 import numpy as np
@@ -267,3 +268,12 @@ def test_a_config_do_crossfit_grava_sem_features_no_topo_e_na_base(tmp_path, mon
     assert com["sem_features"] == ["adsb_lat0", "adsb_lon0"]
     assert com["base_config"]["sem_features"] == ["adsb_lat0", "adsb_lon0"]
     assert "sem_features" not in sem and "sem_features" not in sem["base_config"]
+
+
+def test_sem_feature_sem_crossfit_e_recusado(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["stack.py", "v14", "--sem-feature", "adsb_lat0"])
+
+    with pytest.raises(SystemExit):
+        stack.main()
+
+    assert "--sem-feature só vale com --crossfit" in capsys.readouterr().err
