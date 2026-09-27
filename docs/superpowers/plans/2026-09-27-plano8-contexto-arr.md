@@ -37,18 +37,18 @@
 - Produces: `contexto.contexto(raw: pd.DataFrame) -> pd.DataFrame` com `MVT_ID_mvt` + as 20 colunas, uma linha por DEP de `raw`; `contexto.COLS` (lista dos 20 nomes).
 - Referência de implementação (vetorizada com `searchsorted`/`merge_asof`): `.superpowers/arr_viz_ref.py` (script do teste barato; adapte, não copie os prints).
 
-- [ ] Teste: ARR sintéticas no mesmo aeroporto com pousos 10, 20 e 70 min antes da DEP e taxi-in 300/600/900 → `ctx_arr_tin_apt_15` = 300 (só a de 10 min); `_60` = média de 300 e 600 = 450; `ctx_arr_n_apt_60` = 2; ARR de outro aeroporto não conta.
-- [ ] Teste: `ctx_stand_ult_*` pega a última ARR do mesmo stand com in-block ≤ MVT_dep e ignora a posterior.
-- [ ] Teste: vizinhos excluem a própria DEP; passado e futuro separados; proxy fora de [0, 7200] é ignorado.
-- [ ] Teste de vazamento: mudar `TAXITIME_SEC_mvt`/`BLOCK_TIME_UTC_mvt` de uma DEP não muda nenhuma coluna `ctx_*` de nenhuma DEP.
-- [ ] Teste: `features.feature_columns` de um frame com colunas `ctx_*` não as inclui; `stack.corrector_frame` inclui.
-- [ ] `pytest -q` verde; commit `contexto: taxi-in das chegadas e vizinhos de MVT−AOBT_3 no corretor`; push.
+- [x] Teste: ARR sintéticas no mesmo aeroporto com pousos 10, 20 e 70 min antes da DEP e taxi-in 300/600/900 → `ctx_arr_tin_apt_15` = 300 (só a de 10 min); `_60` = média de 300 e 600 = 450; `ctx_arr_n_apt_60` = 2; ARR de outro aeroporto não conta.
+- [x] Teste: `ctx_stand_ult_*` pega a última ARR do mesmo stand com in-block ≤ MVT_dep e ignora a posterior.
+- [x] Teste: vizinhos excluem a própria DEP; passado e futuro separados; proxy fora de [0, 7200] é ignorado.
+- [x] Teste de vazamento: mudar `TAXITIME_SEC_mvt`/`BLOCK_TIME_UTC_mvt` de uma DEP não muda nenhuma coluna `ctx_*` de nenhuma DEP.
+- [x] Teste: `features.feature_columns` de um frame com colunas `ctx_*` não as inclui; `stack.corrector_frame` inclui.
+- [x] `pytest -q` verde; commit `contexto: taxi-in das chegadas e vizinhos de MVT−AOBT_3 no corretor`; push.
 
 **Acceptance:** testes passam; nenhum treino real rodado.
 
 ### Task 2 (controlador): medir, enviar, documentar
 
-- [ ] `bin/run src/cache.py` (refaz os 5 splits com `ctx_*`).
-- [ ] `stack.py v11_cf --crossfit --base 20260927-133137-janela` (systemd-run) → `compare.py` contra a v9 (317,23).
-- [ ] Se ganhar: promover, `train.py submit 11`, conferir 0 linhas fora da janela, **parar e mostrar ao usuário**.
-- [ ] Docs: README, CONTEXTO, `saltos.json` (`arr_vizinhos`), caixas; commit + push.
+- [x] `bin/run src/cache.py` (refaz os 5 splits com `ctx_*`).
+- [x] `stack.py v11_cf --crossfit --base 20260927-133137-janela` (systemd-run) → `compare.py` contra a v9 (317,23).
+- [x] Se ganhar: promover, `train.py submit 11`, conferir 0 linhas fora da janela, **parar e mostrar ao usuário**.
+- [x] Docs: README, CONTEXTO, `saltos.json` (`arr_vizinhos`), caixas; commit + push.

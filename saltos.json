@@ -94,8 +94,9 @@
    "ganho_s": 4,
    "prob": 0.5,
    "dias": 1,
-   "status": "pendente",
-   "evidencia": "zestful-fountain: −2,6 s (ARR) e −2,8 s (vizinhos) oficiais"
+   "status": "feito",
+   "evidencia": "v11 266,81 contra v9 275,90; simulação 317,23 → 311,09",
+   "ganho_real_s": 9.1
   },
   {
    "id": "media_mensal_oficial",

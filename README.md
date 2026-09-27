@@ -74,8 +74,8 @@ deixa a validação otimista e o modelo cego para eles (erro da v1).
 
 ## Modelo atual (`src/`)
 
-Campeão em `champion.json`: v9 = `stack_cf` com janela do LOBT (id
-`20260927-133718-v9_cf`, 317,23 na simulação, **275,90 oficial**, a melhor nota). A base é
+Campeão em `champion.json`: v11 (id `20260927-145005-v11_cf`, 311,09 na simulação, **266,81 oficial**, a melhor nota) = v9 + colunas `ctx_*` no corretor (`src/contexto.py`: taxi-in das chegadas e vizinhos de `MVT − AOBT_3`, plano 8). A v9 era `stack_cf` com janela do LOBT (id
+`20260927-133718-v9_cf`, 317,23 na simulação, 275,90 oficial). A base é
 `two_stage_nm` (`--nm-min-ms 21600 --janela-lobt`, features `adsb_*`) com corretor
 treinado fora do bloco por meses (`src/crossfit.py`, `stack.py --crossfit`); toda previsão é
 projetada em `MVT − LOBT ± 3606 s`. Promovida à mão com o ok do usuário ("não comprovado"
@@ -173,6 +173,7 @@ fora do cache de features. `train.py submit N` precisa do `events.parquet` no SS
 | v5 | 24/09 | v3 + retas só em NM ausente com atraso > 6 h (96 linhas) | 332,86 (com o novo código) / 269,66 | **331,0** (−7,7 s sobre a v3; teto calculado 8,5 s) |
 | v6 | 26/09 | configuração da v5 + features `adsb_*` (adsb.lol, 2025 inteiro + jan/jul 2026; 57 % do ranking com evento) | 323,50 / 257,91 | **314,76** (−16,2 s sobre a v5; relação oficial/simulação 0,973) |
 | v9 | 27/09 | v7 (corretor com cross-fitting por mês) + janela do LOBT (projeção em `MVT − LOBT ± 3606`, `p` zerado fora dela) | 317,23 / 254,24 | **275,90** (−38,9 s sobre a v6; relação 0,870) |
+| v11 | 27/09 | v9 + taxi-in das ARR e vizinhos de `MVT − AOBT_3` no corretor (plano 8) | 311,09 / 245,81 | **266,81** (−9,1 s sobre a v9; relação 0,858) |
 | v10 | 27/09 | diagnóstico: v6 + só as 117 linhas projetadas na janela (garantia ≤ 288,01) | 320,30 / — | 284,17 (a regra vale em 2026) |
 
 A simulação da v3 e da v4 vem do holdout novo (`experiment.py`), mais rigoroso que o
@@ -561,7 +562,7 @@ prc-taxiout-2026/
 ## Leaderboard
 
 <https://prc-challenge-2026.vercel.app/>. Em 27/09/2026: 186 equipes, 1º 224,50, 3º
-228,59, 10º 242,81, 50º 278,39. Nós: **275,90 s** (v9, 27/09, ~45º; antes 314,76, 331,0,
+228,59, 10º 242,81, 50º 278,39. Nós: **266,81 s** (v11, 27/09; antes 275,90, 314,76, 331,0,
 338,7 e 384,7). Fotos diárias em `placar/`.
 
 ## Referências
