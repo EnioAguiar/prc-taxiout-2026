@@ -1,4 +1,5 @@
 import cache
+import contexto
 import features as F
 from cache import BLOCK, TRUTH, build_blind
 
@@ -51,3 +52,14 @@ def test_blind2025_montado_como_o_ranking(tmp_path, monkeypatch, raw_movements):
     assert out[F.TARGET].isna().all()
     dep = raw_movements[raw_movements["PHASE_mvt"] == "DEP"]
     assert out.set_index(F.ID)[TRUTH].to_dict() == dep.set_index(F.ID)[F.TARGET].to_dict()
+
+
+def test_chave_do_cache_muda_com_o_arquivo_de_contexto(tmp_path, monkeypatch):
+    paths = [tmp_path / "training_2025-01-01_2025-02-01.parquet"]
+    paths[0].write_bytes(b"")
+    fonte = tmp_path / "contexto.py"
+    fonte.write_text("A = 1")
+    monkeypatch.setattr(contexto, "__file__", str(fonte))
+    antes = cache.cache_key(paths)
+    fonte.write_text("A = 2")
+    assert cache.cache_key(paths) != antes
