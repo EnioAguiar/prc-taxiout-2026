@@ -1,5 +1,5 @@
 {
-  "id": "20260927-145005-v11_cf",
+  "id": "20260927-160433-v12_cf",
   "config": {
     "model": "stack_cf",
     "base": "20260927-133137-janela",
@@ -14,10 +14,11 @@
     },
     "adsb": true,
     "rounds": 300,
-    "seed": 0
+    "seed": 0,
+    "corretor": "conjunto"
   },
   "best_iter": null,
-  "rmse_simulacao": 311.09,
-  "src_hash": "5d75eef153d0",
-  "git_commit": "bc91457"
+  "rmse_simulacao": 309.78,
+  "src_hash": "7abd003ebbdb",
+  "git_commit": "40c25e3"
 }
