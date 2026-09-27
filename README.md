@@ -368,7 +368,15 @@ gravado na data do SCHED) e 4,5 % normais; 25 desses no ranking 2026.
     seeds, 65 min, pico 6,46 GB): **320,36**, contra a v6 ganho 3,1 s (IC 1,3 a 4,9;
     jul −0,5 a 5,4), contra a v7 só **0,3 s** (IC −1,8 a 1,8; normais +0,9) → as
     seeds não pagam 5× o custo; a v7 (1 seed) fica como candidata.
-  - [ ] Detector melhor (tarefa 5); README "Dados externos" (tarefa 6).
+  - [x] Detector (tarefa 5), teste barato de 27/09 — **descartado (0,8 s < portão de 3 s)**.
+    Coordenadas dos stands aprendidas dos voos vistos parados (mediana lat/lon por
+    aeroporto × `STAND_mvt`, ≥ 3 voos: 1.440 stands, 77 % dos voos). Nos voos vistos
+    andando do holdout (109 mil), `move + a + b·dist` por aeroporto: |erro| mediano
+    311 → 157 s, RMSE 746 → 614 (a constante `a` sozinha já leva a 172/655). Corretor
+    barato (5 folds por dia) com `adsb_dist_stand` e `adsb_visto_parado`: 317,57 →
+    316,81, normais 206,27 → 205,41 — o corretor já aprende o atraso do "visto
+    andando" com `adsb_gs0`/`adsb_lat0`/`adsb_lon0`. Scripts descartados.
+  - [ ] README "Dados externos" (tarefa 6).
 - [ ] 5. Features de vizinhos (item 6).
 - [ ] 6. Ensemble XGBoost CUDA + seeds LightGBM (item 7) — **baixa prioridade**:
   no Discord, XGBoost ganhou peso zero e pesos de blend ajustados perderam 4/4.

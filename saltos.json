@@ -18,8 +18,9 @@
    "ganho_s": 8,
    "prob": 0.5,
    "dias": 2,
-   "status": "pendente",
-   "evidencia": "visto parado erra 20–50 s; visto andando 70–800 s (inferência do ganho)"
+   "status": "descartado",
+   "evidencia": "teste barato 27/09: stands pelos voos parados + distância ao 1º ponto; corretor 317,57 → 316,81 (portão 3 s)",
+   "ganho_real_s": 0.8
   },
   {
    "id": "fila_adsb",

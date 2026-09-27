@@ -1,5 +1,5 @@
 {
- "updated": "2026-09-27T16:06:52Z",
+ "updated": "2026-09-27T16:13:17Z",
  "totalSubmissions": 3000,
  "teams": [
   {
@@ -54,7 +54,7 @@
    "team": "jovial-uniform",
    "best": 237.0607,
    "n": 20,
-   "lastAt": "2026-09-27T15:54:13.600274Z"
+   "lastAt": "2026-09-27T16:07:04.752793Z"
   },
   {
    "team": "humble-giraffe",
@@ -136,9 +136,9 @@
   },
   {
    "team": "gentle-ladder",
-   "best": 257.1658,
-   "n": 59,
-   "lastAt": "2026-09-27T12:35:13.314433Z"
+   "best": 257.0099,
+   "n": 60,
+   "lastAt": "2026-09-27T16:11:44.328539Z"
   },
   {
    "team": "nice-umbrella",
@@ -359,7 +359,7 @@
   {
    "team": "amazing-marshmallow",
    "best": 283.9804,
-   "n": 22,
+   "n": 21,
    "lastAt": "2026-09-27T10:40:47.451012Z"
   },
   {
