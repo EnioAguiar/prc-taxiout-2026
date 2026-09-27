@@ -79,7 +79,7 @@ Campeão em `champion.json`: v11 (id `20260927-145005-v11_cf`, 311,09 na simula�
 `two_stage_nm` (`--nm-min-ms 21600 --janela-lobt`, features `adsb_*`) com corretor
 treinado fora do bloco por meses (`src/crossfit.py`, `stack.py --crossfit`); toda previsão é
 projetada em `MVT − LOBT ± 3606 s`. Promovida à mão com o ok do usuário ("não comprovado"
-na regra: ganho 6,3 s). Envio: `train.py submit N` (~27 min, pico 6,94 GB). Antes dela, a
+na regra: ganho 6,3 s). Envio: `train.py submit N` (~27 min, pico 6,94 GB). A v11 foi medida no código `5d75eef`; depois só entrou o `--conjunto` (plano 9), que não muda nada sem a flag (revisado), então `train.py submit` da v11 precisa de `--forcar`. Antes dela, a
 v6 (id `20260926-223248-nm_retas_6h_adsb`, 314,76) foi promovida à mão com o ok do usuário
 depois do oficial: no `compare.py` o veredito foi "não comprovado" (ganho 9,4 s, IC
 7,5 a 11,7, abaixo dos 10 s; sem os 10 maiores 8,7; jan e jul > 0). As colunas
@@ -223,9 +223,9 @@ Feito:
   sobre `nm_retas` (IC 95% 1,5 a 7,7) → não comprovado (abaixo de 10 s);
   re-testado com seed no plano 3a: FRÁGIL.
 
-Próximo (fila em `saltos.json`, 27/09): 2ª família (CatBoost) no resíduo sobre
-`MVT − AOBT_3`; taxi-in das ARR + vizinhos de `MVT − AOBT_3`; média mensal oficial por
-aeroporto; deriva de `adsb_lat0/lon0`. Evidência em
+Próximo (fila em `saltos.json`, 27/09 noite): especialista para Roma sem registro NM
+(inclui "24 h + táxi"); média mensal oficial por aeroporto; envio sem `adsb_lat0/lon0`
+(deriva). A v12 (`--conjunto`) fica guardada para o envio final. Evidência em
 `docs/research/2026-09-27-concorrentes.md`. Plano 3b segue pausado (itens 5 a 8).
 
 Antes de 11/10 (abrir entre 08 e 10/10, decisão de 27/09): repositório público
@@ -412,6 +412,17 @@ gravado na data do SCHED) e 4,5 % normais; 25 desses no ranking 2026.
     **Oficial (27/09): v9 = 275,90** (−38,9 s sobre a v6; relação oficial/simulação 0,870)
     e v10 (diagnóstico: v6 só com as 117 linhas projetadas) = 284,17 ≤ 288,01 → a regra
     vale em 2026; a janela sozinha valeu −30,6 s e o corretor + base nova −8,3 s.
+  - [x] Plano 8 (`docs/superpowers/plans/2026-09-27-plano8-contexto-arr.md`), contexto
+    no corretor (`src/contexto.py`, colunas `ctx_*`): taxi-in das chegadas por aeroporto e
+    pista (15/60 min), última chegada no mesmo stand, média de `MVT − AOBT_3` das DEP
+    vizinhas antes e depois. Teste barato −3,5 s; `v11_cf` 311,09 (ganho 6,1 s sobre a v9,
+    IC 4,0 a 8,7, normais +4,9). **Oficial: v11 = 266,81** (−9,1 s sobre a v9).
+  - [x] CatBoost como corretor (teste barato 27/09): sozinho 309,53 contra 309,27 do
+    LightGBM; corte do alvo em ±7200 s só ajuda o LightGBM (−0,4). Descartado sozinho.
+  - [x] Plano 9 (`docs/superpowers/plans/2026-09-27-plano9-conjunto-corretor.md`), média de
+    três corretores (LightGBM global, LightGBM por aeroporto, CatBoost; `--conjunto`).
+    Teste barato −3,5 s; `v12_cf` 309,78, só 1,3 s sobre a v11 (IC 0,5 a 2,2; jan com IC
+    incluindo zero). Não promovida; guardada para o envio final.
   - [x] README "Dados externos" e "Reprodução" (tarefa 6, 27/09); `PRC_ADSB_RAIZ` configurável.
 - [ ] 5. Features de vizinhos (item 6).
 - [ ] 6. Ensemble XGBoost CUDA + seeds LightGBM (item 7), baixa prioridade:
