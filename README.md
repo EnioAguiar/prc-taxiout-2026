@@ -74,13 +74,14 @@ deixa a validação otimista e o modelo cego para eles (erro da v1).
 
 ## Modelo atual (`src/`)
 
-Campeão em `champion.json`: **dois estágios com retas só para voos sem NM e
-atraso > 6 h** (`two_stage_nm` com `--nm-min-ms 21600`, id
-`20260924-215852-nm_retas_6h_r`), 332,86 s na simulação. É a configuração da
-v5, a melhor submissão oficial (331,0 s), re-medida no código final do plano
-3a. `train.py submit N` reconstrói essa **configuração**, não o arquivo da v5
-(montado pelo `teto.py` a partir da v3 + 96 linhas da v4); a nota oficial de um
-novo `submit` pode variar alguns segundos (ruído de seeds).
+Campeão em `champion.json`: **a configuração da v5 com as features `adsb_*`** (off-block
+observado pelo ADS-B do adsb.lol, `src/adsb_events.py`; `two_stage_nm` com
+`--nm-min-ms 21600`, id `20260926-223248-nm_retas_6h_adsb`), 323,50 s na simulação.
+É a v6, a melhor submissão oficial (**314,76 s**). Promovida à mão com o ok do usuário
+depois do oficial: no `compare.py` o veredito foi "não comprovado" (ganho 9,4 s, IC
+7,5 a 11,7, abaixo dos 10 s; sem os 10 maiores 8,7; jan e jul > 0). As colunas
+`adsb_*` entram por `cache.load_split` (merge com `events.parquet`, NaN sem evento),
+fora do cache de features. `train.py submit N` precisa do `events.parquet` no SSD.
 
 - **Estágio 1:** classificador LightGBM de `eq = |BLOCK − SCHED| ≤ 60 s`,
   a cópia que existe na cauda.
@@ -158,6 +159,7 @@ novo `submit` pode variar alguns segundos (ruído de seeds).
 | v3 | 24/09 | dois estágios (classificador da cópia do SCHED + regressor) e `nm_missing`; base de experimentos nova | 388,16 / 269,87 | **338,7** |
 | v4 | 24/09 | `two_stage_nm`: retas por aeroporto em `MVT − SCHED` para os voos sem NM | 345,89 / 285,52 | **337,2** |
 | v5 | 24/09 | v3 + retas só em NM ausente com atraso > 6 h (96 linhas) | 332,86 (com o novo código) / 269,66 | **331,0** (−7,7 s sobre a v3; teto calculado 8,5 s) |
+| v6 | 26/09 | configuração da v5 + features `adsb_*` (adsb.lol, 2025 inteiro + jan/jul 2026; 57 % do ranking com evento) | 323,50 / 257,91 | **314,76** (−16,2 s sobre a v5; relação oficial/simulação 0,973) |
 
 A simulação da v3 e da v4 vem do holdout novo (`experiment.py`), mais rigoroso que o
 `sim_ranking.py` que mediu a v1 e a v2. A da v5 é a de `nm_retas_6h` (seeds
@@ -342,9 +344,14 @@ gravado na data do SCHED) e 4,5 % normais; 25 desses no ranking 2026.
     EDDF, LSZH, EDDM; nula em LTFM; fraca em LEMD, LFPG, EGLL. Avião visto parado:
     erro mediano 20–50 s. Troca direta não ganha; **empilhamento fora do fold
     332,86 → 317,44 (−15,4 s)**, normais 248,2 → 223,9, jan e jul melhoram.
-  - [ ] Plano 4, tarefa 4: controle sem `adsb_*`, eventos do ano inteiro, features no
-    treino da campeã, `compare.py`. Cuidado: na cauda "cópia do SCHED" o ADS-B mostra
-    o off-block real, não a verdade oficial.
+  - [x] Plano 4, tarefa 4: controle do empilhamento sem `adsb_*` 327,25 (a antena
+    vale ~10 s); eventos do ano inteiro (1,26 M decolagens); `adsb_*` no treino da
+    campeã → 323,50 (**v6, 314,76 oficial**). Empilhamento sobre ela
+    (`src/stack.py`) 317,57, MELHOR — ainda não enviável (o corretor só existe para
+    jan/jul; exige base treinada sem esses meses).
+  - [ ] Próximo: v7 = empilhamento com base treinada em `train2025` (10 meses) e
+    corretor treinado no holdout inteiro; detector melhor (tarefa 5); README
+    "Dados externos" (tarefa 6).
 - [ ] 5. Features de vizinhos (item 6).
 - [ ] 6. Ensemble XGBoost CUDA + seeds LightGBM (item 7) — **baixa prioridade**:
   no Discord, XGBoost ganhou peso zero e pesos de blend ajustados perderam 4/4.
@@ -422,7 +429,7 @@ prc-taxiout-2026/
 ## Leaderboard
 
 <https://prc-challenge-2026.vercel.app/>. Em 24/09/2026: 188 equipes,
-melhor RMSE 234,1 s, mediana ~305 s. Nós: 331,0 s (v5; antes 338,7 e 384,7).
+melhor RMSE 234,1 s, mediana ~305 s. Nós: 314,76 s (v6, 26/09; antes 331,0, 338,7 e 384,7).
 
 ## Referências
 

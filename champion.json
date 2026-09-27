@@ -1,5 +1,5 @@
 {
-  "id": "20260924-215852-nm_retas_6h_r",
+  "id": "20260926-223248-nm_retas_6h_adsb",
   "config": {
     "model": "two_stage_nm",
     "cls_rounds": 400,
@@ -9,7 +9,7 @@
     "nm_min_ms": 21600.0
   },
   "best_iter": null,
-  "rmse_simulacao": 332.86,
-  "src_hash": "30621a814528",
-  "git_commit": "dde228e"
+  "rmse_simulacao": 323.5,
+  "src_hash": "125431784eb7",
+  "git_commit": "4f8a948"
 }
