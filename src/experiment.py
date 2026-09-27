@@ -7,6 +7,9 @@
 Qualquer modelo aceita `--seeds N`: a previsão passa a ser a média de N cópias treinadas
 com as seeds `--seed`, `--seed`+1, …; N = 1 (padrão) é o comportamento de sempre.
 
+Qualquer modelo aceita `--sem-feature COLUNA` (pode repetir): tira a coluna da base e
+grava `sem_features` na config; sem a flag, nada muda.
+
 Treina em train2025 (10 meses), prevê holdout2025 (jan+jul/2025 montados como o
 ranking) e registra RMSE completo, sem outliers, por grupo, por fatia de erro
 (voos normais com NM, alarmes falsos, cauda que é cópia, sem loteria) e por
@@ -100,6 +103,8 @@ def config(a: argparse.Namespace) -> dict:
         cfg["seeds"] = a.seeds
     if a.janela_lobt:  # config sem a janela continua idêntica às antigas
         cfg["janela_lobt"] = True
+    if a.sem_feature:  # config sem a flag continua idêntica às antigas
+        cfg["sem_features"] = list(a.sem_feature)
     return cfg
 
 
@@ -119,6 +124,8 @@ def main() -> None:
                     help="média das previsões de N cópias, com seeds seed..seed+N−1")
     ap.add_argument("--janela-lobt", action="store_true",
                     help="prende a previsão em MVT − LOBT ± 3606 s e zera p fora da janela")
+    ap.add_argument("--sem-feature", action="append", default=[], metavar="COLUNA",
+                    help="tira a coluna da base (pode repetir); nome inexistente é erro")
     ap.add_argument("--nota", default="")
     a = ap.parse_args()
     if a.model != "two_stage_nm" and (a.nm_split_ms or a.nm_min_ms):
@@ -130,7 +137,7 @@ def main() -> None:
         with run.phase("dados", 0.15):
             train, hold = load_split("train2025"), load_split("holdout2025")
             rk = load_split("ranking2026")
-            cols = prepare(train, [hold])
+            cols = prepare(train, [hold], cfg.get("sem_features", ()))
             drop = leaky_columns(train, rk, cols)
             cols = [c for c in cols if c not in drop]
             del rk

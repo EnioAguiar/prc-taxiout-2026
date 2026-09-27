@@ -12,6 +12,8 @@ prende a previsão final na janela do LOBT (`JanelaLOBT`) e zera `p` onde a cóp
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 import lightgbm as lgb
 import numpy as np
 import pandas as pd
@@ -41,14 +43,28 @@ def params_for(cfg: dict) -> dict:
     return {**PARAMS, "seed": int(cfg.get("seed", 0))}
 
 
-def prepare(train: pd.DataFrame, others: list[pd.DataFrame]) -> list[str]:
-    """Referência P10 (só do treino) e o mesmo vocabulário de categorias em todos."""
+def prepare(train: pd.DataFrame, others: list[pd.DataFrame],
+            sem: Iterable[str] = ()) -> list[str]:
+    """Referência P10 (só do treino) e o mesmo vocabulário de categorias em todos.
+
+    `sem` tira nomes da lista de colunas (nome que não é candidato é erro).
+    """
     ref = F.fit_reference(train)
     for df in (train, *others):
         df["ref_p10"] = F.apply_reference(df, ref)
     F.as_categories([train, *others])
     # adsb_* entram por load_split (fora do cache de features: mudar os eventos não refaz o cache)
-    return F.feature_columns(train) + [c for c in train.columns if c.startswith("adsb_")]
+    cols = F.feature_columns(train) + [c for c in train.columns if c.startswith("adsb_")]
+    return sem_colunas(cols, sem)
+
+
+def sem_colunas(cols: list[str], sem: Iterable[str]) -> list[str]:
+    """`cols` sem os nomes de `sem`; nome que não está em `cols` é erro."""
+    sem = list(sem)
+    faltando = [c for c in sem if c not in cols]
+    if faltando:
+        raise ValueError(f"sem_features fora das colunas: {', '.join(faltando)}")
+    return [c for c in cols if c not in set(sem)]
 
 
 def leaky_columns(train: pd.DataFrame, ranking: pd.DataFrame, cols: list[str]) -> list[str]:

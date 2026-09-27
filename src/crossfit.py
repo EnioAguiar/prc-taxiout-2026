@@ -42,7 +42,7 @@ def oof_base(
             run.log(f"bloco {k + 1}/{len(blocos)} meses {meses}")
         tr = train[~train_mes.isin(meses)].copy()  # prepare muta os frames: cópias por bloco
         te = blind[blind_mes.isin(meses) & blind[TRUTH].notna()].copy()
-        cols = prepare(tr, [te])
+        cols = prepare(tr, [te], cfg.get("sem_features", ()))
         drop = leaky_columns(tr, ranking_cols_ref, cols)
         cols = [c for c in cols if c not in drop]
         model = build_model(cfg).fit(tr, cols, run=run)

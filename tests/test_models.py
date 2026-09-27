@@ -222,3 +222,39 @@ def test_janela_limita_a_media_das_seeds_uma_vez(modelo_da_seed):
     assert m.predict(df).tolist() == [3606.0]  # a média 5000,5 projetada
     assert [type(c) for c in m.models] == [_ModeloDaSeed] * 2  # cópias sem projeção própria
     assert m.best_iter == 5100  # o do modelo de dentro continua visível
+
+
+def _frame_prepare() -> pd.DataFrame:
+    """Voos sintéticos com as colunas que prepare() exige, mais duas colunas adsb_*."""
+    import features as F
+    from cache import TRUTH
+
+    n = 12  # ≥ features.REF_MIN_FLIGHTS: a P10 do grupo só existe com voos suficientes
+    t = pd.Timestamp("2025-03-05 08:00", tz="UTC")
+    df = pd.DataFrame({
+        F.ID: np.arange(n, dtype=float),
+        "MVT_TIME_UTC_mvt": [t + pd.Timedelta(minutes=i) for i in range(n)],
+        F.TARGET: np.full(n, 900.0),
+        TRUTH: np.full(n, 900.0),
+    })
+    fixas = {F.AIRPORT: "LIRF", "RUNWAY_mvt": "25", "STAND_mvt": "A1"}
+    for col in F.CATEGORICAL:
+        df[col] = fixas.get(col, "X")
+    df["hour"], df["dow"], df["nm_missing"] = 8.0, 1, 0
+    df["adsb_lat0"], df["adsb_lon0"] = 41.8, 12.2
+    return df
+
+
+def test_sem_features_tira_so_as_colunas_pedidas():
+    train, outro = _frame_prepare(), _frame_prepare()
+
+    todas = models.prepare(train, [outro])
+    menos = models.prepare(_frame_prepare(), [_frame_prepare()], sem=("adsb_lat0",))
+
+    assert "adsb_lat0" in todas
+    assert menos == [c for c in todas if c != "adsb_lat0"]
+
+
+def test_sem_features_com_nome_inexistente_e_erro():
+    with pytest.raises(ValueError, match="nao_existe"):
+        models.prepare(_frame_prepare(), [_frame_prepare()], sem=("nao_existe",))

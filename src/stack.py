@@ -19,6 +19,10 @@ na janela antes do piso 0; sem `janela_lobt` na base, tudo segue como antes.
 
 Uso:
     bin/run src/stack.py <nome> [--base <id>] [--crossfit [--seeds N] [--conjunto]] [--sem-adsb]
+                                [--sem-feature COLUNA]
+
+`--sem-feature COLUNA` (pode repetir) tira a coluna da base e do corretor e grava
+`sem_features` na config da corrida e na `base_config`; sem a flag, nada muda.
 
 `--conjunto` (só com `--crossfit`) troca o corretor único pela média de três treinados
 nas mesmas entradas: LightGBM global, um LightGBM por aeroporto (aeroporto sem modelo
@@ -33,6 +37,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections.abc import Iterable
 
 import lightgbm as lgb
 import numpy as np
@@ -71,8 +76,12 @@ def config_da_base(base_id: str, seeds: int) -> dict:
 
 
 def corrector_frame(df: pd.DataFrame, pred: np.ndarray, adsb: bool = True,
-                    janela: bool = False) -> pd.DataFrame:
-    """Entradas do corretor: a previsão da base, o contexto do voo e o rastro ADS-B."""
+                    janela: bool = False, sem: Iterable[str] = ()) -> pd.DataFrame:
+    """Entradas do corretor: a previsão da base, o contexto do voo e o rastro ADS-B.
+
+    `sem` tira as colunas com esses nomes (nome que não está no quadro é ignorado: a
+    lista é a mesma da base, que tem colunas que o corretor não usa).
+    """
     cols = [F.AIRPORT, "nm_missing", "hour", *[c for c in df if c.startswith("to_takeoff_from_")],
             *[c for c in contexto.COLS if c in df]]
     X = df[cols].copy()
@@ -85,7 +94,7 @@ def corrector_frame(df: pd.DataFrame, pred: np.ndarray, adsb: bool = True,
     if adsb:
         X = X.join(df[ADSB])
         X["adsb_menos_pred"] = X["adsb_taxi_move"] - X["pred"]
-    return X
+    return X.drop(columns=[c for c in sem if c in X.columns])
 
 
 class Conjunto:
@@ -160,9 +169,9 @@ def apply_corrector(model: lgb.Booster | Conjunto, X: pd.DataFrame, base: np.nda
 
 
 def previsao_corrigida(model: lgb.Booster | Conjunto, df: pd.DataFrame, base: np.ndarray,
-                       adsb: bool, janela: bool) -> np.ndarray:
+                       adsb: bool, janela: bool, sem: Iterable[str] = ()) -> np.ndarray:
     """Previsão dos voos de `df` corrigida: com `janela`, dentro da janela do LOBT."""
-    X = corrector_frame(df, base, adsb, janela)
+    X = corrector_frame(df, base, adsb, janela, sem)
     return apply_corrector(model, X, base, df if janela else None)
 
 
@@ -187,13 +196,13 @@ def holdout_da_base(base: pd.DataFrame) -> pd.DataFrame:
 
 
 def simulacao_folds(
-    run: Run, base_id: str, adsb: bool
+    run: Run, base_id: str, adsb: bool, sem: Iterable[str] = ()
 ) -> tuple[pd.DataFrame, pd.DataFrame, np.ndarray]:
     """Corretor em 5 folds por dia dentro do holdout; devolve (holdout, base, previsão)."""
     with run.phase("dados", 0.3):
         base = pd.read_parquet(RUNS / f"{base_id}.parquet")
         hold = holdout_da_base(base)
-        X = corrector_frame(hold, base["pred"].to_numpy(float), adsb)
+        X = corrector_frame(hold, base["pred"].to_numpy(float), adsb, sem=sem)
         if adsb:
             run.log(f"adsb: {X['adsb_taxi'].notna().mean():.1%} dos voos com evento")
     with run.phase("treino", 0.6):
@@ -203,7 +212,8 @@ def simulacao_folds(
 
 
 def simulacao_crossfit(
-    run: Run, base_id: str, cfg_base: dict, adsb: bool, conjunto: bool = False
+    run: Run, base_id: str, cfg_base: dict, adsb: bool, conjunto: bool = False,
+    sem: Iterable[str] = ()
 ) -> tuple[pd.DataFrame, pd.DataFrame, np.ndarray]:
     """Corretor treinado no ano fora do bloco; devolve (holdout, base, previsão)."""
     janela = bool(cfg_base.get("janela_lobt"))
@@ -224,14 +234,14 @@ def simulacao_crossfit(
         pred_oof = oof["pred"].to_numpy(float)
         cegas = blind.set_index(F.ID).loc[oof[F.ID]].reset_index()  # mesma ordem do oof
         del blind
-        X_oof = corrector_frame(cegas, pred_oof, adsb, janela)
+        X_oof = corrector_frame(cegas, pred_oof, adsb, janela, sem)
         del cegas
         if adsb:
             run.log(f"adsb no treino do corretor: {X_oof['adsb_taxi'].notna().mean():.1%}")
         model = fit_corrector(X_oof, oof[TRUTH].to_numpy(float), pred_oof, conjunto)
         del X_oof
         pred_base = base["pred"].to_numpy(float)
-        pred = previsao_corrigida(model, hold, pred_base, adsb, janela)
+        pred = previsao_corrigida(model, hold, pred_base, adsb, janela, sem)
     return hold, base, pred
 
 
@@ -246,21 +256,35 @@ def parser() -> argparse.ArgumentParser:
                     help="--crossfit: base de cada bloco é a média de N seeds")
     ap.add_argument("--conjunto", action="store_true",
                     help="--crossfit: corretor = média de global, por aeroporto e CatBoost")
+    ap.add_argument("--sem-feature", action="append", default=[], metavar="COLUNA",
+                    help="tira a coluna da base e do corretor (pode repetir)")
     ap.add_argument("--nota", default="")
     return ap
 
 
 def config_da_corrida(a: argparse.Namespace, base_id: str) -> dict:
-    """Config gravada no registro: com `--conjunto`, a chave `corretor`."""
+    """Config gravada no registro: com `--conjunto`, a chave `corretor`.
+
+    Com `--sem-feature`, `sem_features` no topo (corretor) e na `base_config` (blocos).
+    """
     adsb = not a.sem_adsb
+    sem = list(a.sem_feature)
     if not a.crossfit:
-        return {"model": "stack", "base": base_id, "adsb": adsb, "folds": FOLDS,
-                "rounds": ROUNDS, "seed": PARAMS["seed"]}
+        cfg = {"model": "stack", "base": base_id, "adsb": adsb, "folds": FOLDS,
+               "rounds": ROUNDS, "seed": PARAMS["seed"]}
+        if sem:
+            cfg["sem_features"] = sem
+        return cfg
+    cfg_base = config_da_base(base_id, a.seeds)
+    if sem:
+        cfg_base = {**cfg_base, "sem_features": sem}
     cfg = {"model": "stack_cf", "base": base_id,
-           "base_config": config_da_base(base_id, a.seeds),
+           "base_config": cfg_base,
            "adsb": adsb, "rounds": ROUNDS, "seed": PARAMS["seed"]}
     if a.conjunto:
         cfg["corretor"] = "conjunto"
+    if sem:
+        cfg["sem_features"] = sem
     return cfg
 
 
@@ -277,11 +301,12 @@ def main() -> None:
 
     with Run(a.nome, cfg) as run:
         run.set(nota=a.nota)
+        sem = cfg.get("sem_features", ())
         if a.crossfit:
             hold, base, pred = simulacao_crossfit(run, base_id, cfg["base_config"], adsb,
-                                                  a.conjunto)
+                                                  a.conjunto, sem)
         else:
-            hold, base, pred = simulacao_folds(run, base_id, adsb)
+            hold, base, pred = simulacao_folds(run, base_id, adsb, sem)
         with run.phase("métricas", 0.1):
             m = metrics(hold, pred)
             path = RUNS / f"{run.id}.parquet"

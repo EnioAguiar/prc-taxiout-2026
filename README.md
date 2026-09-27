@@ -507,15 +507,15 @@ cp .env.example .env                              # chaves e TEAM_NAME
 .venv/bin/python src/s3.py download               # dados em data/
 bin/run src/cache.py                              # features em cache (uma vez, sozinho)
 bin/run src/experiment.py <nome> --model two_stage [--seed N] [--seeds N]
-bin/run src/experiment.py <nome> --model two_stage_nm [--nm-split-ms] [--nm-min-ms 21600] [--janela-lobt] [--seed N] [--seeds N]
+bin/run src/experiment.py <nome> --model two_stage_nm [--nm-split-ms] [--nm-min-ms 21600] [--janela-lobt] [--seed N] [--seeds N] [--sem-feature COLUNA]
 bin/run src/compare.py <id> --promover            # decide contra o campeão (FRÁGIL não promove)
 bin/run src/compare.py <id> --promover --aceitar-fragil   # só após teto.py e ok do usuário
 bin/run src/teto.py <base.parquet> <novo.parquet> --oficial-base <RMSE> [--min-ms 21600] [--salvar submissions/<TEAM>_vN.parquet]
-bin/run src/train.py submit N [--forcar]          # gera a vN (não envia)
+bin/run src/train.py submit N [--forcar] [--corrida <id>]   # gera a vN (não envia); --corrida usa a receita daquela corrida do experiments.jsonl, sem mexer no champion.json
 .venv/bin/python src/s3.py submit submissions/<TEAM>_vN.parquet   # só após aprovação
 bin/run src/adsb.py baixar [--dias 2025-01,2025-07] [--dia AAAA-MM-DD] [--procs 5]   # recortes adsb.lol no SSD
 bin/run src/adsb_events.py                        # eventos por voo → <SSD>/events.parquet
-bin/run src/stack.py <nome> [--base <id>] [--sem-adsb] [--crossfit [--seeds N] [--conjunto]]   # corretor fora do fold (teste barato) ou fora do bloco no ano (enviável; ~17 min, rodar via systemd-run --user); --conjunto = média de global, por aeroporto e CatBoost
+bin/run src/stack.py <nome> [--base <id>] [--sem-adsb] [--crossfit [--seeds N] [--conjunto]] [--sem-feature COLUNA]   # corretor fora do fold (teste barato) ou fora do bloco no ano (enviável; ~17 min, rodar via systemd-run --user); --conjunto = média de global, por aeroporto e CatBoost
 .venv/bin/python ferramentas/projecao.py          # placar do dia + docs/projecao.md
 .venv/bin/python ferramentas/auditoria.py         # docs/auditoria/AAAA-MM-DD.md
 .venv/bin/python -m pytest -q

@@ -1,8 +1,11 @@
+import json
+
 import numpy as np
 import pandas as pd
 import pytest
 
 import features as F
+import runlog
 import train
 from cache import TRUTH
 from train import build_submission, corrigir_ranking, final_config
@@ -125,3 +128,36 @@ def test_sem_corretor_na_config_o_envio_segue_o_caminho_antigo(monkeypatch, tmp_
 def test_com_corretor_conjunto_o_envio_usa_o_conjunto(monkeypatch, tmp_path):
     assert _corretor_final_com(
         {"base_config": {}, "corretor": "conjunto"}, monkeypatch, tmp_path) is True
+
+
+def _registro(tmp_path, monkeypatch, *ids) -> None:
+    """experiments.jsonl sintético; `champion.json` aponta para um arquivo que não existe."""
+    linhas = [json.dumps({"id": i, "config": {"model": "single", "rounds": 400},
+                          "src_hash": runlog.src_hash(), "best_iter": 300}) for i in ids]
+    registro = tmp_path / "experiments.jsonl"
+    registro.write_text("\n".join(linhas) + "\n", encoding="utf-8")
+    monkeypatch.setattr(train, "REGISTRY", registro)
+    monkeypatch.setattr(train, "CHAMPION", tmp_path / "nao_existe.json")
+    monkeypatch.setenv("TEAM_NAME", "equipe")
+
+
+def test_submit_com_corrida_usa_a_linha_do_registro_e_nao_o_campeao(tmp_path, monkeypatch):
+    _registro(tmp_path, monkeypatch, "20260101-a", "20260101-b")
+    visto = {}
+
+    def parar(champ):
+        visto["id"] = champ["id"]
+        raise SystemExit("parou depois de escolher a corrida")
+
+    monkeypatch.setattr(train, "final_config", parar)
+    with pytest.raises(SystemExit, match="parou"):
+        train.submit(14, corrida="20260101-b")
+
+    assert visto["id"] == "20260101-b"
+
+
+def test_submit_com_corrida_inexistente_cita_o_id(tmp_path, monkeypatch):
+    _registro(tmp_path, monkeypatch, "20260101-a")
+
+    with pytest.raises(SystemExit, match="20260101-z"):
+        train.submit(14, corrida="20260101-z")

@@ -1,8 +1,11 @@
 """Versão final para envio, a partir do campeão (champion.json).
 
-    bin/run src/train.py submit N [--forcar]   # gera submissions/<TEAM>_vN.parquet (NÃO envia)
+    bin/run src/train.py submit N [--forcar] [--corrida <id>]   # gera submissions/<TEAM>_vN.parquet (NÃO envia)
 
-Aborta se o código mudou desde a promoção do campeão (src_hash); --forcar ignora.
+Sem `--corrida`, a receita é a do campeão; com `--corrida <id>`, a da última linha dessa
+corrida no `experiments.jsonl` (o `champion.json` não é lido nem mexido).
+
+Aborta se o código mudou desde a corrida escolhida (src_hash); --forcar ignora.
 Envio separado, só depois de aprovado: .venv/bin/python src/s3.py submit <arquivo>
 
 Campeã `stack_cf`: o corretor treina nas cegas com a previsão da base fora do bloco
@@ -11,9 +14,11 @@ Campeã `stack_cf`: o corretor treina nas cegas com a previsão da base fora do 
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import sys
+from collections.abc import Iterable
 
 import numpy as np
 import pandas as pd
@@ -25,7 +30,7 @@ from cache import DATA, TRUTH, load_split
 from compare import CHAMPION
 from crossfit import oof_base
 from models import build_model, leaky_columns, prepare
-from runlog import ROOT, Run
+from runlog import REGISTRY, ROOT, Run
 from stack import corrector_frame, fit_corrector, previsao_corrigida
 
 OUT = ROOT / "submissions"
@@ -86,7 +91,7 @@ def build_submission(
 
 def base_final(cfg: dict, full: pd.DataFrame, rk: pd.DataFrame, run: Run) -> np.ndarray:
     """Base treinada no ano inteiro (muta `full` e `rk`), prevendo o ranking."""
-    cols = prepare(full, [rk])
+    cols = prepare(full, [rk], cfg.get("sem_features", ()))
     drop = leaky_columns(full, rk, cols)
     cols = [c for c in cols if c not in drop]
     run.log(f"treino {len(full):,} · ranking {len(rk):,} · ignoradas: {drop or 'nenhuma'}")
@@ -94,7 +99,7 @@ def base_final(cfg: dict, full: pd.DataFrame, rk: pd.DataFrame, run: Run) -> np.
 
 
 def corretor_final(cfg_bloco: dict, adsb: bool, full: pd.DataFrame, rk: pd.DataFrame,
-                   caminho_oof, run: Run, conjunto: bool = False):
+                   caminho_oof, run: Run, conjunto: bool = False, sem: Iterable[str] = ()):
     """Corretor treinado nas cegas com a previsão de uma base que não viu o mês delas."""
     blind = load_split("blind2025")
     run.log(f"cegas {len(blind):,}")
@@ -104,7 +109,7 @@ def corretor_final(cfg_bloco: dict, adsb: bool, full: pd.DataFrame, rk: pd.DataF
     pred_oof = oof["pred"].to_numpy(float)
     cegas = blind.set_index(F.ID).loc[oof[F.ID]].reset_index()  # mesma ordem do oof
     del blind
-    X = corrector_frame(cegas, pred_oof, adsb, bool(cfg_bloco.get("janela_lobt")))
+    X = corrector_frame(cegas, pred_oof, adsb, bool(cfg_bloco.get("janela_lobt")), sem)
     del cegas
     if adsb:
         run.log(f"adsb no treino do corretor: {X['adsb_taxi'].notna().mean():.1%}")
@@ -112,15 +117,25 @@ def corretor_final(cfg_bloco: dict, adsb: bool, full: pd.DataFrame, rk: pd.DataF
 
 
 def corrigir_ranking(corretor, cfg_bloco: dict, adsb: bool, rk: pd.DataFrame,
-                     pred: np.ndarray) -> np.ndarray:
+                     pred: np.ndarray, sem: Iterable[str] = ()) -> np.ndarray:
     """Previsão final do ranking: na janela do LOBT quando os blocos da base usam."""
-    return previsao_corrigida(corretor, rk, pred, adsb, bool(cfg_bloco.get("janela_lobt")))
+    return previsao_corrigida(corretor, rk, pred, adsb, bool(cfg_bloco.get("janela_lobt")), sem)
 
 
-def submit(version: int, forcar: bool = False) -> None:
+def corrida_registrada(corrida_id: str) -> dict:
+    """A última linha de `experiments.jsonl` com esse id (como `stack.base_config`)."""
+    for line in reversed(REGISTRY.read_text().splitlines()):
+        rec = json.loads(line) if line.strip() else {}
+        if rec.get("id") == corrida_id:
+            return rec
+    raise SystemExit(f"corrida {corrida_id} não está em {REGISTRY.name}")
+
+
+def submit(version: int, forcar: bool = False, corrida: str | None = None) -> None:
+    """Gera a versão N do campeão, ou da corrida `corrida` do registro."""
     load_dotenv(ROOT / ".env")
     team = os.environ.get("TEAM_NAME") or sys.exit("Falta TEAM_NAME no .env")
-    champ = json.loads(CHAMPION.read_text())
+    champ = corrida_registrada(corrida) if corrida else json.loads(CHAMPION.read_text())
     check_code(champ, forcar)
     cfg = final_config(champ)
     empilhado = cfg["model"] == "stack_cf"
@@ -136,11 +151,13 @@ def submit(version: int, forcar: bool = False) -> None:
                     champ["config"]["base_config"], champ["config"]["adsb"], full, rk,
                     OUT / f"{team}_v{version}_oof.parquet", run,
                     champ["config"].get("corretor") == "conjunto",
+                    champ["config"].get("sem_features", ()),
                 )
             with run.phase("base final", 0.30):
                 pred = base_final(cfg["base_config"], full, rk, run)
                 pred = corrigir_ranking(
-                    corretor, champ["config"]["base_config"], champ["config"]["adsb"], rk, pred
+                    corretor, champ["config"]["base_config"], champ["config"]["adsb"], rk, pred,
+                    champ["config"].get("sem_features", ()),
                 )
         else:
             with run.phase("treino", 0.85):
@@ -157,10 +174,12 @@ def submit(version: int, forcar: bool = False) -> None:
 
 
 if __name__ == "__main__":
-    match sys.argv[1:]:
-        case ["submit", n] if n.isdigit():
-            submit(int(n))
-        case ["submit", n, "--forcar"] if n.isdigit():
-            submit(int(n), forcar=True)
-        case _:
-            sys.exit(__doc__)
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawTextHelpFormatter)
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    sp = sub.add_parser("submit", help="gera submissions/<TEAM>_vN.parquet (não envia)")
+    sp.add_argument("version", type=int)
+    sp.add_argument("--forcar", action="store_true", help="ignora a mudança de src_hash")
+    sp.add_argument("--corrida", help="id no experiments.jsonl (padrão: champion.json)")
+    a = ap.parse_args()
+    submit(a.version, forcar=a.forcar, corrida=a.corrida)

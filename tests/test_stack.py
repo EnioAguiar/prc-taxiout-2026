@@ -229,3 +229,41 @@ def test_a_config_do_crossfit_so_tem_corretor_com_a_flag(tmp_path, monkeypatch):
 
     assert com["corretor"] == "conjunto"
     assert "corretor" not in sem
+
+
+def test_sem_feature_tira_as_colunas_do_corretor_e_mantem_as_outras():
+    df = _voos()
+    pred = np.array([800.0, 900.0, 1000.0])
+    todas = corrector_frame(df, pred)
+
+    X = corrector_frame(df, pred, sem=("adsb_lat0", "adsb_lon0"))
+
+    assert "adsb_lat0" not in X.columns and "adsb_lon0" not in X.columns
+    assert list(X.columns) == [c for c in todas.columns if c not in ("adsb_lat0", "adsb_lon0")]
+    assert "adsb_menos_pred" in X.columns
+    assert [c for c in X.columns if c.startswith("adsb_")]
+
+
+def test_sem_a_lista_o_corretor_ve_as_colunas_de_hoje():
+    df = _voos()
+    pred = np.array([800.0, 900.0, 1000.0])
+
+    assert list(corrector_frame(df, pred, sem=()).columns) == list(corrector_frame(df, pred).columns)
+
+
+def test_a_config_do_crossfit_grava_sem_features_no_topo_e_na_base(tmp_path, monkeypatch):
+    registro = tmp_path / "experiments.jsonl"
+    registro.write_text(json.dumps(
+        {"id": "20260101-a", "config": {"model": "two_stage_nm", "seed": 0}}
+    ) + "\n", encoding="utf-8")
+    monkeypatch.setattr(stack, "REGISTRY", registro)
+
+    com = stack.config_da_corrida(stack.parser().parse_args(
+        ["v14", "--crossfit", "--sem-feature", "adsb_lat0", "--sem-feature", "adsb_lon0"],
+    ), "20260101-a")
+    sem = stack.config_da_corrida(
+        stack.parser().parse_args(["v14", "--crossfit"]), "20260101-a")
+
+    assert com["sem_features"] == ["adsb_lat0", "adsb_lon0"]
+    assert com["base_config"]["sem_features"] == ["adsb_lat0", "adsb_lon0"]
+    assert "sem_features" not in sem and "sem_features" not in sem["base_config"]
