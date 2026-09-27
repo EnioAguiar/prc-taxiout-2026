@@ -85,8 +85,9 @@
    "ganho_s": 5,
    "prob": 0.5,
    "dias": 1,
-   "status": "pendente",
-   "evidencia": "zestful-fountain: −7,1 s oficial com CatBoost fundo + corte; GREKI (Discord 27/09): 2ª família sobre base forte > features novas"
+   "status": "descartado",
+   "evidencia": "teste barato 27/09 (corretor fora do fold, base janela+ctx): LGB 309,27; CatBoost 309,53; média LGB+Cat 307,20 (−2,1); corte ±7200 só ajuda LGB (−0,4); abaixo do portão de 3 s, 2,5× o custo",
+   "ganho_real_s": 2.1
   },
   {
    "id": "arr_vizinhos",
