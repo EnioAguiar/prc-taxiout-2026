@@ -96,13 +96,20 @@ def recortar_rastro(d: dict, cx: np.ndarray) -> list[tuple]:
 
 
 def _url_partes(dia: str) -> list[str]:
-    """URLs das partes do dia segundo PREFERRED_RELEASES.txt (sem API: evita o limite de 60/h)."""
-    with urllib.request.urlopen(PREFERRED.format(ano=dia[:4]), timeout=60) as r:
-        linhas = r.read().decode().split()
+    """URLs das partes do dia segundo PREFERRED_RELEASES.txt (sem API: evita o limite de 60/h).
+
+    Olha também a lista do ano seguinte: 2025-12-31 está publicado em globe_history_2026.
+    """
     tag = f"/v{dia.replace('-', '.')}-planes-readsb-"
-    for linha in linhas:
-        if tag in linha:
-            return sorted(linha.split(","))
+    for ano in (int(dia[:4]), int(dia[:4]) + 1):
+        try:
+            with urllib.request.urlopen(PREFERRED.format(ano=ano), timeout=60) as r:
+                linhas = r.read().decode().split()
+        except urllib.error.HTTPError:
+            continue  # repositório do ano seguinte ainda não existe
+        for linha in linhas:
+            if tag in linha:
+                return sorted(linha.split(","))
     raise RuntimeError(f"{dia}: fora do PREFERRED_RELEASES.txt")
 
 
