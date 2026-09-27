@@ -116,6 +116,16 @@
    "dias": 0.5,
    "status": "pendente",
    "evidencia": "GREKI (Discord 27/09); só mensurável no placar (holdout não tem a deriva)"
+  },
+  {
+   "id": "conjunto_corretor",
+   "nome": "média de 3 corretores (LGB global, LGB por aeroporto, CatBoost) — plano 9",
+   "ganho_s": 2,
+   "prob": 0.6,
+   "dias": 0,
+   "status": "medido",
+   "ganho_real_s": null,
+   "evidencia": "v12_cf 309,78 contra v11_cf 311,09: +1,3 s (IC 0,5 a 2,2), normais +1,5; teste barato prometia 3,5 s; não promovida; candidata a envio final"
   }
  ]
 }

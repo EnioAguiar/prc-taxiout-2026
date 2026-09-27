@@ -25,14 +25,16 @@
 
 **Files:** Modify `src/stack.py`, `src/train.py`, `requirements.txt`, `README.md` (só a linha de `stack.py` em "Uso": acrescentar `[--conjunto]`). Test: `tests/test_stack.py`, `tests/test_train.py`.
 
-- [ ] Teste: `Conjunto.predict` = média exata dos três submodelos (stubs com `predict` constante 10, 20, 60 → 30).
-- [ ] Teste: aeroporto visto só na previsão usa o modelo global na parte "por aeroporto".
-- [ ] Teste: sem `corretor` na config, `fit_corrector` devolve o mesmo tipo de hoje (`lgb.Booster`) e `train.py` segue o caminho antigo; com `"conjunto"`, `train.py` usa `Conjunto`.
-- [ ] Teste: config gravada por `stack.py --crossfit --conjunto` tem `corretor: "conjunto"`; sem a flag não tem a chave.
-- [ ] `pytest -q` verde; commit `stack: conjunto de corretores (global, por aeroporto, CatBoost)`; push.
+- [x] Teste: `Conjunto.predict` = média exata dos três submodelos (stubs com `predict` constante 10, 20, 60 → 30).
+- [x] Teste: aeroporto visto só na previsão usa o modelo global na parte "por aeroporto".
+- [x] Teste: sem `corretor` na config, `fit_corrector` devolve o mesmo tipo de hoje (`lgb.Booster`) e `train.py` segue o caminho antigo; com `"conjunto"`, `train.py` usa `Conjunto`.
+- [x] Teste: config gravada por `stack.py --crossfit --conjunto` tem `corretor: "conjunto"`; sem a flag não tem a chave.
+- [x] `pytest -q` verde; commit `stack: conjunto de corretores (global, por aeroporto, CatBoost)`; push.
 
 ### Task 2 (controlador): medir, enviar, documentar
 
-- [ ] `stack.py v12_cf --crossfit --conjunto --base 20260927-133137-janela` (systemd-run) → `compare.py` contra a v11 (311,09).
-- [ ] Se ganhar: promover, `train.py submit 12`, 0 linhas fora da janela, **parar e mostrar ao usuário**.
-- [ ] Docs: README, CONTEXTO, `saltos.json`, caixas; commit + push.
+- [x] `stack.py v12_cf --crossfit --conjunto --base 20260927-133137-janela` (systemd-run) → `compare.py` contra a v11 (311,09).
+- [x] Se ganhar: promover, `train.py submit 12`, 0 linhas fora da janela, **parar e mostrar ao usuário**.
+- [x] Docs: README, CONTEXTO, `saltos.json`, caixas; commit + push.
+
+**Resultado (27/09):** `v12_cf` (`--conjunto`, 18 min, pico 7,2 GB) = 309,78 contra 311,09 da v11: ganho 1,3 s (IC 0,5 a 2,2; jan 0,5, jul 2,1; normais com NM 1,5). O teste barato prometia 3,5 s. Não promovida; fica como candidata para o envio final (custo do envio ~2× o da v11).
