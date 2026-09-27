@@ -98,6 +98,8 @@ def config(a: argparse.Namespace) -> dict:
             cfg["nm_min_ms"] = a.nm_min_ms
     if a.seeds > 1:  # config de uma seed continua idêntica às antigas
         cfg["seeds"] = a.seeds
+    if a.janela_lobt:  # config sem a janela continua idêntica às antigas
+        cfg["janela_lobt"] = True
     return cfg
 
 
@@ -115,6 +117,8 @@ def main() -> None:
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--seeds", type=int, default=1,
                     help="média das previsões de N cópias, com seeds seed..seed+N−1")
+    ap.add_argument("--janela-lobt", action="store_true",
+                    help="prende a previsão em MVT − LOBT ± 3606 s e zera p fora da janela")
     ap.add_argument("--nota", default="")
     a = ap.parse_args()
     if a.model != "two_stage_nm" and (a.nm_split_ms or a.nm_min_ms):

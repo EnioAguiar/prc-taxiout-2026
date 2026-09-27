@@ -59,7 +59,7 @@ def test_metricas_por_fatia():
 
 def _args(**kw) -> argparse.Namespace:
     padrao = dict(model="two_stage_nm", rounds=400, cls_rounds=400, reg_rounds=400,
-                  nm_split_ms=False, nm_min_ms=21600.0, seed=0, seeds=1)
+                  nm_split_ms=False, nm_min_ms=21600.0, seed=0, seeds=1, janela_lobt=False)
     return argparse.Namespace(**{**padrao, **kw})
 
 
@@ -76,3 +76,9 @@ def test_config_de_uma_seed_continua_a_de_hoje():
         "model": "two_stage_nm", "cls_rounds": 400, "reg_rounds": 400, "seed": 0,
         "nm_split_ms": False, "nm_min_ms": 21600.0,
     }
+
+
+def test_config_so_registra_a_janela_quando_ligada():
+    assert "janela_lobt" not in config(_args())
+    assert config(_args(janela_lobt=True))["janela_lobt"] is True
+    assert config(_args(model="single", janela_lobt=True))["janela_lobt"] is True

@@ -4,7 +4,8 @@ import pytest
 
 import models
 from models import (
-    apply_lines, build_model, combine, copied_from_sched, fit_lines, line_rows, nm_groups,
+    JANELA_LOBT_S, apply_lines, build_model, combine, copied_from_sched, fit_lines,
+    janela_lobt, limitar_janela, line_rows, nm_groups,
 )
 
 
@@ -129,3 +130,95 @@ def test_todas_as_copias_veem_o_mesmo_treino_e_holdout(modelo_da_seed):
 def test_sem_seeds_ou_com_uma_seed_o_modelo_e_o_de_hoje(modelo_da_seed):
     assert isinstance(build_model({"model": modelo_da_seed, "seed": 0}), _ModeloDaSeed)
     assert isinstance(build_model({"model": modelo_da_seed, "seed": 0, "seeds": 1}), _ModeloDaSeed)
+
+
+def _voos(linhas: list[dict]) -> pd.DataFrame:
+    """Voos com MVT, LOBT e SCHED em horas do dia (None = horário ausente)."""
+    dia = pd.Timestamp("2025-07-01", tz="UTC")
+
+    def t(h):
+        return pd.NaT if h is None else dia + pd.Timedelta(hours=h)
+
+    def coluna(chave):  # como no cache: datetime UTC mesmo quando tudo é nulo
+        return pd.to_datetime([t(r.get(chave)) for r in linhas], utc=True)
+
+    df = pd.DataFrame({
+        "MVT_TIME_UTC_mvt": coluna("mvt"),
+        "LOBT_flt": coluna("lobt"),
+        "SCHED_TIME_UTC_mvt": coluna("sched"),
+    })
+    df[models.SCHED_GAP] = (df["MVT_TIME_UTC_mvt"] - df["SCHED_TIME_UTC_mvt"]).dt.total_seconds()
+    df["x"] = 1.0
+    return df
+
+
+def test_janela_do_lobt_e_o_gap_mais_menos_3606_s():
+    df = _voos([{"mvt": 10.0, "lobt": 9 + 40 / 60}, {"mvt": 10.0}])
+
+    lo, hi = janela_lobt(df)
+
+    assert JANELA_LOBT_S == 3606
+    assert (lo[0], hi[0]) == (1200 - 3606, 1200 + 3606)
+    assert np.isnan(lo[1]) and np.isnan(hi[1])
+
+
+def test_limitar_janela_projeta_e_depois_aplica_o_piso_zero():
+    df = _voos([
+        {"mvt": 10.0, "lobt": 9 + 40 / 60},  # janela [−2406, 4806]
+        {"mvt": 10.0, "lobt": 9 + 40 / 60},
+        {"mvt": 10.0, "lobt": 9 + 40 / 60},
+        {"mvt": 10.0},                       # sem LOBT: fica como está
+        {"mvt": 10.0, "lobt": 4.0},          # janela [17_994, 25_206]: sobe até o piso dela
+        {"mvt": 10.0, "lobt": 13.0},         # janela [−14_406, −7194]: a projeção é negativa
+    ])
+    pred = np.array([9000.0, -9000.0, 900.0, 40_000.0, 10.0, 0.0])
+
+    # acima do teto vira teto, abaixo do piso vira piso, e o piso 0 vem depois da projeção
+    assert limitar_janela(pred, df).tolist() == [4806.0, 0.0, 900.0, 40_000.0, 17_994.0, 0.0]
+
+
+class _Fixo:
+    """Estágio falso: devolve sempre o mesmo valor em todas as linhas."""
+
+    def __init__(self, valor: float) -> None:
+        self.valor = valor
+
+    def predict(self, x) -> np.ndarray:
+        return np.full(len(x), self.valor)
+
+
+def _dois_estagios(janela: bool) -> models.TwoStage:
+    m = models.TwoStage({"janela_lobt": janela} if janela else {})
+    m.cols, m.cls, m.reg = ["x"], _Fixo(1.0), _Fixo(900.0)
+    return m
+
+
+def test_dois_estagios_zera_p_com_sched_fora_da_janela():
+    # MVT 12:00, LOBT 09:40 → janela [4794, 12_006]
+    df = _voos([
+        {"mvt": 12.0, "lobt": 9 + 40 / 60, "sched": 11 + 40 / 60},  # ms 1200: fora
+        {"mvt": 12.0, "lobt": 9 + 40 / 60, "sched": 9.5},           # ms 9000: dentro
+        {"mvt": 12.0, "sched": 11 + 40 / 60},                       # sem LOBT: p segue
+    ])
+
+    assert _dois_estagios(janela=True).predict(df).tolist() == [900.0, 9000.0, 1200.0]
+    assert _dois_estagios(janela=False).predict(df).tolist() == [1200.0, 9000.0, 1200.0]
+
+
+def test_build_model_limita_a_previsao_final_so_com_janela_ligada(modelo_da_seed):
+    df = _voos([{"mvt": 10.0, "lobt": 10.0}])  # janela [−3606, 3606]
+    cfg = {"model": modelo_da_seed, "seed": 5000}
+
+    assert build_model(cfg).predict(df).tolist() == [5000.0]
+    assert build_model({**cfg, "janela_lobt": True}).predict(df).tolist() == [3606.0]
+
+
+def test_janela_limita_a_media_das_seeds_uma_vez(modelo_da_seed):
+    df = _voos([{"mvt": 10.0, "lobt": 10.0}])  # janela [−3606, 3606]
+    m = build_model({"model": modelo_da_seed, "seed": 5000, "seeds": 2, "janela_lobt": True})
+
+    m.fit(df, ["x"])
+
+    assert m.predict(df).tolist() == [3606.0]  # a média 5000,5 projetada
+    assert [type(c) for c in m.models] == [_ModeloDaSeed] * 2  # cópias sem projeção própria
+    assert m.best_iter == 5100  # o do modelo de dentro continua visível

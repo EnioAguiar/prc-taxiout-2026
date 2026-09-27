@@ -5,7 +5,9 @@
     pred = modelo.predict(df)
 
 `cfg["seeds"] > 1` faz `build_model` devolver a média de N cópias (`SeedAvg`); ausente ou
-1 devolve o modelo de `MODELS[cfg["model"]]`, idêntico ao de hoje.
+1 devolve o modelo de `MODELS[cfg["model"]]`, idêntico ao de hoje. `cfg["janela_lobt"]`
+prende a previsão final na janela do LOBT (`JanelaLOBT`) e zera `p` onde a cópia do SCHED
+é impossível; ausente ou falso, as previsões são as de hoje.
 """
 
 from __future__ import annotations
@@ -107,6 +109,24 @@ def combine(p, ms, reg) -> np.ndarray:
     return np.clip(mix, 0, None)
 
 
+# |BLOCK − LOBT| nunca passou disto em 2025: docs/research/2026-09-27-janela-lobt.md
+JANELA_LOBT_S = 3606
+
+
+def janela_lobt(df: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
+    """Intervalo possível de y dado o LOBT: MVT − LOBT ± 3606 s (NaN sem LOBT ou sem MVT)."""
+    gap = (df["MVT_TIME_UTC_mvt"] - df["LOBT_flt"]).dt.total_seconds().to_numpy(float)
+    return gap - JANELA_LOBT_S, gap + JANELA_LOBT_S
+
+
+def limitar_janela(pred, df: pd.DataFrame) -> np.ndarray:
+    """Projeta a previsão na janela do LOBT e reaplica o piso 0 (sem janela, não muda)."""
+    lo, hi = janela_lobt(df)
+    dentro = np.clip(np.asarray(pred, float),
+                     np.nan_to_num(lo, nan=-np.inf), np.nan_to_num(hi, nan=np.inf))
+    return np.clip(dentro, 0, None)
+
+
 class TwoStage:
     """Classificador 'BLOCK copiado do SCHED' + regressor L2 nos voos normais."""
 
@@ -114,6 +134,7 @@ class TwoStage:
         self.cls_rounds = int(cfg.get("cls_rounds", 400))
         self.reg_rounds = int(cfg.get("reg_rounds", 400))
         self.best_iter: int | None = None
+        self.janela = bool(cfg.get("janela_lobt", False))
         self.params = params_for(cfg)
 
     def fit(self, train, cols, run=None, valid=None) -> "TwoStage":
@@ -137,7 +158,12 @@ class TwoStage:
 
     def predict(self, df: pd.DataFrame) -> np.ndarray:
         x = df[self.cols]
-        return combine(self.cls.predict(x), df[SCHED_GAP], self.reg.predict(x))
+        ms = df[SCHED_GAP].to_numpy(float)
+        p = np.asarray(self.cls.predict(x), float)
+        if self.janela:  # SCHED fora da janela: copiá-lo daria um BLOCK impossível
+            lo, hi = janela_lobt(df)
+            p = np.where((ms < lo) | (ms > hi), 0.0, p)  # sem LOBT a comparação é falsa
+        return combine(p, ms, self.reg.predict(x))
 
 
 NM_MIN_ROWS = 50  # grupos menores usam a reta global
@@ -239,6 +265,24 @@ class SeedAvg:
         return np.mean([m.predict(df) for m in self.models], axis=0)
 
 
+class JanelaLOBT:
+    """Invólucro: projeta a previsão final do modelo na janela do LOBT, uma única vez."""
+
+    def __init__(self, model) -> None:
+        self.model = model
+
+    def fit(self, train, cols, run=None, valid=None) -> "JanelaLOBT":
+        self.model.fit(train, cols, run=run, valid=valid)
+        return self
+
+    def predict(self, df) -> np.ndarray:
+        return limitar_janela(self.model.predict(df), df)
+
+    def __getattr__(self, nome: str):  # best_iter, cfgs, models... são os do modelo de dentro
+        return getattr(self.model, nome)
+
+
 def build_model(cfg: dict):
     """O modelo da config: média de seeds com `seeds` > 1, senão o modelo de hoje."""
-    return SeedAvg(cfg) if int(cfg.get("seeds", 1)) > 1 else MODELS[cfg["model"]](cfg)
+    model = SeedAvg(cfg) if int(cfg.get("seeds", 1)) > 1 else MODELS[cfg["model"]](cfg)
+    return JanelaLOBT(model) if cfg.get("janela_lobt") else model
