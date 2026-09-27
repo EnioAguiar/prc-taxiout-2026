@@ -116,7 +116,7 @@
    "prob": 0.3,
    "dias": 0.5,
    "status": "pendente",
-   "evidencia": "GREKI (Discord 27/09); só mensurável no placar (holdout não tem a deriva)"
+   "evidencia": "GREKI (Discord 27/09). Plano 10: v14_cf (v12 sem adsb_lat0/lon0 na base e no corretor) = 311,88 na simulação contra 309,78 da v12: −2,1 s (IC −3,5 a −1,0; jan −2,2, jul −2,0). O holdout é de 2025 e não tem a deriva; só o placar diz se a deriva custa mais que esses 2 s. Arquivo v14 não gerado: aguarda ok."
   },
   {
    "id": "conjunto_corretor",

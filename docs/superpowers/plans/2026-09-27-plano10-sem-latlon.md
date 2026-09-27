@@ -1,6 +1,6 @@
 # Plano 10 — v14 = v12 sem `adsb_lat0/lon0` (deriva 2025 → 2026)
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Gerar `submissions/outgoing-boat_v14.parquet` = mesma receita da campeã v12 (`20260927-160433-v12_cf`), sem as colunas `adsb_lat0` e `adsb_lon0` na base e no corretor, pronta para enviar às 00:00 UTC de 28/09 junto com a v13.
 
@@ -33,18 +33,20 @@
 - Produces: config de `experiment.py --sem-feature X --sem-feature Y` com `"sem_features": ["X", "Y"]` (ordem da linha de comando); de `stack.py --crossfit --sem-feature X` com `"sem_features": [...]` no topo **e** dentro de `base_config`.
 - Produces: `train.py submit N [--forcar] [--corrida <id>]`; com `--corrida`, `champ` = a última linha de `experiments.jsonl` com esse `id` (campos `id`, `config`, `src_hash`, `best_iter`); o `Run` grava `"campeao": <id>` como hoje.
 
-- [ ] Teste (`test_models.py`): `prepare` com `sem=("adsb_lat0",)` devolve a mesma lista de `sem=()` menos `adsb_lat0`; com nome inexistente levanta `ValueError`.
-- [ ] Teste (`test_stack.py`): `corrector_frame(..., sem=("adsb_lat0", "adsb_lon0"))` não tem as duas colunas e mantém as outras `adsb_*` e `adsb_menos_pred`; sem `sem`, colunas iguais às de hoje.
-- [ ] Teste (`test_stack.py`): `config_da_corrida` com `--crossfit --sem-feature adsb_lat0 --sem-feature adsb_lon0` tem `sem_features` no topo e em `base_config`; sem a flag, nenhuma das duas chaves.
-- [ ] Teste (`test_experiment.py`): config de `experiment.py` com `--sem-feature` tem `sem_features`; sem a flag, config idêntica à de hoje.
-- [ ] Teste (`test_train.py`): `submit` com `--corrida <id>` lê a linha do registro (fixture com `experiments.jsonl` sintético) e não lê `champion.json`; `id` inexistente sai com erro que cita o id.
-- [ ] Implementar; `pytest -q` verde (hoje: 81 passed).
-- [ ] Commit `sem_features: tirar colunas da base e do corretor; train.py submit --corrida`; push.
+- [x] Teste (`test_models.py`): `prepare` com `sem=("adsb_lat0",)` devolve a mesma lista de `sem=()` menos `adsb_lat0`; com nome inexistente levanta `ValueError`.
+- [x] Teste (`test_stack.py`): `corrector_frame(..., sem=("adsb_lat0", "adsb_lon0"))` não tem as duas colunas e mantém as outras `adsb_*` e `adsb_menos_pred`; sem `sem`, colunas iguais às de hoje.
+- [x] Teste (`test_stack.py`): `config_da_corrida` com `--crossfit --sem-feature adsb_lat0 --sem-feature adsb_lon0` tem `sem_features` no topo e em `base_config`; sem a flag, nenhuma das duas chaves.
+- [x] Teste (`test_experiment.py`): config de `experiment.py` com `--sem-feature` tem `sem_features`; sem a flag, config idêntica à de hoje.
+- [x] Teste (`test_train.py`): `submit` com `--corrida <id>` lê a linha do registro (fixture com `experiments.jsonl` sintético) e não lê `champion.json`; `id` inexistente sai com erro que cita o id.
+- [x] Implementar; `pytest -q` verde (hoje: 81 passed).
+- [x] Commit `sem_features: tirar colunas da base e do corretor; train.py submit --corrida`; push.
 
 ### Task 2 (controlador): medir, gerar a v14, documentar
 
-- [ ] Base: `bin/run src/experiment.py janela_sem_latlon --model two_stage_nm --nm-min-ms 21600 --janela-lobt --sem-feature adsb_lat0 --sem-feature adsb_lon0` (mesma config da base `20260927-133137-janela` + `sem_features`).
-- [ ] Corretor: `bin/run src/stack.py v14_cf --crossfit --conjunto --base <id da base acima> --sem-feature adsb_lat0 --sem-feature adsb_lon0` → `compare.py` contra `20260927-160433-v12_cf` (309,78). Critério: não piorar mais que o ruído (IC do `compare.py` incluindo zero ou ganho). Se piorar além do ruído, **parar e mostrar ao usuário** antes de gerar o arquivo.
+- [x] Base: `bin/run src/experiment.py janela_sem_latlon --model two_stage_nm --nm-min-ms 21600 --janela-lobt --sem-feature adsb_lat0 --sem-feature adsb_lon0` (mesma config da base `20260927-133137-janela` + `sem_features`).
+- [x] Corretor: `bin/run src/stack.py v14_cf --crossfit --conjunto --base <id da base acima> --sem-feature adsb_lat0 --sem-feature adsb_lon0` → `compare.py` contra `20260927-160433-v12_cf` (309,78). Critério: não piorar mais que o ruído (IC do `compare.py` incluindo zero ou ganho). Se piorar além do ruído, **parar e mostrar ao usuário** antes de gerar o arquivo.
 - [ ] `bin/run src/train.py submit 14 --corrida <id da v14_cf>`; conferir 0 linhas fora da janela do LOBT e mediana parecida com a v12.
-- [ ] Docs: README (Submissões/Roadmap), CONTEXTO.md ("Retomar"), `saltos.json` (`deriva_adsb`: simulação medida, status "pronto para envio"), caixas deste plano; commit + push.
-- [ ] **Parar e mostrar ao usuário.** Ordem proposta às 00:00 UTC: v13 (Roma), v14 (sem lat/lon); cada uma muda uma coisa só em relação à v12.
+- [x] Docs: README (Submissões/Roadmap), CONTEXTO.md ("Retomar"), `saltos.json` (`deriva_adsb`: simulação medida, status "pronto para envio"), caixas deste plano; commit + push.
+- [x] **Parar e mostrar ao usuário.** Ordem proposta às 00:00 UTC: v13 (Roma), v14 (sem lat/lon); cada uma muda uma coisa só em relação à v12.
+
+**Resultado (27/09 21:41 UTC):** base `20260927-181854-janela_sem_latlon` 321,23 (a da v12, 320,29); `20260927-182244-v14_cf` = 311,88 contra 309,78 da v12: **−2,1 s (IC −3,5 a −1,0)**, pior além do ruído no holdout de 2025, como o critério previa. Parado antes do `train.py submit 14 --corrida 20260927-182244-v14_cf` (cerca de 20 min): decisão do usuário, porque a deriva só aparece no placar.
