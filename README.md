@@ -543,6 +543,7 @@ prc-taxiout-2026/
   src/adsb_events.py  # decolagens no ADS-B, off-block observado, casamento, features adsb_*
   src/stack.py        # corretor LightGBM sobre uma corrida base (fora do fold no holdout, ou --crossfit)
   src/crossfit.py     # previsões da base fora do bloco (meses 2 a 2) para o corretor
+  src/contexto.py     # taxi-in das chegadas e vizinhos de MVT − AOBT_3 (colunas ctx_*, só no corretor)
   ferramentas/projecao.py   # placar do dia e projeção até o prazo (docs/projecao.md)
   ferramentas/auditoria.py  # auditoria diária (docs/auditoria/)
   submissions.jsonl   # nossos envios com a nota oficial (versionado)
