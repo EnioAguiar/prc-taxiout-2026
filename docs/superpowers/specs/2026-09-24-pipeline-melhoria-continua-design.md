@@ -141,6 +141,35 @@ Estado em 26/09 (noite): 427 dias baixados (2025 inteiro + jan/jul 2026). Teto b
 final oculta (Discord): o pipeline adsb → eventos → features → modelo precisa rodar
 para qualquer período com um comando.
 
+## Parte 5 — v7: corretor empilhado com cross-fitting por mês (adendo de 27/09)
+
+Decisão de 27/09 (rota B, escolhida pelo usuário): o corretor do `stack.py` (317,57 na
+simulação contra 323,50 da campeã) só era treinável no holdout; para enviar, a base
+precisa de previsões fora do bloco no ano inteiro.
+
+- **Blocos:** meses consecutivos 2 a 2, derivados dos meses presentes nos dados (nenhum
+  mês fixo no código). `train2025` → {2,3} {4,5} {6,8} {9,10} {11,12}; `full2025` →
+  {1,2} … {11,12}. Um mês cai em exatamente um bloco.
+- **Split `blind2025`:** os 12 meses montados como o ranking (`build_blind`: BLOCK e alvo
+  apagados nas DEP antes das features, verdade em `y_true`). As previsões fora do bloco
+  são feitas nessas linhas, nunca nas de treino.
+- **Sem vazamento:** em cada bloco, `prepare(treino_do_bloco, [cegas_do_bloco])` refaz a
+  referência P10 só com os meses de treino do bloco.
+- **Simulação** (`stack.py <nome> --crossfit`): previsões fora do bloco nos 10 meses do
+  `train2025` (config da base sem escala de rodadas) → corretor em `y − pred` → aplicado
+  às previsões da corrida base no holdout (`runs/<base>.parquet`, padrão campeã). Grava
+  `runs/<id>.parquet`, `runs/<id>_oof.parquet` e a linha no `experiments.jsonl` com
+  `model: "stack_cf"` e `base_config`; decide pelo `compare.py` como qualquer corrida.
+- **Envio** (`train.py submit N` com campeã `stack_cf`): previsões fora do bloco no
+  `blind2025` (6 blocos, rodadas sem escala) → corretor nos 12 meses → base final no
+  `full2025` (rodadas × 1,2) prevê o ranking → corretor → piso 0. Só gera o arquivo.
+- `stack.py <nome>` sem `--crossfit` continua como teste barato (corretor fora do fold só
+  no holdout).
+- Limites: RSS ≤ 7 GB; um treino pesado por vez; `teto.py` contra a v6 e ok do usuário
+  antes de enviar.
+
+Plano: `docs/superpowers/plans/2026-09-27-plano5-v7-crossfit.md`.
+
 ## Verificação
 
 - Infra: `experiment.py baseline` reproduz 460 ± 5 s; tempo total ≤ 3 min;
