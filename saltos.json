@@ -105,8 +105,9 @@
    "ganho_s": 2,
    "prob": 0.4,
    "dias": 0.5,
-   "status": "pendente",
-   "evidencia": "organizador liberou (Discord 27/09); inferência do ganho"
+   "status": "descartado",
+   "evidencia": "27/09: a média oficial exclui voos sem referência (degelo); em jan/2026 a fração válida caiu (EDDF 0,93→0,85, EDDM 0,77→0,67, LSZH 0,84→0,75, LTFM 0,93→0,83), então a média não mede o nível real. No holdout, corrigir o viés por ela piora (311,09 → 311,56 com w=0,5). A v11 já não tem viés por aeroporto × mês (|viés| < 25 s nos normais).",
+   "ganho_real_s": 0
   },
   {
    "id": "deriva_adsb",
@@ -126,6 +127,15 @@
    "status": "medido",
    "ganho_real_s": null,
    "evidencia": "v12_cf 309,78 contra v11_cf 311,09: +1,3 s (IC 0,5 a 2,2), normais +1,5; teste barato prometia 3,5 s; não promovida; candidata a envio final"
+  },
+  {
+   "id": "roma_24h",
+   "nome": "LIRF sem NM com MVT−SCHED em (15 h, 30 h]: pred = 0,62·(86400 + 1198) + 0,38·(MVT−SCHED)",
+   "ganho_s": 3,
+   "prob": 0.5,
+   "dias": 0,
+   "status": "pendente",
+   "evidencia": "2025: 55 % \"24 h + táxi\" e 45 % cópia do SCHED (n=11 em 15–20 h; 4 de 4 acima de 20 h são 24 h + táxi); q ajustado fora de jan/jul (n=8); holdout 311,09 → 307,21 (7 linhas). Ranking 2026: 4 voos (3 mudam 15–22 mil s). Valor esperado ≈ −6 s, pior caso +4,8 s se os 3 forem cópia. Aplicar como pós-regra no envio final, junto com a v12."
   }
  ]
 }

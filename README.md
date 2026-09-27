@@ -223,9 +223,8 @@ Feito:
   sobre `nm_retas` (IC 95% 1,5 a 7,7) → não comprovado (abaixo de 10 s);
   re-testado com seed no plano 3a: FRÁGIL.
 
-Próximo (fila em `saltos.json`, 27/09 noite): especialista para Roma sem registro NM
-(inclui "24 h + táxi"); média mensal oficial por aeroporto; envio sem `adsb_lat0/lon0`
-(deriva). A v12 (`--conjunto`) fica guardada para o envio final. Evidência em
+Próximo (fila em `saltos.json`, 27/09 noite): envio final com v12 + pós-regra de Roma;
+envio sem `adsb_lat0/lon0` (deriva). A v12 (`--conjunto`) fica guardada para o envio final. Evidência em
 `docs/research/2026-09-27-concorrentes.md`. Plano 3b segue pausado (itens 5 a 8).
 
 Antes de 11/10 (abrir entre 08 e 10/10, decisão de 27/09): repositório público
@@ -423,6 +422,12 @@ gravado na data do SCHED) e 4,5 % normais; 25 desses no ranking 2026.
     três corretores (LightGBM global, LightGBM por aeroporto, CatBoost; `--conjunto`).
     Teste barato −3,5 s; `v12_cf` 309,78, só 1,3 s sobre a v11 (IC 0,5 a 2,2; jan com IC
     incluindo zero). Não promovida; guardada para o envio final.
+  - [x] Média mensal oficial (ansperformance, 27/09): descartada. A média exclui voos sem
+    referência (degelo) e a fração válida caiu em jan/2026 (EDDM 0,77 → 0,67); corrigir o viés
+    por ela piora o holdout (311,09 → 311,56). A v11 já não tem viés por aeroporto × mês.
+  - [ ] Pós-regra de Roma sem NM com `MVT − SCHED` em (15 h, 30 h] ("24 h + táxi" × cópia,
+    q = 0,62 ajustado fora de jan/jul): holdout 311,09 → 307,21; no ranking são 4 voos.
+    Candidata para o envio final junto com a v12 (ver `saltos.json`, `roma_24h`).
   - [x] README "Dados externos" e "Reprodução" (tarefa 6, 27/09); `PRC_ADSB_RAIZ` configurável.
 - [ ] 5. Features de vizinhos (item 6).
 - [ ] 6. Ensemble XGBoost CUDA + seeds LightGBM (item 7), baixa prioridade:
