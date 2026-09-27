@@ -1,15 +1,23 @@
 {
-  "id": "20260926-223248-nm_retas_6h_adsb",
+  "id": "20260927-133718-v9_cf",
   "config": {
-    "model": "two_stage_nm",
-    "cls_rounds": 400,
-    "reg_rounds": 400,
-    "seed": 0,
-    "nm_split_ms": false,
-    "nm_min_ms": 21600.0
+    "model": "stack_cf",
+    "base": "20260927-133137-janela",
+    "base_config": {
+      "model": "two_stage_nm",
+      "cls_rounds": 400,
+      "reg_rounds": 400,
+      "seed": 0,
+      "nm_split_ms": false,
+      "nm_min_ms": 21600.0,
+      "janela_lobt": true
+    },
+    "adsb": true,
+    "rounds": 300,
+    "seed": 0
   },
   "best_iter": null,
-  "rmse_simulacao": 323.5,
-  "src_hash": "125431784eb7",
-  "git_commit": "4f8a948"
+  "rmse_simulacao": 317.23,
+  "src_hash": "e5fe5600a425",
+  "git_commit": "1b60fb2"
 }
