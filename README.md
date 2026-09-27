@@ -74,7 +74,7 @@ deixa a validação otimista e o modelo cego para eles (erro da v1).
 
 ## Modelo atual (`src/`)
 
-Campeão em `champion.json`: v11 (id `20260927-145005-v11_cf`, 311,09 na simulação, **266,81 oficial**, a melhor nota) = v9 + colunas `ctx_*` no corretor (`src/contexto.py`: taxi-in das chegadas e vizinhos de `MVT − AOBT_3`, plano 8). A v9 era `stack_cf` com janela do LOBT (id
+Campeão em `champion.json`: v12 (id `20260927-160433-v12_cf`, 309,78 na simulação, **264,74 oficial**, a melhor nota) = v11 com `--conjunto` (média de 3 corretores). A v11 (id `20260927-145005-v11_cf`, 311,09 na simulação, 266,81 oficial) = v9 + colunas `ctx_*` no corretor (`src/contexto.py`: taxi-in das chegadas e vizinhos de `MVT − AOBT_3`, plano 8). A v9 era `stack_cf` com janela do LOBT (id
 `20260927-133718-v9_cf`, 317,23 na simulação, 275,90 oficial). A base é
 `two_stage_nm` (`--nm-min-ms 21600 --janela-lobt`, features `adsb_*`) com corretor
 treinado fora do bloco por meses (`src/crossfit.py`, `stack.py --crossfit`); toda previsão é
@@ -174,6 +174,7 @@ fora do cache de features. `train.py submit N` precisa do `events.parquet` no SS
 | v6 | 26/09 | configuração da v5 + features `adsb_*` (adsb.lol, 2025 inteiro + jan/jul 2026; 57 % do ranking com evento) | 323,50 / 257,91 | **314,76** (−16,2 s sobre a v5; relação oficial/simulação 0,973) |
 | v9 | 27/09 | v7 (corretor com cross-fitting por mês) + janela do LOBT (projeção em `MVT − LOBT ± 3606`, `p` zerado fora dela) | 317,23 / 254,24 | **275,90** (−38,9 s sobre a v6; relação 0,870) |
 | v11 | 27/09 | v9 + taxi-in das ARR e vizinhos de `MVT − AOBT_3` no corretor (plano 8) | 311,09 / 245,81 | **266,81** (−9,1 s sobre a v9; relação 0,858) |
+| v12 | 27/09 | v11 com a média de 3 corretores (`--conjunto`, plano 9) | 309,78 / 243,96 | **264,74** (−2,1 s sobre a v11) |
 | v10 | 27/09 | diagnóstico: v6 + só as 117 linhas projetadas na janela (garantia ≤ 288,01) | 320,30 / — | 284,17 (a regra vale em 2026) |
 
 A simulação da v3 e da v4 vem do holdout novo (`experiment.py`), mais rigoroso que o
@@ -427,7 +428,8 @@ gravado na data do SCHED) e 4,5 % normais; 25 desses no ranking 2026.
     por ela piora o holdout (311,09 → 311,56). A v11 já não tem viés por aeroporto × mês.
   - [ ] Pós-regra de Roma sem NM com `MVT − SCHED` em (15 h, 30 h] ("24 h + táxi" × cópia,
     q = 0,62 ajustado fora de jan/jul): holdout 311,09 → 307,21; no ranking são 4 voos.
-    Candidata para o envio final junto com a v12 (ver `saltos.json`, `roma_24h`).
+    Arquivo pronto: `submissions/outgoing-boat_v13.parquet` (v12 + regra). Rejeitado em 27/09 pelo
+    limite diário (5 envios por dia UTC, a v6 da madrugada contou); reenviar depois de 00:00 UTC.
   - [x] README "Dados externos" e "Reprodução" (tarefa 6, 27/09); `PRC_ADSB_RAIZ` configurável.
 - [ ] 5. Features de vizinhos (item 6).
 - [ ] 6. Ensemble XGBoost CUDA + seeds LightGBM (item 7), baixa prioridade:
@@ -578,7 +580,7 @@ prc-taxiout-2026/
 ## Leaderboard
 
 <https://prc-challenge-2026.vercel.app/>. Em 27/09/2026: 186 equipes, 1º 224,50, 3º
-228,59, 10º 242,81, 50º 278,39. Nós: **266,81 s** (v11, 27/09; antes 275,90, 314,76, 331,0,
+228,59, 10º 242,81, 50º 278,39. Nós: **264,74 s** (v12, 27/09; antes 266,81, 275,90, 314,76, 331,0,
 338,7 e 384,7). Fotos diárias em `placar/`.
 
 ## Referências

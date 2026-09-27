@@ -1,5 +1,5 @@
 {
- "updated": "2026-09-27T19:21:06Z",
+ "updated": "2026-09-27T19:40:30Z",
  "totalSubmissions": 3000,
  "teams": [
   {
@@ -71,8 +71,8 @@
   {
    "team": "enthusiastic-daisy",
    "best": 243.0104,
-   "n": 100,
-   "lastAt": "2026-09-26T14:01:57.782885Z"
+   "n": 101,
+   "lastAt": "2026-09-27T19:31:32.820496Z"
   },
   {
    "team": "gentle-lemon",
@@ -119,8 +119,8 @@
   {
    "team": "noble-tractor",
    "best": 251.7632,
-   "n": 30,
-   "lastAt": "2026-09-27T12:48:56.768833Z"
+   "n": 31,
+   "lastAt": "2026-09-27T19:24:19.254185Z"
   },
   {
    "team": "dynamic-lobster",
@@ -167,8 +167,8 @@
   {
    "team": "kind-mango",
    "best": 265.2726,
-   "n": 66,
-   "lastAt": "2026-09-27T08:22:37.723701Z"
+   "n": 67,
+   "lastAt": "2026-09-27T19:31:53.281429Z"
   },
   {
    "team": "organized-marshmallow",
@@ -221,7 +221,7 @@
   {
    "team": "upstanding-insect",
    "best": 270.3037,
-   "n": 23,
+   "n": 22,
    "lastAt": "2026-09-27T15:53:24.525423Z"
   },
   {
@@ -575,7 +575,7 @@
   {
    "team": "happy-lantern",
    "best": 299.0092,
-   "n": 43,
+   "n": 42,
    "lastAt": "2026-09-27T01:23:44.876173Z"
   },
   {
@@ -623,7 +623,7 @@
   {
    "team": "unique-umbrella",
    "best": 304.9528,
-   "n": 18,
+   "n": 17,
    "lastAt": "2026-09-24T16:51:19.146439Z"
   },
   {

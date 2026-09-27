@@ -7,3 +7,4 @@
 {"versao": 9, "enviado_utc": "2026-09-27T17:05", "oficial": 275.9019, "simulacao": 317.23, "mudanca": "v7 (corretor com cross-fitting por mês) + janela do LOBT (|BLOCK−LOBT| ≤ 3606 s)"}
 {"versao": 10, "enviado_utc": "2026-09-27T17:05", "oficial": 284.1683, "simulacao": 320.3, "mudanca": "diagnóstico: v6 com as 117 linhas projetadas na janela do LOBT (garantia ≤ 288,01)"}
 {"versao": 11, "enviado_utc": "2026-09-27T18:45", "oficial": 266.8076, "simulacao": 311.09, "mudanca": "v9 + taxi-in das ARR e vizinhos de MVT−AOBT_3 no corretor (plano 8)"}
+{"versao": 12, "enviado_utc": "2026-09-27T20:10", "oficial": 264.7397, "simulacao": 309.78, "mudanca": "v11 com conjunto de corretores (LGB global, LGB por aeroporto, CatBoost; plano 9)"}
