@@ -26,7 +26,7 @@ from compare import CHAMPION
 from crossfit import oof_base
 from models import build_model, leaky_columns, prepare
 from runlog import ROOT, Run
-from stack import apply_corrector, corrector_frame, fit_corrector
+from stack import corrector_frame, fit_corrector, previsao_corrigida
 
 OUT = ROOT / "submissions"
 ROUNDS_SCALE = 1.2  # full2025 tem 2,085 M linhas contra 1,741 M do train2025
@@ -104,11 +104,17 @@ def corretor_final(cfg_bloco: dict, adsb: bool, full: pd.DataFrame, rk: pd.DataF
     pred_oof = oof["pred"].to_numpy(float)
     cegas = blind.set_index(F.ID).loc[oof[F.ID]].reset_index()  # mesma ordem do oof
     del blind
-    X = corrector_frame(cegas, pred_oof, adsb)
+    X = corrector_frame(cegas, pred_oof, adsb, bool(cfg_bloco.get("janela_lobt")))
     del cegas
     if adsb:
         run.log(f"adsb no treino do corretor: {X['adsb_taxi'].notna().mean():.1%}")
     return fit_corrector(X, oof[TRUTH].to_numpy(float), pred_oof)
+
+
+def corrigir_ranking(corretor, cfg_bloco: dict, adsb: bool, rk: pd.DataFrame,
+                     pred: np.ndarray) -> np.ndarray:
+    """Previsão final do ranking: na janela do LOBT quando os blocos da base usam."""
+    return previsao_corrigida(corretor, rk, pred, adsb, bool(cfg_bloco.get("janela_lobt")))
 
 
 def submit(version: int, forcar: bool = False) -> None:
@@ -132,8 +138,8 @@ def submit(version: int, forcar: bool = False) -> None:
                 )
             with run.phase("base final", 0.30):
                 pred = base_final(cfg["base_config"], full, rk, run)
-                pred = apply_corrector(
-                    corretor, corrector_frame(rk, pred, champ["config"]["adsb"]), pred
+                pred = corrigir_ranking(
+                    corretor, champ["config"]["base_config"], champ["config"]["adsb"], rk, pred
                 )
         else:
             with run.phase("treino", 0.85):

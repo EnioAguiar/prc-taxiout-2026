@@ -13,6 +13,10 @@ Entradas do corretor: `pred`, aeroporto, `nm_missing`, hora, `to_takeoff_from_*`
 `pred + correção` com piso 0. A corrida é gravada em `runs/` e no `experiments.jsonl`,
 então passa pelo `compare.py` como qualquer outra.
 
+Quando a corrida base usa `janela_lobt`, o corretor de `--crossfit` ganha `dist_lo` e
+`dist_hi` (folga até as bordas da janela do LOBT, NaN sem LOBT) e sua saída é projetada
+na janela antes do piso 0; sem `janela_lobt` na base, tudo segue como antes.
+
 Uso:
     bin/run src/stack.py <nome> [--base <id>] [--crossfit [--seeds N]] [--sem-adsb]
 
@@ -34,6 +38,7 @@ from adsb_events import FEATURES as ADSB
 from cache import TRUTH, load_split
 from crossfit import oof_base
 from experiment import RUNS, metrics, rmse
+from models import janela_lobt, limitar_janela
 from runlog import REGISTRY, ROOT, Run
 
 FOLDS = 5
@@ -57,12 +62,17 @@ def config_da_base(base_id: str, seeds: int) -> dict:
     return {**cfg, "seeds": seeds} if seeds > 1 else cfg
 
 
-def corrector_frame(df: pd.DataFrame, pred: np.ndarray, adsb: bool = True) -> pd.DataFrame:
+def corrector_frame(df: pd.DataFrame, pred: np.ndarray, adsb: bool = True,
+                    janela: bool = False) -> pd.DataFrame:
     """Entradas do corretor: a previsão da base, o contexto do voo e o rastro ADS-B."""
     cols = [F.AIRPORT, "nm_missing", "hour", *[c for c in df if c.startswith("to_takeoff_from_")]]
     X = df[cols].copy()
     X[F.AIRPORT] = X[F.AIRPORT].astype("category")
     X["pred"] = np.asarray(pred, float)
+    if janela:
+        lo, hi = janela_lobt(df)
+        X["dist_lo"] = X["pred"].to_numpy(float) - lo  # folga até o fundo da janela do LOBT
+        X["dist_hi"] = hi - X["pred"].to_numpy(float)
     if adsb:
         X = X.join(df[ADSB])
         X["adsb_menos_pred"] = X["adsb_taxi_move"] - X["pred"]
@@ -74,8 +84,18 @@ def fit_corrector(X: pd.DataFrame, y: np.ndarray, base: np.ndarray) -> lgb.Boost
     return lgb.train(PARAMS, lgb.Dataset(X, y - base), ROUNDS)
 
 
-def apply_corrector(model: lgb.Booster, X: pd.DataFrame, base: np.ndarray) -> np.ndarray:
-    return np.clip(np.asarray(base, float) + model.predict(X), 0, None)
+def apply_corrector(model: lgb.Booster, X: pd.DataFrame, base: np.ndarray,
+                    df: pd.DataFrame | None = None) -> np.ndarray:
+    """Base mais a correção, com piso 0; com `df`, projetada antes na janela do LOBT."""
+    pred = np.asarray(base, float) + model.predict(X)
+    return limitar_janela(pred, df) if df is not None else np.clip(pred, 0, None)
+
+
+def previsao_corrigida(model: lgb.Booster, df: pd.DataFrame, base: np.ndarray, adsb: bool,
+                       janela: bool) -> np.ndarray:
+    """Previsão dos voos de `df` corrigida: com `janela`, dentro da janela do LOBT."""
+    X = corrector_frame(df, base, adsb, janela)
+    return apply_corrector(model, X, base, df if janela else None)
 
 
 def day_folds(days: np.ndarray, k: int = FOLDS) -> np.ndarray:
@@ -118,6 +138,7 @@ def simulacao_crossfit(
     run: Run, base_id: str, cfg_base: dict, adsb: bool
 ) -> tuple[pd.DataFrame, pd.DataFrame, np.ndarray]:
     """Corretor treinado no ano fora do bloco; devolve (holdout, base, previsão)."""
+    janela = bool(cfg_base.get("janela_lobt"))
     with run.phase("dados", 0.1):
         base = pd.read_parquet(RUNS / f"{base_id}.parquet")
         hold = holdout_da_base(base)
@@ -135,14 +156,14 @@ def simulacao_crossfit(
         pred_oof = oof["pred"].to_numpy(float)
         cegas = blind.set_index(F.ID).loc[oof[F.ID]].reset_index()  # mesma ordem do oof
         del blind
-        X_oof = corrector_frame(cegas, pred_oof, adsb)
+        X_oof = corrector_frame(cegas, pred_oof, adsb, janela)
         del cegas
         if adsb:
             run.log(f"adsb no treino do corretor: {X_oof['adsb_taxi'].notna().mean():.1%}")
         model = fit_corrector(X_oof, oof[TRUTH].to_numpy(float), pred_oof)
         del X_oof
         pred_base = base["pred"].to_numpy(float)
-        pred = apply_corrector(model, corrector_frame(hold, pred_base, adsb), pred_base)
+        pred = previsao_corrigida(model, hold, pred_base, adsb, janela)
     return hold, base, pred
 
 

@@ -3,7 +3,31 @@ import pandas as pd
 import pytest
 
 import features as F
-from train import build_submission, final_config
+from train import build_submission, corrigir_ranking, final_config
+
+
+class _Corretor:
+    """Corretor falso: devolve sempre a mesma correção."""
+
+    def __init__(self, correcao: float) -> None:
+        self.correcao = correcao
+
+    def predict(self, X) -> np.ndarray:
+        return np.full(len(X), self.correcao)
+
+
+def _ranking() -> pd.DataFrame:
+    """Dois voos do ranking: o primeiro com LOBT 2 h antes do MVT, o segundo sem LOBT."""
+    t = pd.Timestamp("2026-01-15 10:00", tz="UTC")
+    return pd.DataFrame({
+        F.ID: [1.0, 2.0],
+        F.AIRPORT: pd.Series(["LIRF", "EDDF"], dtype=object),
+        "nm_missing": [0, 1],
+        "hour": [10.0, 10.0],
+        "to_takeoff_from_LOBT_flt": [7200.0, np.nan],
+        "MVT_TIME_UTC_mvt": [t, t],
+        "LOBT_flt": [t - pd.Timedelta(seconds=7200), pd.NaT],
+    })
 
 
 def test_submissao_segue_a_ordem_do_template_sem_nulos():
@@ -42,3 +66,25 @@ def test_rodadas_finais_da_stack_escalam_so_a_base():
     # a campeã original continua com as rodadas dos blocos (sem escala)
     assert champ["config"]["base_config"]["cls_rounds"] == 400
     assert champ["config"]["rounds"] == 300
+
+
+def test_envio_com_janela_na_base_para_nos_limites_do_lobt():
+    rk = _ranking()
+    base = np.array([1000.0, 1000.0])
+    cfg_bloco = {"model": "two_stage_nm", "janela_lobt": True}
+
+    alta = corrigir_ranking(_Corretor(1e6), cfg_bloco, False, rk, base)
+    baixa = corrigir_ranking(_Corretor(-1e6), cfg_bloco, False, rk, base)
+
+    # voo 1: janela [3594, 10806]; voo 2 sem LOBT segue como hoje
+    np.testing.assert_allclose(alta, [10806.0, 1000.0 + 1e6])
+    np.testing.assert_allclose(baixa, [3594.0, 0.0])
+
+
+def test_envio_sem_janela_na_base_e_o_de_hoje():
+    rk = _ranking()
+    base = np.array([1000.0, 1000.0])
+
+    pred = corrigir_ranking(_Corretor(120.0), {"model": "two_stage_nm"}, False, rk, base)
+
+    np.testing.assert_allclose(pred, [1120.0, 1120.0])  # voo 1 ficaria em 3594 com janela

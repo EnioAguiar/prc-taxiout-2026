@@ -8,7 +8,13 @@ import features as F
 import stack
 from adsb_events import FEATURES as ADSB
 from cache import TRUTH
-from stack import apply_corrector, base_config, config_da_base, corrector_frame
+from stack import (
+    apply_corrector,
+    base_config,
+    config_da_base,
+    corrector_frame,
+    previsao_corrigida,
+)
 
 
 class _Corretor:
@@ -22,7 +28,12 @@ class _Corretor:
 
 
 def _voos() -> pd.DataFrame:
-    """Linhas com as colunas que o corretor usa, mais colunas que ele não pode ver."""
+    """Linhas com as colunas que o corretor usa, mais colunas que ele não pode ver.
+
+    Janela do LOBT (MVT − LOBT ± 3606 s): voo 1 em [−2406, 4806], voo 2 sem LOBT (sem
+    janela), voo 3 em [3594, 10806].
+    """
+    t = pd.Timestamp("2025-01-15 10:00", tz="UTC")
     df = pd.DataFrame({
         F.ID: [1.0, 2.0, 3.0],
         F.AIRPORT: ["LIRF", "EDDF", "LIRF"],
@@ -31,6 +42,8 @@ def _voos() -> pd.DataFrame:
         "to_takeoff_from_SCHED_TIME_UTC_mvt": [900.0, 1200.0, np.nan],
         "to_takeoff_from_LOBT_flt": [880.0, np.nan, 1000.0],
         "ref_p10": [600.0, 700.0, 800.0],
+        "MVT_TIME_UTC_mvt": [t, t, t],
+        "LOBT_flt": [t - pd.Timedelta(seconds=1200), pd.NaT, t - pd.Timedelta(seconds=7200)],
         F.TARGET: [1000.0, 1100.0, 1200.0],
         TRUTH: [1000.0, 1100.0, 1200.0],
     })
@@ -76,6 +89,43 @@ def test_o_corretor_nunca_recebe_o_alvo():
     X = corrector_frame(_voos(), np.array([800.0, 900.0, 1000.0]))
 
     assert F.TARGET not in X.columns and TRUTH not in X.columns
+
+
+def test_com_janela_o_corretor_ve_a_distancia_ate_os_limites_do_lobt():
+    df = _voos()
+    pred = np.array([800.0, 900.0, 1000.0])
+
+    X = corrector_frame(df, pred, janela=True)
+
+    np.testing.assert_allclose(X["dist_lo"].to_numpy(float), [800 + 2406, np.nan, 1000 - 3594])
+    np.testing.assert_allclose(X["dist_hi"].to_numpy(float), [4806 - 800, np.nan, 10806 - 1000])
+
+
+def test_sem_janela_o_corretor_nao_ve_os_limites_do_lobt():
+    X = corrector_frame(_voos(), np.array([800.0, 900.0, 1000.0]), janela=False)
+
+    assert "dist_lo" not in X.columns and "dist_hi" not in X.columns
+
+
+def test_com_janela_a_correcao_enorme_para_nos_limites_do_lobt():
+    df = _voos()
+    base = np.array([800.0, 900.0, 1000.0])
+
+    alta = previsao_corrigida(_Corretor(1e6), df, base, adsb=False, janela=True)
+    baixa = previsao_corrigida(_Corretor(-1e6), df, base, adsb=False, janela=True)
+
+    np.testing.assert_allclose(alta, [4806.0, 900.0 + 1e6, 10806.0])  # voo 2 não tem janela
+    np.testing.assert_allclose(baixa, [0.0, 0.0, 3594.0])  # piso 0 depois da projeção
+
+
+def test_sem_janela_a_previsao_corrigida_e_a_de_hoje():
+    df = _voos()
+    base = np.array([800.0, 900.0, 1000.0])
+
+    pred = previsao_corrigida(_Corretor(120.0), df, base, adsb=False, janela=False)
+
+    np.testing.assert_allclose(pred, [920.0, 1020.0, 1120.0])  # voo 3 ficaria em 3594 com janela
+
 
 
 def test_base_config_pega_a_config_da_ultima_corrida_com_aquele_id(tmp_path, monkeypatch):
