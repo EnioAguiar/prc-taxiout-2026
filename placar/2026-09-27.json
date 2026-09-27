@@ -1,0 +1,1152 @@
+{
+ "updated": "2026-09-27T01:49:50Z",
+ "totalSubmissions": 3000,
+ "teams": [
+  {
+   "team": "jolly-lobster",
+   "best": 224.881,
+   "n": 64,
+   "lastAt": "2026-09-26T00:26:50.620038Z"
+  },
+  {
+   "team": "vigorous-whistle",
+   "best": 229.6009,
+   "n": 29,
+   "lastAt": "2026-09-27T01:37:49.665092Z"
+  },
+  {
+   "team": "strong-crane",
+   "best": 231.3358,
+   "n": 55,
+   "lastAt": "2026-09-27T00:06:59.117539Z"
+  },
+  {
+   "team": "quick-boat",
+   "best": 231.7292,
+   "n": 69,
+   "lastAt": "2026-09-26T15:19:58.912399Z"
+  },
+  {
+   "team": "zesty-puzzle",
+   "best": 233.8645,
+   "n": 73,
+   "lastAt": "2026-09-27T01:00:37.288072Z"
+  },
+  {
+   "team": "upstanding-firefly",
+   "best": 234.9886,
+   "n": 17,
+   "lastAt": "2026-09-26T14:05:30.502023Z"
+  },
+  {
+   "team": "gentle-igloo",
+   "best": 235.524,
+   "n": 62,
+   "lastAt": "2026-09-27T00:14:50.544825Z"
+  },
+  {
+   "team": "gentle-tractor",
+   "best": 235.919,
+   "n": 30,
+   "lastAt": "2026-09-25T15:06:51.013533Z"
+  },
+  {
+   "team": "jovial-uniform",
+   "best": 237.0775,
+   "n": 20,
+   "lastAt": "2026-09-26T10:53:10.3353Z"
+  },
+  {
+   "team": "youthful-giraffe",
+   "best": 242.8064,
+   "n": 23,
+   "lastAt": "2026-09-26T08:44:52.943483Z"
+  },
+  {
+   "team": "enthusiastic-daisy",
+   "best": 243.0104,
+   "n": 100,
+   "lastAt": "2026-09-26T14:01:57.782885Z"
+  },
+  {
+   "team": "gentle-lemon",
+   "best": 243.4269,
+   "n": 46,
+   "lastAt": "2026-09-26T08:49:10.670552Z"
+  },
+  {
+   "team": "understanding-accordion",
+   "best": 245.73,
+   "n": 20,
+   "lastAt": "2026-09-26T18:30:23.894319Z"
+  },
+  {
+   "team": "unbelievable-snowflake",
+   "best": 246.5134,
+   "n": 29,
+   "lastAt": "2026-09-27T00:05:44.405258Z"
+  },
+  {
+   "team": "bubbly-telephone",
+   "best": 247.655,
+   "n": 68,
+   "lastAt": "2026-09-25T05:26:02.680067Z"
+  },
+  {
+   "team": "humble-rocket",
+   "best": 248.5606,
+   "n": 17,
+   "lastAt": "2026-09-26T16:09:19.856938Z"
+  },
+  {
+   "team": "merry-quicksand",
+   "best": 252.0706,
+   "n": 32,
+   "lastAt": "2026-09-26T18:38:28.044234Z"
+  },
+  {
+   "team": "dynamic-lobster",
+   "best": 252.1407,
+   "n": 29,
+   "lastAt": "2026-09-26T15:33:21.386831Z"
+  },
+  {
+   "team": "noble-tractor",
+   "best": 255.0207,
+   "n": 28,
+   "lastAt": "2026-09-27T00:01:21.16841Z"
+  },
+  {
+   "team": "strong-turtle",
+   "best": 257.3209,
+   "n": 41,
+   "lastAt": "2026-09-25T01:50:23.953157Z"
+  },
+  {
+   "team": "gentle-ladder",
+   "best": 257.5695,
+   "n": 57,
+   "lastAt": "2026-09-26T22:01:13.641471Z"
+  },
+  {
+   "team": "gracious-tornado",
+   "best": 260.3034,
+   "n": 10,
+   "lastAt": "2026-09-27T01:08:48.643952Z"
+  },
+  {
+   "team": "nice-umbrella",
+   "best": 261.1533,
+   "n": 49,
+   "lastAt": "2026-09-26T20:15:06.952231Z"
+  },
+  {
+   "team": "upbeat-goblin",
+   "best": 261.2616,
+   "n": 36,
+   "lastAt": "2026-09-26T22:45:29.763185Z"
+  },
+  {
+   "team": "humble-giraffe",
+   "best": 263.8731,
+   "n": 25,
+   "lastAt": "2026-09-24T19:28:37.96106Z"
+  },
+  {
+   "team": "organized-marshmallow",
+   "best": 266.1113,
+   "n": 3,
+   "lastAt": "2026-09-19T14:59:48.961189Z"
+  },
+  {
+   "team": "kind-mango",
+   "best": 266.1483,
+   "n": 66,
+   "lastAt": "2026-09-26T19:20:08.038127Z"
+  },
+  {
+   "team": "dependable-eagle",
+   "best": 266.2179,
+   "n": 47,
+   "lastAt": "2026-09-23T17:59:39.745584Z"
+  },
+  {
+   "team": "strong-moose",
+   "best": 267.8575,
+   "n": 64,
+   "lastAt": "2026-09-26T13:10:17.86393Z"
+  },
+  {
+   "team": "loyal-anchor",
+   "best": 268.0145,
+   "n": 18,
+   "lastAt": "2026-09-27T00:09:22.832771Z"
+  },
+  {
+   "team": "kind-earthquake",
+   "best": 268.5216,
+   "n": 22,
+   "lastAt": "2026-09-17T00:05:45.779117Z"
+  },
+  {
+   "team": "elegant-alligator",
+   "best": 268.5583,
+   "n": 6,
+   "lastAt": "2026-09-15T21:55:32.927418Z"
+  },
+  {
+   "team": "versatile-watermelon",
+   "best": 268.9083,
+   "n": 5,
+   "lastAt": "2026-09-15T21:15:54.689867Z"
+  },
+  {
+   "team": "affectionate-dollhouse",
+   "best": 269.5192,
+   "n": 57,
+   "lastAt": "2026-09-26T19:34:10.154366Z"
+  },
+  {
+   "team": "merry-octopus",
+   "best": 270.43,
+   "n": 45,
+   "lastAt": "2026-09-27T00:04:24.072146Z"
+  },
+  {
+   "team": "upstanding-insect",
+   "best": 270.5625,
+   "n": 23,
+   "lastAt": "2026-09-20T19:43:41.549146Z"
+  },
+  {
+   "team": "vigorous-telephone",
+   "best": 272.3391,
+   "n": 32,
+   "lastAt": "2026-09-25T19:39:07.753976Z"
+  },
+  {
+   "team": "courageous-yarn",
+   "best": 272.3488,
+   "n": 12,
+   "lastAt": "2026-09-11T07:28:54.56715Z"
+  },
+  {
+   "team": "zestful-fountain",
+   "best": 273.5557,
+   "n": 12,
+   "lastAt": "2026-09-13T16:53:09.951438Z"
+  },
+  {
+   "team": "generous-quilt",
+   "best": 274.6438,
+   "n": 26,
+   "lastAt": "2026-09-26T09:17:00.905008Z"
+  },
+  {
+   "team": "unique-rose",
+   "best": 274.766,
+   "n": 33,
+   "lastAt": "2026-09-25T12:15:23.946482Z"
+  },
+  {
+   "team": "joyous-pencil",
+   "best": 274.8444,
+   "n": 11,
+   "lastAt": "2026-09-09T16:27:15.643788Z"
+  },
+  {
+   "team": "adventurous-firefly",
+   "best": 275.4497,
+   "n": 7,
+   "lastAt": "2026-09-10T13:49:56.39017Z"
+  },
+  {
+   "team": "hospitable-nightlight",
+   "best": 275.9842,
+   "n": 47,
+   "lastAt": "2026-09-26T11:52:01.948848Z"
+  },
+  {
+   "team": "likable-eagle",
+   "best": 276.9855,
+   "n": 25,
+   "lastAt": "2026-09-14T04:28:46.051927Z"
+  },
+  {
+   "team": "silly-net",
+   "best": 277.8673,
+   "n": 30,
+   "lastAt": "2026-09-15T20:51:57.591018Z"
+  },
+  {
+   "team": "knowledgeable-helicopter",
+   "best": 278.0146,
+   "n": 4,
+   "lastAt": "2026-09-23T20:07:09.538055Z"
+  },
+  {
+   "team": "lighthearted-xylophone",
+   "best": 278.1278,
+   "n": 17,
+   "lastAt": "2026-09-22T15:37:19.578578Z"
+  },
+  {
+   "team": "resourceful-horse",
+   "best": 278.2138,
+   "n": 20,
+   "lastAt": "2026-09-10T08:45:41.086613Z"
+  },
+  {
+   "team": "merry-llama",
+   "best": 278.3931,
+   "n": 27,
+   "lastAt": "2026-09-25T21:26:09.455295Z"
+  },
+  {
+   "team": "optimistic-panda",
+   "best": 278.7062,
+   "n": 14,
+   "lastAt": "2026-09-20T18:00:06.405722Z"
+  },
+  {
+   "team": "resilient-hedgehog",
+   "best": 279.5234,
+   "n": 14,
+   "lastAt": "2026-09-24T05:37:04.639676Z"
+  },
+  {
+   "team": "diligent-fireplace",
+   "best": 279.7258,
+   "n": 4,
+   "lastAt": "2026-09-27T01:26:43.913182Z"
+  },
+  {
+   "team": "merry-rose",
+   "best": 279.7675,
+   "n": 29,
+   "lastAt": "2026-09-18T16:36:06.704845Z"
+  },
+  {
+   "team": "cheerful-forest",
+   "best": 282.1789,
+   "n": 4,
+   "lastAt": "2026-09-17T11:57:54.60726Z"
+  },
+  {
+   "team": "witty-feather",
+   "best": 282.8899,
+   "n": 29,
+   "lastAt": "2026-09-26T20:06:54.074133Z"
+  },
+  {
+   "team": "dynamic-hamburger",
+   "best": 283.0897,
+   "n": 25,
+   "lastAt": "2026-09-25T06:54:20.502436Z"
+  },
+  {
+   "team": "charming-eel",
+   "best": 283.5222,
+   "n": 6,
+   "lastAt": "2026-09-26T14:24:59.844157Z"
+  },
+  {
+   "team": "victorious-quartz",
+   "best": 283.819,
+   "n": 18,
+   "lastAt": "2026-09-11T21:36:31.630378Z"
+  },
+  {
+   "team": "optimistic-radio",
+   "best": 284.5149,
+   "n": 9,
+   "lastAt": "2026-09-18T22:11:55.062416Z"
+  },
+  {
+   "team": "resilient-kiwi",
+   "best": 284.5607,
+   "n": 9,
+   "lastAt": "2026-09-24T07:53:32.846926Z"
+  },
+  {
+   "team": "vibrant-tornado",
+   "best": 284.8509,
+   "n": 3,
+   "lastAt": "2026-09-08T14:36:34.558409Z"
+  },
+  {
+   "team": "jolly-napkin",
+   "best": 285.6144,
+   "n": 40,
+   "lastAt": "2026-09-17T10:54:45.505838Z"
+  },
+  {
+   "team": "intelligent-ladder",
+   "best": 285.6822,
+   "n": 11,
+   "lastAt": "2026-09-09T08:07:22.439643Z"
+  },
+  {
+   "team": "sincere-insect",
+   "best": 286.2746,
+   "n": 14,
+   "lastAt": "2026-09-25T18:23:39.695078Z"
+  },
+  {
+   "team": "zany-crane",
+   "best": 286.3068,
+   "n": 6,
+   "lastAt": "2026-09-15T15:40:24.79037Z"
+  },
+  {
+   "team": "fearless-barn",
+   "best": 287.2876,
+   "n": 26,
+   "lastAt": "2026-09-26T17:11:57.338791Z"
+  },
+  {
+   "team": "modest-quilt",
+   "best": 287.3989,
+   "n": 4,
+   "lastAt": "2026-09-25T19:31:27.216422Z"
+  },
+  {
+   "team": "dependable-quicksand",
+   "best": 288.2147,
+   "n": 13,
+   "lastAt": "2026-09-09T09:21:56.123927Z"
+  },
+  {
+   "team": "talented-teapot",
+   "best": 288.3136,
+   "n": 44,
+   "lastAt": "2026-09-25T00:23:12.466889Z"
+  },
+  {
+   "team": "playful-village",
+   "best": 291.0141,
+   "n": 10,
+   "lastAt": "2026-09-09T22:20:05.142672Z"
+  },
+  {
+   "team": "zestful-eagle",
+   "best": 291.2545,
+   "n": 5,
+   "lastAt": "2026-09-25T06:38:25.799317Z"
+  },
+  {
+   "team": "motivated-forest",
+   "best": 291.2731,
+   "n": 57,
+   "lastAt": "2026-09-20T10:24:01.157597Z"
+  },
+  {
+   "team": "witty-honey",
+   "best": 291.366,
+   "n": 1,
+   "lastAt": "2026-09-23T00:15:48.645505Z"
+  },
+  {
+   "team": "delightful-ostrich",
+   "best": 291.5834,
+   "n": 12,
+   "lastAt": "2026-09-21T21:14:34.174703Z"
+  },
+  {
+   "team": "gentle-ostrich",
+   "best": 292.3825,
+   "n": 10,
+   "lastAt": "2026-09-12T23:15:29.048413Z"
+  },
+  {
+   "team": "optimistic-orchid",
+   "best": 292.4011,
+   "n": 4,
+   "lastAt": "2026-09-23T11:27:57.023189Z"
+  },
+  {
+   "team": "lighthearted-ladder",
+   "best": 292.6878,
+   "n": 3,
+   "lastAt": "2026-09-08T05:52:21.142878Z"
+  },
+  {
+   "team": "inspiring-kitten",
+   "best": 292.9737,
+   "n": 55,
+   "lastAt": "2026-09-26T00:05:40.849142Z"
+  },
+  {
+   "team": "generous-kangaroo",
+   "best": 293.1859,
+   "n": 29,
+   "lastAt": "2026-09-16T19:58:06.623558Z"
+  },
+  {
+   "team": "joyful-goblin",
+   "best": 294.1703,
+   "n": 28,
+   "lastAt": "2026-09-19T05:03:21.167252Z"
+  },
+  {
+   "team": "hardworking-kiwi",
+   "best": 294.5583,
+   "n": 3,
+   "lastAt": "2026-09-07T11:01:16.721318Z"
+  },
+  {
+   "team": "fantastic-bridge",
+   "best": 294.6216,
+   "n": 12,
+   "lastAt": "2026-09-27T01:15:52.358371Z"
+  },
+  {
+   "team": "respectful-volcano",
+   "best": 294.9914,
+   "n": 4,
+   "lastAt": "2026-09-11T13:17:39.755023Z"
+  },
+  {
+   "team": "peaceful-bridge",
+   "best": 295.8242,
+   "n": 7,
+   "lastAt": "2026-09-11T20:44:20.916976Z"
+  },
+  {
+   "team": "spirited-clown",
+   "best": 295.8599,
+   "n": 13,
+   "lastAt": "2026-09-14T13:59:29.559413Z"
+  },
+  {
+   "team": "mindful-jacket",
+   "best": 295.9171,
+   "n": 9,
+   "lastAt": "2026-09-21T18:55:48.835401Z"
+  },
+  {
+   "team": "zestful-llama",
+   "best": 296.1772,
+   "n": 6,
+   "lastAt": "2026-09-19T17:54:32.025772Z"
+  },
+  {
+   "team": "empathetic-boat",
+   "best": 297.0595,
+   "n": 18,
+   "lastAt": "2026-09-19T15:18:48.558896Z"
+  },
+  {
+   "team": "easygoing-helicopter",
+   "best": 298.0418,
+   "n": 3,
+   "lastAt": "2026-09-25T08:41:04.7318Z"
+  },
+  {
+   "team": "versatile-violin",
+   "best": 298.5734,
+   "n": 19,
+   "lastAt": "2026-09-17T04:53:27.8908Z"
+  },
+  {
+   "team": "natural-kiwi",
+   "best": 298.79,
+   "n": 3,
+   "lastAt": "2026-09-09T09:21:58.834607Z"
+  },
+  {
+   "team": "joyful-lemon",
+   "best": 298.8601,
+   "n": 24,
+   "lastAt": "2026-09-23T00:03:51.760573Z"
+  },
+  {
+   "team": "happy-lantern",
+   "best": 299.0092,
+   "n": 48,
+   "lastAt": "2026-09-27T01:23:44.876173Z"
+  },
+  {
+   "team": "joyous-rainbow",
+   "best": 299.2342,
+   "n": 8,
+   "lastAt": "2026-09-25T11:32:14.80529Z"
+  },
+  {
+   "team": "jubilant-vase",
+   "best": 299.2862,
+   "n": 5,
+   "lastAt": "2026-09-14T02:26:42.261507Z"
+  },
+  {
+   "team": "smart-jigsaw",
+   "best": 299.6874,
+   "n": 13,
+   "lastAt": "2026-09-20T10:58:36.519193Z"
+  },
+  {
+   "team": "knowledgeable-alligator",
+   "best": 302.292,
+   "n": 12,
+   "lastAt": "2026-09-25T05:36:25.970375Z"
+  },
+  {
+   "team": "adventurous-radio",
+   "best": 304.079,
+   "n": 20,
+   "lastAt": "2026-09-26T04:11:47.376133Z"
+  },
+  {
+   "team": "logical-ladder",
+   "best": 304.3859,
+   "n": 11,
+   "lastAt": "2026-09-27T01:15:57.333275Z"
+  },
+  {
+   "team": "unique-umbrella",
+   "best": 304.9528,
+   "n": 21,
+   "lastAt": "2026-09-24T16:51:19.146439Z"
+  },
+  {
+   "team": "loyal-kangaroo",
+   "best": 305.1477,
+   "n": 9,
+   "lastAt": "2026-09-27T00:03:27.227972Z"
+  },
+  {
+   "team": "kind-tulip",
+   "best": 305.4351,
+   "n": 8,
+   "lastAt": "2026-09-25T18:46:37.759078Z"
+  },
+  {
+   "team": "gentle-orchid",
+   "best": 306.2528,
+   "n": 4,
+   "lastAt": "2026-09-20T04:00:57.886966Z"
+  },
+  {
+   "team": "tiny-boat",
+   "best": 307.0016,
+   "n": 12,
+   "lastAt": "2026-09-23T19:01:02.089653Z"
+  },
+  {
+   "team": "vibrant-lollipop",
+   "best": 310.5502,
+   "n": 13,
+   "lastAt": "2026-09-09T10:55:31.743102Z"
+  },
+  {
+   "team": "versatile-x-ray",
+   "best": 312.2533,
+   "n": 7,
+   "lastAt": "2026-09-09T00:14:42.193657Z"
+  },
+  {
+   "team": "generous-jungle",
+   "best": 312.7621,
+   "n": 1,
+   "lastAt": "2026-09-04T11:05:32.253771Z"
+  },
+  {
+   "team": "outgoing-boat",
+   "best": 314.7632,
+   "n": 6,
+   "lastAt": "2026-09-27T01:46:56.434088Z"
+  },
+  {
+   "team": "positive-kiwi",
+   "best": 315.7055,
+   "n": 7,
+   "lastAt": "2026-09-23T07:26:25.559171Z"
+  },
+  {
+   "team": "likable-river",
+   "best": 315.8111,
+   "n": 9,
+   "lastAt": "2026-09-09T00:13:20.629032Z"
+  },
+  {
+   "team": "peaceful-jar",
+   "best": 316.1597,
+   "n": 19,
+   "lastAt": "2026-09-14T20:49:27.773706Z"
+  },
+  {
+   "team": "tidy-nugget",
+   "best": 316.3197,
+   "n": 5,
+   "lastAt": "2026-09-20T10:40:52.082046Z"
+  },
+  {
+   "team": "amazing-marshmallow",
+   "best": 316.5926,
+   "n": 18,
+   "lastAt": "2026-09-27T00:05:35.125376Z"
+  },
+  {
+   "team": "cheerful-unicorn",
+   "best": 317.3564,
+   "n": 10,
+   "lastAt": "2026-09-25T20:52:38.718966Z"
+  },
+  {
+   "team": "motivated-ostrich",
+   "best": 319.2111,
+   "n": 20,
+   "lastAt": "2026-09-16T18:49:04.072796Z"
+  },
+  {
+   "team": "hospitable-bicycle",
+   "best": 319.5819,
+   "n": 9,
+   "lastAt": "2026-09-23T04:14:44.776805Z"
+  },
+  {
+   "team": "vibrant-jewel",
+   "best": 319.5959,
+   "n": 14,
+   "lastAt": "2026-09-14T10:53:48.156139Z"
+  },
+  {
+   "team": "brisk-monkey",
+   "best": 322.185,
+   "n": 7,
+   "lastAt": "2026-09-11T01:01:09.02008Z"
+  },
+  {
+   "team": "funny-jewel",
+   "best": 323.851,
+   "n": 9,
+   "lastAt": "2026-09-10T17:04:16.38817Z"
+  },
+  {
+   "team": "knowing-helicopter",
+   "best": 324.0731,
+   "n": 2,
+   "lastAt": "2026-09-10T08:36:22.781219Z"
+  },
+  {
+   "team": "confident-umbrella",
+   "best": 324.3448,
+   "n": 5,
+   "lastAt": "2026-09-07T04:49:15.862388Z"
+  },
+  {
+   "team": "jubilant-jacket",
+   "best": 328.4953,
+   "n": 4,
+   "lastAt": "2026-09-15T02:43:16.936629Z"
+  },
+  {
+   "team": "faithful-donkey",
+   "best": 329.4867,
+   "n": 2,
+   "lastAt": "2026-09-06T04:47:40.127108Z"
+  },
+  {
+   "team": "sensible-igloo",
+   "best": 330.3943,
+   "n": 3,
+   "lastAt": "2026-09-05T16:33:55.822459Z"
+  },
+  {
+   "team": "amiable-zipper",
+   "best": 334.6466,
+   "n": 2,
+   "lastAt": "2026-09-11T08:42:20.774517Z"
+  },
+  {
+   "team": "nice-igloo",
+   "best": 337.2187,
+   "n": 5,
+   "lastAt": "2026-09-22T12:52:54.832774Z"
+  },
+  {
+   "team": "generous-pencil",
+   "best": 337.6804,
+   "n": 5,
+   "lastAt": "2026-09-24T20:29:37.240283Z"
+  },
+  {
+   "team": "reliable-hamburger",
+   "best": 343.306,
+   "n": 2,
+   "lastAt": "2026-09-04T12:39:36.257622Z"
+  },
+  {
+   "team": "affectionate-ukulele",
+   "best": 347.7259,
+   "n": 2,
+   "lastAt": "2026-09-09T14:11:23.064027Z"
+  },
+  {
+   "team": "vigorous-x-ray",
+   "best": 348.6559,
+   "n": 5,
+   "lastAt": "2026-09-15T19:02:50.536006Z"
+  },
+  {
+   "team": "zippy-ant",
+   "best": 354.9456,
+   "n": 4,
+   "lastAt": "2026-09-11T04:51:40.152314Z"
+  },
+  {
+   "team": "inspiring-quince",
+   "best": 356.8525,
+   "n": 2,
+   "lastAt": "2026-09-22T17:22:30.831825Z"
+  },
+  {
+   "team": "talented-jelly",
+   "best": 356.9928,
+   "n": 7,
+   "lastAt": "2026-09-24T21:33:13.102381Z"
+  },
+  {
+   "team": "dynamic-muffin",
+   "best": 365.3666,
+   "n": 2,
+   "lastAt": "2026-09-08T22:47:51.347298Z"
+  },
+  {
+   "team": "merry-scooter",
+   "best": 368.5487,
+   "n": 5,
+   "lastAt": "2026-09-19T10:21:21.951657Z"
+  },
+  {
+   "team": "dynamic-emu",
+   "best": 375.529,
+   "n": 21,
+   "lastAt": "2026-09-22T09:04:25.598555Z"
+  },
+  {
+   "team": "respectful-parrot",
+   "best": 380.536,
+   "n": 6,
+   "lastAt": "2026-09-26T18:09:33.37271Z"
+  },
+  {
+   "team": "vigorous-jungle",
+   "best": 389.8638,
+   "n": 3,
+   "lastAt": "2026-09-07T08:23:01.766551Z"
+  },
+  {
+   "team": "jolly-snowflake",
+   "best": 398.9513,
+   "n": 8,
+   "lastAt": "2026-09-23T15:14:00.256447Z"
+  },
+  {
+   "team": "cheerful-jacket",
+   "best": 404.4759,
+   "n": 4,
+   "lastAt": "2026-09-15T15:23:25.53289Z"
+  },
+  {
+   "team": "upbeat-net",
+   "best": 405.8603,
+   "n": 1,
+   "lastAt": "2026-09-09T17:43:56.556487Z"
+  },
+  {
+   "team": "vigorous-glove",
+   "best": 425.7711,
+   "n": 2,
+   "lastAt": "2026-09-26T18:40:56.402184Z"
+  },
+  {
+   "team": "merry-iguana",
+   "best": 438.0435,
+   "n": 13,
+   "lastAt": "2026-09-15T07:36:52.889916Z"
+  },
+  {
+   "team": "imaginative-ocean",
+   "best": 449.3895,
+   "n": 6,
+   "lastAt": "2026-09-20T05:06:37.030171Z"
+  },
+  {
+   "team": "delightful-dragon",
+   "best": 451.1675,
+   "n": 2,
+   "lastAt": "2026-09-09T09:30:52.718696Z"
+  },
+  {
+   "team": "fearless-kangaroo",
+   "best": 467.5631,
+   "n": 9,
+   "lastAt": "2026-09-12T15:29:33.044367Z"
+  },
+  {
+   "team": "trustworthy-unicorn",
+   "best": 488.2674,
+   "n": 6,
+   "lastAt": "2026-09-17T16:51:06.53217Z"
+  },
+  {
+   "team": "unbelievable-quilt",
+   "best": 490.7364,
+   "n": 5,
+   "lastAt": "2026-09-10T00:18:49.718093Z"
+  },
+  {
+   "team": "delightful-telephone",
+   "best": 494.1053,
+   "n": 2,
+   "lastAt": "2026-09-16T11:43:47.435251Z"
+  },
+  {
+   "team": "thoughtful-glove",
+   "best": 496.7301,
+   "n": 2,
+   "lastAt": "2026-09-09T06:20:03.080995Z"
+  },
+  {
+   "team": "playful-anchor",
+   "best": 502.1926,
+   "n": 1,
+   "lastAt": "2026-09-08T14:55:33.303219Z"
+  },
+  {
+   "team": "gracious-yogurt",
+   "best": 521.9559,
+   "n": 7,
+   "lastAt": "2026-09-11T08:16:14.260043Z"
+  },
+  {
+   "team": "outspoken-kiwi",
+   "best": 529.2769,
+   "n": 7,
+   "lastAt": "2026-09-25T10:05:28.948411Z"
+  },
+  {
+   "team": "jubilant-puzzle",
+   "best": 532.277,
+   "n": 8,
+   "lastAt": "2026-09-24T04:05:27.242099Z"
+  },
+  {
+   "team": "ambitious-hippo",
+   "best": 532.5678,
+   "n": 4,
+   "lastAt": "2026-09-18T11:06:40.952734Z"
+  },
+  {
+   "team": "zesty-sailboat",
+   "best": 537.5729,
+   "n": 19,
+   "lastAt": "2026-09-26T13:06:09.151827Z"
+  },
+  {
+   "team": "bubbly-eel",
+   "best": 539.99,
+   "n": 1,
+   "lastAt": "2026-09-09T10:31:15.967158Z"
+  },
+  {
+   "team": "gentle-violin",
+   "best": 540.341,
+   "n": 4,
+   "lastAt": "2026-09-25T16:20:11.277221Z"
+  },
+  {
+   "team": "kindhearted-goblin",
+   "best": 553.4201,
+   "n": 4,
+   "lastAt": "2026-09-22T10:52:39.500348Z"
+  },
+  {
+   "team": "vibrant-firefly",
+   "best": 558.2179,
+   "n": 4,
+   "lastAt": "2026-09-19T13:26:30.453721Z"
+  },
+  {
+   "team": "neat-apple",
+   "best": 558.5385,
+   "n": 6,
+   "lastAt": "2026-09-13T09:45:37.01463Z"
+  },
+  {
+   "team": "versatile-radio",
+   "best": 562.1415,
+   "n": 2,
+   "lastAt": "2026-09-05T00:02:33.515735Z"
+  },
+  {
+   "team": "zany-sailboat",
+   "best": 570.0166,
+   "n": 4,
+   "lastAt": "2026-09-26T02:45:05.565592Z"
+  },
+  {
+   "team": "keen-icicle",
+   "best": 570.5734,
+   "n": 2,
+   "lastAt": "2026-09-15T15:57:13.909088Z"
+  },
+  {
+   "team": "peaceful-horse",
+   "best": 573.2159,
+   "n": 1,
+   "lastAt": "2026-09-15T23:39:23.716529Z"
+  },
+  {
+   "team": "enthusiastic-apple",
+   "best": 573.7462,
+   "n": 13,
+   "lastAt": "2026-09-09T14:28:54.84465Z"
+  },
+  {
+   "team": "delightful-beetle",
+   "best": 574.5847,
+   "n": 12,
+   "lastAt": "2026-09-08T10:58:00.04415Z"
+  },
+  {
+   "team": "fearless-umbrella",
+   "best": 576.5988,
+   "n": 4,
+   "lastAt": "2026-09-13T23:15:30.877336Z"
+  },
+  {
+   "team": "neat-quicksand",
+   "best": 578.5995,
+   "n": 3,
+   "lastAt": "2026-09-24T05:05:20.908883Z"
+  },
+  {
+   "team": "zesty-gorilla",
+   "best": 581.4872,
+   "n": 5,
+   "lastAt": "2026-09-24T09:00:40.319012Z"
+  },
+  {
+   "team": "optimistic-fireplace",
+   "best": 582.8278,
+   "n": 19,
+   "lastAt": "2026-09-22T01:57:09.351719Z"
+  },
+  {
+   "team": "dynamic-deer",
+   "best": 586.5353,
+   "n": 7,
+   "lastAt": "2026-09-26T22:04:56.268053Z"
+  },
+  {
+   "team": "imaginative-guitar",
+   "best": 589.9303,
+   "n": 2,
+   "lastAt": "2026-09-10T09:40:01.093577Z"
+  },
+  {
+   "team": "delightful-zoo",
+   "best": 597.5365,
+   "n": 3,
+   "lastAt": "2026-09-07T04:15:12.1394Z"
+  },
+  {
+   "team": "outgoing-iguana",
+   "best": 598.5854,
+   "n": 4,
+   "lastAt": "2026-09-17T10:28:24.685248Z"
+  },
+  {
+   "team": "organized-hedgehog",
+   "best": 602.1377,
+   "n": 3,
+   "lastAt": "2026-09-11T16:54:06.405288Z"
+  },
+  {
+   "team": "zany-xylophone",
+   "best": 603.1481,
+   "n": 2,
+   "lastAt": "2026-09-26T19:37:01.151667Z"
+  },
+  {
+   "team": "zestful-jewel",
+   "best": 607.1451,
+   "n": 1,
+   "lastAt": "2026-09-24T17:39:45.891051Z"
+  },
+  {
+   "team": "nimble-barn",
+   "best": 609.6169,
+   "n": 1,
+   "lastAt": "2026-09-19T09:20:48.86239Z"
+  },
+  {
+   "team": "thoughtful-jungle",
+   "best": 613.4944,
+   "n": 3,
+   "lastAt": "2026-09-09T00:41:17.324694Z"
+  },
+  {
+   "team": "gracious-tractor",
+   "best": 618.2682,
+   "n": 3,
+   "lastAt": "2026-09-06T07:25:47.082897Z"
+  },
+  {
+   "team": "gracious-kangaroo",
+   "best": 619.2649,
+   "n": 1,
+   "lastAt": "2026-09-14T01:39:26.48019Z"
+  },
+  {
+   "team": "jubilant-mushroom",
+   "best": 622.2266,
+   "n": 4,
+   "lastAt": "2026-09-17T15:05:46.830303Z"
+  },
+  {
+   "team": "creative-cactus",
+   "best": 624.9191,
+   "n": 7,
+   "lastAt": "2026-09-16T12:03:43.415365Z"
+  },
+  {
+   "team": "sincere-donkey",
+   "best": 625.4325,
+   "n": 7,
+   "lastAt": "2026-09-10T04:55:49.900875Z"
+  },
+  {
+   "team": "amiable-castle",
+   "best": 640.2951,
+   "n": 1,
+   "lastAt": "2026-09-21T08:25:33.175056Z"
+  },
+  {
+   "team": "enthusiastic-snowflake",
+   "best": 650.5927,
+   "n": 1,
+   "lastAt": "2026-09-07T19:31:33.061493Z"
+  },
+  {
+   "team": "quick-panda",
+   "best": 664.8354,
+   "n": 1,
+   "lastAt": "2026-09-17T18:29:53.619565Z"
+  },
+  {
+   "team": "humble-feather",
+   "best": 668.335,
+   "n": 1,
+   "lastAt": "2026-09-21T16:49:09.808088Z"
+  },
+  {
+   "team": "likable-dragon",
+   "best": 677.8488,
+   "n": 1,
+   "lastAt": "2026-09-22T10:54:49.920034Z"
+  }
+ ]
+}

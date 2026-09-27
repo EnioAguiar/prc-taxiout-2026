@@ -1,0 +1,69 @@
+{
+ "_como_usar": "Fila de saltos candidatos. ganho_s = ganho OFICIAL estimado (s) se funcionar; prob = chance de funcionar; dias = dias de trabalho. Atualizar a cada experimento: status feito/descartado + ganho_real_s. Estimativas marcadas como inferência até medidas.",
+ "atualizado": "2026-09-27",
+ "saltos": [
+  {
+   "id": "v7_stack",
+   "nome": "v6 + corretor fora do fold (src/stack.py) com base em train2025",
+   "ganho_s": 5,
+   "prob": 0.6,
+   "dias": 1,
+   "status": "pendente",
+   "evidencia": "simulação 323,50 → 317,57 (MELHOR)"
+  },
+  {
+   "id": "detector",
+   "nome": "detector de pushback melhor (stands do X-Plane apt.dat, gs, mudança de rumo)",
+   "ganho_s": 8,
+   "prob": 0.5,
+   "dias": 2,
+   "status": "pendente",
+   "evidencia": "visto parado erra 20–50 s; visto andando 70–800 s (inferência do ganho)"
+  },
+  {
+   "id": "fila_adsb",
+   "nome": "fila e ocupação da pista vistas pelo ADS-B (aviões taxiando/na cabeceira no instante)",
+   "ganho_s": 7,
+   "prob": 0.4,
+   "dias": 2,
+   "status": "pendente",
+   "evidencia": "organizador: 'o que está ocupado, o que vem'; inferência"
+  },
+  {
+   "id": "clima",
+   "nome": "METAR (IEM): temperatura, spread de orvalho, vento",
+   "ganho_s": 3,
+   "prob": 0.5,
+   "dias": 1,
+   "status": "pendente",
+   "evidencia": "outro time: +3,4 s ao consertar o join do clima (Discord)"
+  },
+  {
+   "id": "seeds",
+   "nome": "média de 8–10 seeds do LightGBM no modelo final",
+   "ganho_s": 4,
+   "prob": 0.6,
+   "dias": 0.5,
+   "status": "pendente",
+   "evidencia": "PRC 2024 1º lugar: −3,0 % com 10 seeds (docs/research/2026-09-26-praticas-ml.md)"
+  },
+  {
+   "id": "cobertura",
+   "nome": "outra fonte ADS-B aberta para LTFM/LFPG/LIRF (0–24 % de cobertura)",
+   "ganho_s": 10,
+   "prob": 0.15,
+   "dias": 2,
+   "status": "pendente",
+   "evidencia": "inferência; fonte aberta não identificada"
+  },
+  {
+   "id": "ablacao",
+   "nome": "ablação dos blocos de features + poda do que não generaliza (com adversarial validation train2025 × ranking2026)",
+   "ganho_s": 2,
+   "prob": 0.4,
+   "dias": 1,
+   "status": "pendente",
+   "evidencia": "playbook NVIDIA / Discord (feature com escala dependente do histórico custou 3 s a outro time); inferência"
+  }
+ ]
+}

@@ -394,6 +394,10 @@ bin/run src/teto.py <base.parquet> <novo.parquet> --oficial-base <RMSE> [--min-m
 bin/run src/train.py submit N [--forcar]          # gera a vN (não envia)
 .venv/bin/python src/s3.py submit submissions/<TEAM>_vN.parquet   # só após aprovação
 bin/run src/adsb.py baixar [--dias 2025-01,2025-07] [--dia AAAA-MM-DD] [--procs 5]   # recortes adsb.lol no SSD
+bin/run src/adsb_events.py                        # eventos por voo → <SSD>/events.parquet
+bin/run src/stack.py <nome> [--base <id>] [--sem-adsb]   # corretor fora do fold sobre uma corrida
+.venv/bin/python ferramentas/projecao.py          # placar do dia + docs/projecao.md
+.venv/bin/python ferramentas/auditoria.py         # docs/auditoria/AAAA-MM-DD.md
 .venv/bin/python -m pytest -q
 ```
 
@@ -401,6 +405,24 @@ Todo comando pesado passa pelo `bin/run`, que limita a 6 núcleos físicos e
 prioridade baixa. Limite do placar: 5 envios por dia, 1 GB por bucket. Conta
 a melhor submissão. A organização monitora quem tenta "aprender com o
 placar": testar localmente e enviar só o que melhorou.
+
+## Rotina diária (auditoria e projeção)
+
+O timer `prc-auditoria` (systemd do usuário, 09:00 local, `Persistent=true`: roda ao
+ligar se o PC estava desligado) executa `ferramentas/auditoria.py`, que:
+
+- baixa a foto do placar (`placar/AAAA-MM-DD.json`) e regenera `docs/projecao.md`;
+- confere bucket × `submissions.jsonl` × placar, campeã × `experiments.jsonl` ×
+  código (`src_hash`), README/CONTEXTO citando campeã e melhor nota, `src/` e
+  `ferramentas/` listados no README, idade do `saltos.json`, pytest, git limpo e
+  enviado nos dois repositórios, `events.parquet` em dia, serviços `prc-*` sem falha;
+- grava `docs/auditoria/AAAA-MM-DD.md` com ✅/⚠️ (não faz commit).
+
+Na primeira conversa do dia: ler a auditoria, corrigir as ⚠️ e o texto velho que a
+máquina não pega (roadmap, "Retomar" do CONTEXTO, caixas do plano), atualizar
+`saltos.json` com o que foi medido e fazer commit. Projeção: cortes do 1º/3º/10º/50º
+no prazo em três cenários (parado, desacelerando com meia-vida de 7 dias, ritmo
+atual) e Monte Carlo da nossa nota final sobre a fila de `saltos.json`.
 
 ## Estrutura
 
@@ -417,6 +439,13 @@ prc-taxiout-2026/
   src/teto.py         # teto do ganho oficial antes de enviar; grava candidato
   src/train.py        # versão final a partir do campeão (só gera o arquivo)
   src/adsb.py         # recorte diário do adsb.lol (ODbL) perto dos 10 aeroportos
+  src/adsb_events.py  # decolagens no ADS-B, off-block observado, casamento, features adsb_*
+  src/stack.py        # corretor LightGBM fora do fold sobre uma corrida base
+  ferramentas/projecao.py   # placar do dia e projeção até o prazo (docs/projecao.md)
+  ferramentas/auditoria.py  # auditoria diária (docs/auditoria/)
+  submissions.jsonl   # nossos envios com a nota oficial (versionado)
+  saltos.json         # fila de saltos candidatos: ganho estimado, chance, dias (versionado)
+  placar/             # fotos diárias do placar público (versionado)
   tests/              # pytest
   experiments.jsonl   # uma linha por corrida (versionado)
   champion.json       # config campeã (versionado)

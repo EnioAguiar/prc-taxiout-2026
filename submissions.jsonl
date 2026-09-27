@@ -1,0 +1,6 @@
+{"versao": 1, "enviado_utc": "2026-09-24T19:09", "oficial": 514.5289, "simulacao": 535.9, "mudanca": "modelo base; treino sem y >= 3 h"}
+{"versao": 2, "enviado_utc": "2026-09-24T19:54", "oficial": 384.7377, "simulacao": 460.4, "mudanca": "outliers no treino; bug das janelas; features de diferença"}
+{"versao": 3, "enviado_utc": "2026-09-24T22:05", "oficial": 338.6742, "simulacao": 388.16, "mudanca": "dois estágios + nm_missing"}
+{"versao": 4, "enviado_utc": "2026-09-24T23:11", "oficial": 337.1837, "simulacao": 345.89, "mudanca": "retas por aeroporto nos voos sem NM"}
+{"versao": 5, "enviado_utc": "2026-09-25T00:52", "oficial": 330.9542, "simulacao": 332.86, "mudanca": "retas só com atraso > 6 h"}
+{"versao": 6, "enviado_utc": "2026-09-27T01:46", "oficial": 314.7632, "simulacao": 323.5, "mudanca": "features adsb.lol"}
