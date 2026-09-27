@@ -56,8 +56,12 @@ def _chaves(codes: np.ndarray, t: np.ndarray) -> np.ndarray:
 
 
 def _acumulado(codes: np.ndarray, t: np.ndarray, v: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Eventos ordenados por (grupo, instante) e soma acumulada dos valores."""
-    ok = np.isfinite(t) & (codes >= 0)
+    """Eventos ordenados por (grupo, instante) e soma acumulada dos valores.
+
+    Evento sem valor (proxy fora da faixa, taxi-in ausente) fica de fora: não contamina a soma
+    acumulada dos eventos seguintes nem entra nas contagens `ctx_arr_n_*`.
+    """
+    ok = np.isfinite(t) & np.isfinite(v) & (codes >= 0)
     codes, t, v = codes[ok], t[ok], v[ok]
     ordem = np.lexsort((t, codes))
     chaves = _chaves(codes[ordem], t[ordem])

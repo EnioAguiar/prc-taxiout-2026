@@ -156,3 +156,18 @@ def test_base_ignora_as_colunas_ctx(frame_com_ctx):
 def test_corretor_usa_as_colunas_ctx(frame_com_ctx):
     X = stack.corrector_frame(frame_com_ctx, np.zeros(len(frame_com_ctx)), adsb=False)
     assert [c for c in X.columns if c.startswith("ctx_")] == list(contexto.COLS)
+
+
+def test_valor_ausente_nao_contamina_as_janelas_seguintes():
+    ctx = _ctx([
+        _mvt(1, "DEP", "LIRF", T0, aobt=T0 - 20 * M),
+        _mvt(2, "DEP", "LIRF", T0 - 2 * M, aobt=T0 - 12 * M),  # proxy válido 600
+        _mvt(3, "DEP", "LIRF", T0 - 8 * M, aobt=None),  # sem proxy, antes do válido
+        _mvt(4, "DEP", "EDDM", T0 - 3 * M, aobt=None),  # outro aeroporto, sem proxy
+        _mvt(5, "ARR", "LIRF", T0 - 3 * M, block=T0, taxi=300.0),
+        _mvt(6, "ARR", "LIRF", T0 - 9 * M, block=T0 - 4 * M, taxi=np.nan),
+        _mvt(7, "ARR", "EDDM", T0 - 4 * M, block=T0, taxi=np.nan),
+    ])
+    assert ctx.loc[1.0, "ctx_viz_pas_apt_15"] == 600.0
+    assert ctx.loc[1.0, "ctx_arr_tin_apt_15"] == 300.0
+    assert ctx.loc[1.0, "ctx_arr_n_apt_15"] == 1  # a ARR sem taxi-in não entra
