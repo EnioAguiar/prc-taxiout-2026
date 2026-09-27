@@ -28,3 +28,17 @@ def test_rodadas_finais_escalam_o_melhor_ponto():
     two = final_config({"config": {"model": "two_stage", "cls_rounds": 400, "reg_rounds": 500},
                         "best_iter": None})
     assert (two["cls_rounds"], two["reg_rounds"]) == (480, 600)
+
+
+def test_rodadas_finais_da_stack_escalam_so_a_base():
+    champ = {"config": {"model": "stack_cf", "rounds": 300, "adsb": True,
+                        "base_config": {"model": "two_stage_nm", "cls_rounds": 400,
+                                        "reg_rounds": 400}},
+             "best_iter": 325}
+    cfg = final_config(champ)
+    assert cfg["base_config"]["cls_rounds"] == 480
+    assert cfg["base_config"]["reg_rounds"] == 480
+    assert cfg["rounds"] == 300  # corretor intocado, best_iter ignorado
+    # a campeã original continua com as rodadas dos blocos (sem escala)
+    assert champ["config"]["base_config"]["cls_rounds"] == 400
+    assert champ["config"]["rounds"] == 300
