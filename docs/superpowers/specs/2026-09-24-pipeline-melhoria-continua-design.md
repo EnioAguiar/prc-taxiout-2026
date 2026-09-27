@@ -170,6 +170,20 @@ precisa de previsões fora do bloco no ano inteiro.
 
 Plano: `docs/superpowers/plans/2026-09-27-plano5-v7-crossfit.md`.
 
+## Parte 6 — seeds e janela do LOBT (adendo de 27/09)
+
+- Seeds (`--seeds N`, `models.build_model`/`SeedAvg`): v7 + 5 seeds = 320,36 contra 320,67,
+  5× o custo → descartado (código fica; `seeds` ausente = comportamento antigo).
+  Plano: `docs/superpowers/plans/2026-09-27-plano6-seeds.md`.
+- Janela do LOBT: |BLOCK − LOBT| ≤ 3606 s em 100 % das DEP com LOBT (regra do dado).
+  `--janela-lobt` projeta toda previsão em `MVT − LOBT ± 3606`, zera `p` da cópia quando o
+  SCHED está fora da janela e dá ao corretor `dist_lo`/`dist_hi`. Oficial: v9 = 275,90,
+  v10 (só projeção da v6) = 284,17. Plano: `docs/superpowers/plans/2026-09-27-plano7-janela-lobt.md`.
+- Lição de validação: o holdout jan/jul 2025 quase não tem previsões fora da janela e tem
+  pouca cobertura ADS-B em LEMD/EGLL; ganhos que dependem da distribuição de 2026 só
+  aparecem no placar. Regras exatas do dado (verificadas em 100 % do treino) podem ser
+  enviadas com a garantia calculada no ranking (projeção em conjunto convexo).
+
 ## Verificação
 
 - Infra: `experiment.py baseline` reproduz 460 ± 5 s; tempo total ≤ 3 min;

@@ -1,4 +1,4 @@
-# Projeção — gerada em 2026-09-27 17:28 UTC
+# Projeção — gerada em 2026-09-27 17:31 UTC
 
 Dias até o prazo (11/10 23:59:59, horário da Europa): **14.2**. Placar público: 2026-09-27T17:27:48Z, 186 equipes.
 
@@ -15,7 +15,7 @@ Nossa melhor nota: **275.90** → posição **45**
 
 ## Nossa projeção (fila de saltos em `saltos.json`)
 
-Saltos que cabem em 11.4 dias úteis: `catboost_residuo` (5 s × 50%), `arr_vizinhos` (4 s × 50%), `media_mensal_oficial` (2 s × 40%), `clima` (3 s × 50%), `deriva_adsb` (2 s × 30%), `ablacao` (2 s × 40%), `cobertura` (10 s × 15%).
+Saltos que cabem em 11.3 dias úteis: `catboost_residuo` (5 s × 50%), `arr_vizinhos` (4 s × 50%), `media_mensal_oficial` (2 s × 40%), `clima` (3 s × 50%), `deriva_adsb` (2 s × 30%), `ablacao` (2 s × 40%), `cobertura` (10 s × 15%).
 
 - Esperado: **266.2**; faixa 10–90 %: 258.9 a 271.9; se tudo funcionar: 247.9.
 - Nosso ritmo nos últimos 7 dias: -38.0 s/dia (não extrapolar: vem de saltos, não de tendência).

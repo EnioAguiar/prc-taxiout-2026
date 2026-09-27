@@ -97,6 +97,15 @@ fora do cache de features. `train.py submit N` precisa do `events.parquet` no SS
   `--nm-split-ms`, por aeroporto × atraso > 2 h); grupos com < 50 voos usam
   a reta global; piso 0. Com `--nm-min-ms S`, a reta só troca os voos com
   `MVT − SCHED` > S (ex.: 21600 = 6 h); os demais ficam com o dois estágios.
+- **Janela do LOBT (`--janela-lobt`, plano 7):** em 100 % das DEP com LOBT, |BLOCK −
+  LOBT| ≤ 3606 s (regra do dado, vale em 2026). Toda previsão é projetada em
+  `MVT − LOBT ± 3606` (depois o piso 0), e `p` da cópia é zerado quando o SCHED cai fora
+  da janela. Sem LOBT (≈ 1 %, quase todos sem NM) a janela não existe.
+- **Corretor (`stack_cf`, plano 5):** LightGBM que aprende `y − pred_base` com previsões
+  da base fora do bloco (blocos de 2 meses, split `blind2025` montado como o ranking);
+  entradas `pred`, aeroporto, `nm_missing`, hora, `to_takeoff_from_*`, `adsb_*`,
+  `dist_lo`/`dist_hi` até as bordas da janela; saída projetada na janela.
+- `--seeds N` (plano 6) faz a média de N seeds na base; medido e não usado (+0,3 s).
 - Features: referência P10 por (aeroporto, stand, pista) com fallback,
   calculada só no fold de treino; tempos entre os horários planejados/NM
   (SCHED, LOBT, IOBT, EOBT, AOBT_3) e a decolagem; diferenças entre esses
@@ -213,10 +222,13 @@ Feito:
   sobre `nm_retas` (IC 95% 1,5 a 7,7) → **não comprovado** (abaixo de 10 s);
   re-testado com seed no plano 3a: FRÁGIL.
 
-Próximo: **plano 4 — adsb.lol** (`docs/superpowers/plans/2026-09-26-plano4-adsb.md`).
-Plano 3b pausado depois da tarefa 4 (itens 5–8 abaixo ficam atrás do plano 4).
+Próximo (fila em `saltos.json`, 27/09): 2ª família (CatBoost) no resíduo sobre
+`MVT − AOBT_3`; taxi-in das ARR + vizinhos de `MVT − AOBT_3`; média mensal oficial por
+aeroporto; deriva de `adsb_lat0/lon0`. Evidência em
+`docs/research/2026-09-27-concorrentes.md`. Plano 3b segue pausado (itens 5–8).
 
-E, antes de 11/10, repositório público GPLv3 (condição do prêmio).
+Antes de 11/10: seção "Dados externos" no README (adsb.lol, ODbL) e repositório público
+GPLv3 (condição do prêmio).
 
 Plano 3a (feito) — regra robusta, seeds e variante > 6 h:
 
@@ -426,6 +438,13 @@ Pesquisa de 25/09 (Discord do desafio), para não repetir:
   decididos**). Consequência: o pipeline inteiro (download do adsb.lol →
   `adsb_events.py` → features → modelo) precisa rodar em outro período/aeroportos
   com um comando, e o ganho tem que vir de generalização, não do placar atual.
+- Atualização de 27/09 (Discord e repositórios; detalhes em
+  `docs/research/2026-09-27-concorrentes.md`): o organizador liberou usar a média mensal
+  publicada de taxi-out por aeroporto (ansperformance.eu), inclusive jan/jul 2026; `_mvt`
+  vem do APDF. GREKI (topo): validar treinando em jan e testando em jul (e vice-versa);
+  checar deriva 2025 → 2026 de cada entrada (a rede do adsb.lol mudou: features de *onde*
+  o avião foi ouvido não transferem, as de *movimento* sim); corrigir uma base forte com
+  uma 2ª família de modelos. Janela do LOBT veio do código do elegant-alligator.
 
 ## Uso
 
@@ -434,8 +453,8 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 cp .env.example .env                              # chaves e TEAM_NAME
 .venv/bin/python src/s3.py download               # dados em data/
 bin/run src/cache.py                              # features em cache (uma vez, sozinho)
-bin/run src/experiment.py <nome> --model two_stage [--seed N]
-bin/run src/experiment.py <nome> --model two_stage_nm [--nm-split-ms] [--nm-min-ms 21600] [--seed N]
+bin/run src/experiment.py <nome> --model two_stage [--seed N] [--seeds N]
+bin/run src/experiment.py <nome> --model two_stage_nm [--nm-split-ms] [--nm-min-ms 21600] [--janela-lobt] [--seed N] [--seeds N]
 bin/run src/compare.py <id> --promover            # decide contra o campeão (FRÁGIL não promove)
 bin/run src/compare.py <id> --promover --aceitar-fragil   # só após teto.py e ok do usuário
 bin/run src/teto.py <base.parquet> <novo.parquet> --oficial-base <RMSE> [--min-ms 21600] [--salvar submissions/<TEAM>_vN.parquet]
@@ -443,7 +462,7 @@ bin/run src/train.py submit N [--forcar]          # gera a vN (não envia)
 .venv/bin/python src/s3.py submit submissions/<TEAM>_vN.parquet   # só após aprovação
 bin/run src/adsb.py baixar [--dias 2025-01,2025-07] [--dia AAAA-MM-DD] [--procs 5]   # recortes adsb.lol no SSD
 bin/run src/adsb_events.py                        # eventos por voo → <SSD>/events.parquet
-bin/run src/stack.py <nome> [--base <id>] [--sem-adsb] [--crossfit]   # corretor fora do fold (teste barato) ou fora do bloco no ano (enviável)
+bin/run src/stack.py <nome> [--base <id>] [--sem-adsb] [--crossfit [--seeds N]]   # corretor fora do fold (teste barato) ou fora do bloco no ano (enviável; ~17 min, rodar via systemd-run --user)
 .venv/bin/python ferramentas/projecao.py          # placar do dia + docs/projecao.md
 .venv/bin/python ferramentas/auditoria.py         # docs/auditoria/AAAA-MM-DD.md
 .venv/bin/python -m pytest -q
@@ -506,8 +525,9 @@ prc-taxiout-2026/
 
 ## Leaderboard
 
-<https://prc-challenge-2026.vercel.app/>. Em 24/09/2026: 188 equipes,
-melhor RMSE 234,1 s, mediana ~305 s. Nós: **275,90 s** (v9, 27/09, ~44º de 186; antes 314,76, 331,0, 338,7 e 384,7).
+<https://prc-challenge-2026.vercel.app/>. Em 27/09/2026: 186 equipes, 1º 224,50, 3º
+228,59, 10º 242,81, 50º 278,39. Nós: **275,90 s** (v9, 27/09, ~45º; antes 314,76, 331,0,
+338,7 e 384,7). Fotos diárias em `placar/`.
 
 ## Referências
 

@@ -126,7 +126,7 @@ Fluxo `--crossfit`: config `stack_cf` (Global Constraints) → `oof_base(base_cf
 
 - [x] `bin/run src/cache.py` (monta `blind2025`; conferir RSS no log).
 - [x] `bin/run src/stack.py v7_cf --crossfit` → `bin/run src/compare.py <id>`; também comparar contra `stack_adsb_sobre_adsb` (317,57) para ver o custo/ganho de treinar o corretor em 10 meses.
-- [ ] Se MELHOR (ou FRÁGIL com teto e ok): `--promover`, `train.py submit 7`, `teto.py submissions/outgoing-boat_v6.parquet submissions/outgoing-boat_v7.parquet --oficial-base 314.76`. **Parar e mostrar ao usuário** simulação, ganho ± IC (completo, normais, sem loteria), teto e nota projetada.
+- [x] (substituída pela v9 do plano 7, que inclui a v7 e foi enviada: 275,90) Se MELHOR (ou FRÁGIL com teto e ok): `--promover`, `train.py submit 7`, `teto.py submissions/outgoing-boat_v6.parquet submissions/outgoing-boat_v7.parquet --oficial-base 314.76`. **Parar e mostrar ao usuário** simulação, ganho ± IC (completo, normais, sem loteria), teto e nota projetada.
 - [x] Docs: README (Modelo atual, Uso, Estrutura com `crossfit.py`, Roadmap), CONTEXTO "Retomar", `saltos.json` (`v7_stack` com ganho real), caixas deste plano; commit + push.
 
 ## Ordem

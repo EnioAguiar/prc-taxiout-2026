@@ -59,11 +59,13 @@
 
 ### Task 3 (controlador): medir, decidir, documentar
 
-- [ ] `bin/run src/experiment.py janela --model two_stage_nm --nm-min-ms 21600 --seed 0 --janela-lobt` → `compare.py` contra a v6 (323,50).
-- [ ] `stack.py v9_cf --crossfit --base <id janela>` (via `systemd-run --user`, dura ~16 min) → `compare.py` contra a v6 e a v7.
-- [ ] Limite garantido no ranking: projeção da v6 enviada (≤ 288,0) e, se promovida, `train.py submit 9` + `teto.py` contra a v6. **Parar e mostrar ao usuário.**
-- [ ] Docs: README (Modelo atual, Uso, Roadmap), CONTEXTO, `saltos.json`, caixas deste plano; commit + push.
+- [x] `bin/run src/experiment.py janela --model two_stage_nm --nm-min-ms 21600 --seed 0 --janela-lobt` → `compare.py` contra a v6 (323,50).
+- [x] `stack.py v9_cf --crossfit --base <id janela>` (via `systemd-run --user`, dura ~16 min) → `compare.py` contra a v6 e a v7.
+- [x] Limite garantido no ranking: projeção da v6 enviada (≤ 288,0) e, se promovida, `train.py submit 9` + `teto.py` contra a v6. **Parar e mostrar ao usuário.**
+- [x] Docs: README (Modelo atual, Uso, Roadmap), CONTEXTO, `saltos.json`, caixas deste plano; commit + push.
 
 ## Ordem
 
 1 → 2 → 3. Prazo 11/10/2026 23:59:59 CET.
+
+**Resultado (27/09):** base `janela` 320,29; `v9_cf` 317,23 (ganho 6,3 s sobre a v6, promovida à mão com ok do usuário); `submit 9` em 27 min (pico 6,94 GB), 0 linhas fora da janela. Oficial: **v9 = 275,90**; v10 (v6 só projetada) = 284,17 ≤ 288,01 → a regra vale em 2026.

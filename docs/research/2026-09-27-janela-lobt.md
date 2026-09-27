@@ -60,3 +60,8 @@ a janela garante quando a regra vale (o verdadeiro y está dentro dela).
   cópia daria um BLOCK impossível) e `build_model` embrulha o modelo em
   `JanelaLOBT`, que projeta a previsão final uma única vez (inclusive a média do
   `SeedAvg`). Sem a flag, as previsões são idênticas às de hoje.
+
+## Confirmação no placar (27/09)
+
+- v10 = v6 enviada com só as 117 linhas projetadas na janela: **284,17** oficial (garantia era ≤ 288,01) → a regra vale em 2026; a janela sozinha valeu −30,6 s.
+- v9 = v7 (corretor com cross-fitting) + janela (base com `p` zerado fora dela e corretor com `dist_lo`/`dist_hi`): **275,90** oficial.
