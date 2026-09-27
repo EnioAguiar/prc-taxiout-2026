@@ -1,4 +1,4 @@
-# Projeção — gerada em 2026-09-27 01:53 UTC
+# Projeção — gerada em 2026-09-27 01:54 UTC
 
 Dias até o prazo (11/10 23:59:59, horário da Europa): **14.8**. Placar público: 2026-09-27T01:49:50Z, 191 equipes.
 

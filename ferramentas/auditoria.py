@@ -104,7 +104,10 @@ def checar_testes_e_git() -> None:
     r = subprocess.run([sys.executable, "-m", "pytest", "-q"], cwd=ROOT, capture_output=True, text=True)
     ok(r.returncode == 0, f"pytest: {r.stdout.strip().splitlines()[-1] if r.stdout.strip() else r.stderr[-200:]}")
     for repo in (ROOT, PAI):
-        sujo = sh("git", "status", "--porcelain", cwd=repo)
+        # o que a própria auditoria gera (placar, projeção, relatório) não conta como pendência
+        gerados = ("placar/", "docs/projecao.md", "docs/auditoria/")
+        sujo = "\n".join(l for l in sh("git", "status", "--porcelain", cwd=repo).splitlines()
+                         if not any(g in l for g in gerados))
         sh("git", "fetch", "-q", cwd=repo)
         atras = sh("git", "rev-list", "--count", "@{u}..HEAD", cwd=repo)
         ok(not sujo, f"`{repo.name}`: sem mudanças fora do git" + (f" — {len(sujo.splitlines())} arquivo(s)" if sujo else ""))
