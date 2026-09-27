@@ -19,6 +19,7 @@ import numpy as np
 import pandas as pd
 
 import features as F
+from adsb_events import add_features
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
@@ -75,7 +76,7 @@ def load_split(name: str) -> pd.DataFrame:
         raise SystemExit(f"Faltam dados de {name}. Rode: .venv/bin/python src/s3.py download")
     target = CACHE / f"{name}-{cache_key(paths)}.parquet"
     if target.exists():
-        return pd.read_parquet(target)
+        return add_features(pd.read_parquet(target))
     raw = F.load(paths)
     df = build_blind(raw) if name == "holdout2025" else F.build(raw)
     del raw
@@ -89,7 +90,7 @@ def load_split(name: str) -> pd.DataFrame:
     for old in CACHE.glob(f"{name}-*.parquet"):
         if old != target:
             old.unlink()
-    return df
+    return add_features(df)
 
 
 if __name__ == "__main__":

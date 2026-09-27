@@ -34,6 +34,15 @@ FEATURES = ["adsb_taxi", "adsb_taxi_move", "adsb_gs0", "adsb_takeoff_err", "adsb
 MOVE_KT = 1.0  # acima disso o avião está andando (pushback/táxi)
 
 
+def add_features(df: pd.DataFrame, raiz: Path = RAIZ) -> pd.DataFrame:
+    """Junta as colunas FEATURES por MVT_ID_mvt (NaN sem evento ou sem events.parquet)."""
+    path = raiz / "events.parquet"
+    if not path.exists():
+        return df.assign(**{c: np.nan for c in FEATURES})
+    ev = pd.read_parquet(path, columns=["MVT_ID_mvt", *FEATURES])
+    return df.drop(columns=[c for c in FEATURES if c in df]).merge(ev, on="MVT_ID_mvt", how="left")
+
+
 def decolagens(cut: pd.DataFrame) -> pd.DataFrame:
     """Uma linha por decolagem vista no recorte (colunas EVENT_COLS)."""
     d = cut.sort_values(["icao", "t"], kind="stable").reset_index(drop=True)

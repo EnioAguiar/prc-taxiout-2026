@@ -42,7 +42,8 @@ def prepare(train: pd.DataFrame, others: list[pd.DataFrame]) -> list[str]:
     for df in (train, *others):
         df["ref_p10"] = F.apply_reference(df, ref)
     F.as_categories([train, *others])
-    return F.feature_columns(train)
+    # adsb_* entram por load_split (fora do cache de features: mudar os eventos não refaz o cache)
+    return F.feature_columns(train) + [c for c in train.columns if c.startswith("adsb_")]
 
 
 def leaky_columns(train: pd.DataFrame, ranking: pd.DataFrame, cols: list[str]) -> list[str]:

@@ -68,8 +68,7 @@ def main() -> None:
             X[F.AIRPORT] = X[F.AIRPORT].astype("category")
             X["pred"] = base["pred"].to_numpy()
             if not a.sem_adsb:
-                ev = pd.read_parquet(RAIZ / "events.parquet", columns=[F.ID, *ADSB])
-                X = X.join(hold[[F.ID]].merge(ev, on=F.ID, how="left").drop(columns=F.ID))
+                X = X.join(hold[ADSB])
                 X["adsb_menos_pred"] = X["adsb_taxi_move"] - X["pred"]
                 run.log(f"adsb: {X['adsb_taxi'].notna().mean():.1%} dos voos com evento")
         with run.phase("treino", 0.6):
