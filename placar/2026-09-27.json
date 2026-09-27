@@ -1,5 +1,5 @@
 {
- "updated": "2026-09-27T13:49:03Z",
+ "updated": "2026-09-27T14:37:59Z",
  "totalSubmissions": 3000,
  "teams": [
   {
@@ -57,6 +57,12 @@
    "lastAt": "2026-09-27T07:06:02.299106Z"
   },
   {
+   "team": "humble-giraffe",
+   "best": 237.8662,
+   "n": 27,
+   "lastAt": "2026-09-27T14:29:10.24404Z"
+  },
+  {
    "team": "youthful-giraffe",
    "best": 242.8064,
    "n": 28,
@@ -99,12 +105,6 @@
    "lastAt": "2026-09-27T08:06:54.609058Z"
   },
   {
-   "team": "humble-giraffe",
-   "best": 250.9809,
-   "n": 26,
-   "lastAt": "2026-09-27T09:46:22.559872Z"
-  },
-  {
    "team": "merry-quicksand",
    "best": 251.3146,
    "n": 33,
@@ -130,9 +130,9 @@
   },
   {
    "team": "gracious-tornado",
-   "best": 256.9237,
-   "n": 12,
-   "lastAt": "2026-09-27T09:56:37.740685Z"
+   "best": 256.8712,
+   "n": 13,
+   "lastAt": "2026-09-27T14:19:28.481536Z"
   },
   {
    "team": "gentle-ladder",
@@ -263,7 +263,7 @@
   {
    "team": "hospitable-nightlight",
    "best": 275.9842,
-   "n": 48,
+   "n": 47,
    "lastAt": "2026-09-27T10:19:21.84083Z"
   },
   {
@@ -1031,7 +1031,7 @@
   {
    "team": "optimistic-fireplace",
    "best": 582.8278,
-   "n": 11,
+   "n": 10,
    "lastAt": "2026-09-16T15:47:34.864002Z"
   },
   {

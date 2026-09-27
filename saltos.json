@@ -4,12 +4,13 @@
  "saltos": [
   {
    "id": "v7_stack",
-   "nome": "v6 + corretor fora do fold (src/stack.py) com base em train2025",
-   "ganho_s": 5,
-   "prob": 0.6,
-   "dias": 1,
+   "nome": "v6 + corretor com cross-fitting por mês (plano 5, stack.py --crossfit)",
+   "ganho_s": 2.7,
+   "prob": 0.7,
+   "dias": 0.5,
    "status": "pendente",
-   "evidencia": "simulação 323,50 → 317,57 (MELHOR)"
+   "ganho_real_s": null,
+   "evidencia": "v7_cf 323,50 → 320,67: ganho 2,8 s (IC 1,5 a 4,5), jan e jul > 0, não comprovado (< 10 s); falta envio (FRÁGIL, ok do usuário)"
   },
   {
    "id": "detector",

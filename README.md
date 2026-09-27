@@ -349,9 +349,20 @@ gravado na data do SCHED) e 4,5 % normais; 25 desses no ranking 2026.
     campeã → 323,50 (**v6, 314,76 oficial**). Empilhamento sobre ela
     (`src/stack.py`) 317,57, MELHOR — ainda não enviável (o corretor só existe para
     jan/jul; exige base treinada sem esses meses).
-  - [ ] Próximo: v7 = empilhamento com base treinada em `train2025` (10 meses) e
-    corretor treinado no holdout inteiro; detector melhor (tarefa 5); README
-    "Dados externos" (tarefa 6).
+  - [x] Plano 5 (`docs/superpowers/plans/2026-09-27-plano5-v7-crossfit.md`), v7 com
+    cross-fitting por mês: split `blind2025` (ano montado como o ranking),
+    `src/crossfit.py` (base fora do bloco, meses 2 a 2, P10 por bloco),
+    `stack.py --crossfit`, `train.py submit` para campeã `stack_cf`.
+    `v7_cf` (corretor treinado em 10 meses fora do bloco; 16 min, pico 6,29 GB):
+    **320,67**, normais com NM 205,57 (contra 220,7), sem loteria 260,12. Contra a
+    campeã: ganho **2,8 s (IC 95% 1,5 a 4,5)**, sem os 10 maiores 1,3, jan 3,1
+    (1,7 a 5,7), jul 2,6 (0,5 a 4,7) → **não comprovado** (< 10 s), mas positivo em
+    todos os critérios. Contra o corretor só no holdout (317,57): −3,1 s — o ganho
+    extra dele estava na cauda de jan/jul (folds por dia dentro dos mesmos meses);
+    nos normais o cross-fitting é melhor (+0,7 s). Envio da v7 pede
+    `--aceitar-fragil`, `teto.py` e ok do usuário; `train.py submit 7 --forcar`
+    (a `v7_cf` foi medida em `4822e01`; depois só `train.py` mudou).
+  - [ ] Detector melhor (tarefa 5); README "Dados externos" (tarefa 6).
 - [ ] 5. Features de vizinhos (item 6).
 - [ ] 6. Ensemble XGBoost CUDA + seeds LightGBM (item 7) — **baixa prioridade**:
   no Discord, XGBoost ganhou peso zero e pesos de blend ajustados perderam 4/4.
@@ -395,7 +406,7 @@ bin/run src/train.py submit N [--forcar]          # gera a vN (não envia)
 .venv/bin/python src/s3.py submit submissions/<TEAM>_vN.parquet   # só após aprovação
 bin/run src/adsb.py baixar [--dias 2025-01,2025-07] [--dia AAAA-MM-DD] [--procs 5]   # recortes adsb.lol no SSD
 bin/run src/adsb_events.py                        # eventos por voo → <SSD>/events.parquet
-bin/run src/stack.py <nome> [--base <id>] [--sem-adsb]   # corretor fora do fold sobre uma corrida
+bin/run src/stack.py <nome> [--base <id>] [--sem-adsb] [--crossfit]   # corretor fora do fold (teste barato) ou fora do bloco no ano (enviável)
 .venv/bin/python ferramentas/projecao.py          # placar do dia + docs/projecao.md
 .venv/bin/python ferramentas/auditoria.py         # docs/auditoria/AAAA-MM-DD.md
 .venv/bin/python -m pytest -q
@@ -440,7 +451,8 @@ prc-taxiout-2026/
   src/train.py        # versão final a partir do campeão (só gera o arquivo)
   src/adsb.py         # recorte diário do adsb.lol (ODbL) perto dos 10 aeroportos
   src/adsb_events.py  # decolagens no ADS-B, off-block observado, casamento, features adsb_*
-  src/stack.py        # corretor LightGBM fora do fold sobre uma corrida base
+  src/stack.py        # corretor LightGBM sobre uma corrida base (fora do fold no holdout, ou --crossfit)
+  src/crossfit.py     # previsões da base fora do bloco (meses 2 a 2) para o corretor
   ferramentas/projecao.py   # placar do dia e projeção até o prazo (docs/projecao.md)
   ferramentas/auditoria.py  # auditoria diária (docs/auditoria/)
   submissions.jsonl   # nossos envios com a nota oficial (versionado)

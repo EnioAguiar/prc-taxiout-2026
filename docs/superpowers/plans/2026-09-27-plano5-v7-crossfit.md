@@ -33,10 +33,10 @@
 **Interfaces:**
 - Produces: `load_split("blind2025")` → DataFrame de todos os meses de 2025 montados com `build_blind` (ARR + DEP como o `holdout2025`; `y_true` nas DEP), com as colunas `adsb_*` de `add_features`.
 
-- [ ] Teste: `split_paths("blind2025")` devolve os 12 arquivos de `training_2025-*` (use `monkeypatch` em `cache.DATA` com 12 arquivos vazios de nome real, como o teste existente fizer; se não houver padrão, crie-os em `tmp_path`).
-- [ ] Teste: `load_split` monta `blind2025` com `build_blind` (monkeypatch de `F.load`/`F.build` com um DataFrame sintético mínimo de 2 DEP + 1 ARR; conferir BLOCK nulo nas DEP antes do `build` e `y_true` igual ao alvo original). Ver o estilo de `tests/test_cache.py`.
-- [ ] Implementar: `case "blind2025": return training` em `split_paths`; em `load_split`, `build_blind` para `name in ("holdout2025", "blind2025")`; `SPLITS` inclui `"blind2025"`; `__main__` do `cache.py` também o monta.
-- [ ] `pytest -q` verde; commit `cache: split blind2025 (ano inteiro montado como o ranking)`; push.
+- [x] Teste: `split_paths("blind2025")` devolve os 12 arquivos de `training_2025-*` (use `monkeypatch` em `cache.DATA` com 12 arquivos vazios de nome real, como o teste existente fizer; se não houver padrão, crie-os em `tmp_path`).
+- [x] Teste: `load_split` monta `blind2025` com `build_blind` (monkeypatch de `F.load`/`F.build` com um DataFrame sintético mínimo de 2 DEP + 1 ARR; conferir BLOCK nulo nas DEP antes do `build` e `y_true` igual ao alvo original). Ver o estilo de `tests/test_cache.py`.
+- [x] Implementar: `case "blind2025": return training` em `split_paths`; em `load_split`, `build_blind` para `name in ("holdout2025", "blind2025")`; `SPLITS` inclui `"blind2025"`; `__main__` do `cache.py` também o monta.
+- [x] `pytest -q` verde; commit `cache: split blind2025 (ano inteiro montado como o ranking)`; push.
 
 **Acceptance:** testes novos passam; nenhuma mudança no comportamento dos outros splits.
 
@@ -72,10 +72,10 @@ pred = model.predict(te)
 
 Com `run`, uma fase/linha de log por bloco (`bloco k/K meses [...]`), `del tr, te, model` no fim de cada bloco (RSS).
 
-- [ ] Teste `month_blocks`: `[2,3,4,5,6,8,9,10,11,12]` → {2,3}{4,5}{6,8}{9,10}{11,12}; 1..12 → 6 blocos; meses repetidos/desordenados dão o mesmo resultado; 3 meses → último bloco com 1.
-- [ ] Teste sem vazamento: registrar em `MODELS` (monkeypatch) um modelo falso cujo `fit` guarda os meses vistos e cujo `predict` devolve a média do alvo do treino; com um `train`/`blind` sintético de 4 meses, conferir que o modelo que previu cada linha nunca viu o mês dela e que todo DEP cego com `y_true` recebeu exatamente uma previsão.
-- [ ] Teste da P10 por bloco: com o modelo falso devolvendo `ref_p10` como previsão, alterar só o alvo dos meses de um bloco **não** altera as previsões das linhas cegas desse bloco.
-- [ ] Implementar; `pytest -q` verde; commit `crossfit: previsões da base fora do bloco por meses`; push.
+- [x] Teste `month_blocks`: `[2,3,4,5,6,8,9,10,11,12]` → {2,3}{4,5}{6,8}{9,10}{11,12}; 1..12 → 6 blocos; meses repetidos/desordenados dão o mesmo resultado; 3 meses → último bloco com 1.
+- [x] Teste sem vazamento: registrar em `MODELS` (monkeypatch) um modelo falso cujo `fit` guarda os meses vistos e cujo `predict` devolve a média do alvo do treino; com um `train`/`blind` sintético de 4 meses, conferir que o modelo que previu cada linha nunca viu o mês dela e que todo DEP cego com `y_true` recebeu exatamente uma previsão.
+- [x] Teste da P10 por bloco: com o modelo falso devolvendo `ref_p10` como previsão, alterar só o alvo dos meses de um bloco **não** altera as previsões das linhas cegas desse bloco.
+- [x] Implementar; `pytest -q` verde; commit `crossfit: previsões da base fora do bloco por meses`; push.
 
 **Acceptance:** os três testes passam; nenhum treino real rodado.
 
@@ -96,10 +96,10 @@ Com `run`, uma fase/linha de log por bloco (`bloco k/K meses [...]`), `del tr, t
 
 Fluxo `--crossfit`: config `stack_cf` (Global Constraints) → `oof_base(base_cfg, train2025, blind2025, ranking2026, run)` → gravar `runs/<run.id>_oof.parquet` → `X_oof = corrector_frame(blind indexado pelos IDs do oof, oof.pred)` → `fit_corrector` → holdout: `corrector_frame(hold na ordem de runs/<base>.parquet, base.pred)` → `apply_corrector` → `metrics` → `runs/<run.id>.parquet` e `run.metric`/`run.set(previsoes=…, oof=…)`. Sem `--crossfit`, o comportamento atual fica idêntico.
 
-- [ ] Teste: `apply_corrector` com um corretor que devolve −10⁶ dá previsão 0 (piso), e com correção 0 devolve a base.
-- [ ] Teste: `corrector_frame(..., adsb=False)` não tem nenhuma coluna `adsb_*`; com `adsb=True` tem `adsb_menos_pred = adsb_taxi_move − pred`.
-- [ ] Refatorar e implementar `--crossfit`; atualizar a docstring do módulo; `pytest -q` verde.
-- [ ] Commit `stack: modo --crossfit (corretor treinado fora do bloco no ano)`; push.
+- [x] Teste: `apply_corrector` com um corretor que devolve −10⁶ dá previsão 0 (piso), e com correção 0 devolve a base.
+- [x] Teste: `corrector_frame(..., adsb=False)` não tem nenhuma coluna `adsb_*`; com `adsb=True` tem `adsb_menos_pred = adsb_taxi_move − pred`.
+- [x] Refatorar e implementar `--crossfit`; atualizar a docstring do módulo; `pytest -q` verde.
+- [x] Commit `stack: modo --crossfit (corretor treinado fora do bloco no ano)`; push.
 
 **Acceptance:** testes passam; `bin/run src/stack.py --help` mostra `--crossfit`. (O controlador roda a corrida real.)
 
@@ -118,16 +118,16 @@ Fluxo `--crossfit`: config `stack_cf` (Global Constraints) → `oof_base(base_cf
   4. `apply_corrector(corretor, corrector_frame(rk, pred_rk), pred_rk)` → `build_submission`.
   Grava as previsões fora do bloco em `submissions/<TEAM>_vN_oof.parquet` (ignorado pelo git) para diagnóstico.
 
-- [ ] Teste: `final_config` com campeã `stack_cf` (`base_config` com `cls_rounds 400`, `reg_rounds 400`) → `base_config` com 480/480, `rounds` do corretor (300) intocado; a config da campeã original não é mutada.
-- [ ] Teste: `final_config` de campeã `two_stage_nm` continua igual ao de hoje (o teste existente cobre; manter verde).
-- [ ] Implementar; `pytest -q` verde; commit `train: envio da campeã stack_cf`; push.
+- [x] Teste: `final_config` com campeã `stack_cf` (`base_config` com `cls_rounds 400`, `reg_rounds 400`) → `base_config` com 480/480, `rounds` do corretor (300) intocado; a config da campeã original não é mutada.
+- [x] Teste: `final_config` de campeã `two_stage_nm` continua igual ao de hoje (o teste existente cobre; manter verde).
+- [x] Implementar; `pytest -q` verde; commit `train: envio da campeã stack_cf`; push.
 
 ### Task 5 (controlador): medir, decidir e documentar
 
-- [ ] `bin/run src/cache.py` (monta `blind2025`; conferir RSS no log).
-- [ ] `bin/run src/stack.py v7_cf --crossfit` → `bin/run src/compare.py <id>`; também comparar contra `stack_adsb_sobre_adsb` (317,57) para ver o custo/ganho de treinar o corretor em 10 meses.
+- [x] `bin/run src/cache.py` (monta `blind2025`; conferir RSS no log).
+- [x] `bin/run src/stack.py v7_cf --crossfit` → `bin/run src/compare.py <id>`; também comparar contra `stack_adsb_sobre_adsb` (317,57) para ver o custo/ganho de treinar o corretor em 10 meses.
 - [ ] Se MELHOR (ou FRÁGIL com teto e ok): `--promover`, `train.py submit 7`, `teto.py submissions/outgoing-boat_v6.parquet submissions/outgoing-boat_v7.parquet --oficial-base 314.76`. **Parar e mostrar ao usuário** simulação, ganho ± IC (completo, normais, sem loteria), teto e nota projetada.
-- [ ] Docs: README (Modelo atual, Uso, Estrutura com `crossfit.py`, Roadmap), CONTEXTO "Retomar", `saltos.json` (`v7_stack` com ganho real), caixas deste plano; commit + push.
+- [x] Docs: README (Modelo atual, Uso, Estrutura com `crossfit.py`, Roadmap), CONTEXTO "Retomar", `saltos.json` (`v7_stack` com ganho real), caixas deste plano; commit + push.
 
 ## Ordem
 
