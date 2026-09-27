@@ -22,6 +22,7 @@ import pandas as pd
 
 import features as F
 from adsb_events import add_features
+from contexto import contexto
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
@@ -81,6 +82,7 @@ def load_split(name: str) -> pd.DataFrame:
         return add_features(pd.read_parquet(target))
     raw = F.load(paths)
     df = build_blind(raw) if name in ("holdout2025", "blind2025") else F.build(raw)
+    df = df.merge(contexto(raw), on=F.ID, how="left")
     del raw
     if name in ("train2025", "full2025"):
         df = df[df[F.TARGET].notna()]

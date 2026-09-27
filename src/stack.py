@@ -33,6 +33,7 @@ import lightgbm as lgb
 import numpy as np
 import pandas as pd
 
+import contexto
 import features as F
 from adsb_events import FEATURES as ADSB
 from cache import TRUTH, load_split
@@ -65,7 +66,8 @@ def config_da_base(base_id: str, seeds: int) -> dict:
 def corrector_frame(df: pd.DataFrame, pred: np.ndarray, adsb: bool = True,
                     janela: bool = False) -> pd.DataFrame:
     """Entradas do corretor: a previsão da base, o contexto do voo e o rastro ADS-B."""
-    cols = [F.AIRPORT, "nm_missing", "hour", *[c for c in df if c.startswith("to_takeoff_from_")]]
+    cols = [F.AIRPORT, "nm_missing", "hour", *[c for c in df if c.startswith("to_takeoff_from_")],
+            *[c for c in contexto.COLS if c in df]]
     X = df[cols].copy()
     X[F.AIRPORT] = X[F.AIRPORT].astype("category")
     X["pred"] = np.asarray(pred, float)
