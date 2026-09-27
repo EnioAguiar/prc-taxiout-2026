@@ -14,6 +14,7 @@ Fonte: https://github.com/adsblol/globe_history_2025 (e _2026). Licença ODbL 1.
 import argparse
 import gzip
 import json
+import os
 import subprocess
 import sys
 import tarfile
@@ -27,7 +28,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-RAIZ = Path("/mnt/c0399cd8-7cca-4664-884d-e89d4a1e81a2/prc-adsb")
+# Onde ficam os recortes e o events.parquet; em outra máquina, defina PRC_ADSB_RAIZ.
+RAIZ = Path(os.environ.get("PRC_ADSB_RAIZ", "/mnt/c0399cd8-7cca-4664-884d-e89d4a1e81a2/prc-adsb"))
 MESES = ["2025-01", "2025-07", "2026-01", "2026-07"]
 ALT_MAX_FT = 3000
 BOX_DEG = 0.10  # meia largura em latitude (~11 km); longitude corrigida por cos(lat). Cobre a Polderbaan (EHAM).

@@ -227,7 +227,7 @@ Próximo (fila em `saltos.json`, 27/09): 2ª família (CatBoost) no resíduo sob
 aeroporto; deriva de `adsb_lat0/lon0`. Evidência em
 `docs/research/2026-09-27-concorrentes.md`. Plano 3b segue pausado (itens 5–8).
 
-Antes de 11/10: seção "Dados externos" no README (adsb.lol, ODbL) e repositório público
+Antes de 11/10 (abrir entre 08 e 10/10, decisão de 27/09): repositório público
 GPLv3 (condição do prêmio).
 
 Plano 3a (feito) — regra robusta, seeds e variante > 6 h:
@@ -411,7 +411,7 @@ gravado na data do SCHED) e 4,5 % normais; 25 desses no ranking 2026.
     **Oficial (27/09): v9 = 275,90** (−38,9 s sobre a v6; relação oficial/simulação 0,870)
     e v10 (diagnóstico: v6 só com as 117 linhas projetadas) = 284,17 ≤ 288,01 → a regra
     vale em 2026; a janela sozinha valeu −30,6 s e o corretor + base nova −8,3 s.
-  - [ ] README "Dados externos" (tarefa 6).
+  - [x] README "Dados externos" e "Reprodução" (tarefa 6, 27/09); `PRC_ADSB_RAIZ` configurável.
 - [ ] 5. Features de vizinhos (item 6).
 - [ ] 6. Ensemble XGBoost CUDA + seeds LightGBM (item 7) — **baixa prioridade**:
   no Discord, XGBoost ganhou peso zero e pesos de blend ajustados perderam 4/4.
@@ -445,6 +445,40 @@ Pesquisa de 25/09 (Discord do desafio), para não repetir:
   checar deriva 2025 → 2026 de cada entrada (a rede do adsb.lol mudou: features de *onde*
   o avião foi ouvido não transferem, as de *movimento* sim); corrigir uma base forte com
   uma 2ª família de modelos. Janela do LOBT veio do código do elegant-alligator.
+
+## Dados externos
+
+Condição do prêmio (`eligibility.html`): todo dado externo aberto e documentado. Usamos só um:
+
+| Fonte | O que é | Licença | Como obter |
+|---|---|---|---|
+| adsb.lol `globe_history_2025` e `globe_history_2026` (<https://github.com/adsblol/globe_history_2025>, <https://github.com/adsblol/globe_history_2026>) | rastros ADS-B/MLAT diários de todo o mundo, um release por dia (2–4 GB) | **ODbL 1.0** | `bin/run src/adsb.py baixar --dias 2025-01,…,2026-07` escolhe a réplica em `PREFERRED_RELEASES.txt`, lê o tar em fluxo e guarda só os pontos no chão ou ≤ 3.000 ft a ±0,10° dos 10 aeroportos (`PRC_ADSB_RAIZ/cut/AAAA-MM-DD.parquet`, ~7–19 MB/dia; 427 dias = 5,7 GB, ~1 dia de download com 10 processos) |
+
+Deles só saem features derivadas por voo (`adsb_*`, `src/adsb_events.py` →
+`PRC_ADSB_RAIZ/events.parquet`): off-block e decolagem observados, velocidade no 1º ponto,
+pontos e lacunas no chão. Nenhum dado de 2026 do organizador (verdade) é usado; os meses do
+ranking entram só como entrada (rastros de jan/jul 2026), como qualquer feature.
+
+Não usamos clima, layout de aeroporto nem dados de placar.
+
+## Reprodução (da v9, 275,90)
+
+```bash
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+cp .env.example .env                      # chaves MinIO da OSN e TEAM_NAME
+export PRC_ADSB_RAIZ=/caminho/com/6GB     # recortes do adsb.lol e events.parquet
+.venv/bin/python src/s3.py download       # dados do organizador em data/
+bin/run src/adsb.py baixar --dias 2025-01,2025-02,2025-03,2025-04,2025-05,2025-06,2025-07,2025-08,2025-09,2025-10,2025-11,2025-12,2026-01,2026-07 --procs 10
+bin/run src/adsb_events.py                # eventos por voo → $PRC_ADSB_RAIZ/events.parquet
+bin/run src/cache.py                      # features dos 5 splits
+bin/run src/experiment.py janela --model two_stage_nm --nm-min-ms 21600 --seed 0 --janela-lobt
+bin/run src/stack.py v9_cf --crossfit --base <id da corrida janela>
+bin/run src/compare.py <id da v9_cf> --promover   # ou champion.json já versionado
+bin/run src/train.py submit 9             # submissions/<TEAM>_v9.parquet (~27 min, pico 7 GB)
+```
+
+Seeds fixas (`deterministic`, `force_row_wise`): a mesma máquina reproduz o mesmo número.
+Hardware usado: Xeon E5-2670 v3 (6 núcleos físicos via `bin/run`), 15 GB de RAM.
 
 ## Uso
 
