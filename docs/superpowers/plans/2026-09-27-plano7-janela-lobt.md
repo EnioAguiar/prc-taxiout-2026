@@ -32,12 +32,12 @@
 **Interfaces:**
 - Produces: `JANELA_LOBT_S`; `janela_lobt(df) -> tuple[np.ndarray, np.ndarray]`; `limitar_janela(pred, df) -> np.ndarray` (projeção + piso 0); `build_model(cfg)` aplica `limitar_janela` em `predict` quando `cfg.get("janela_lobt")` (vale também para `SeedAvg`: limitar a média, uma vez).
 
-- [ ] Teste: `janela_lobt` com MVT 10:00, LOBT 09:40 → lo = 1200 − 3606, hi = 1200 + 3606; sem LOBT → NaN.
-- [ ] Teste: `limitar_janela` — previsão acima de `hi` vira `hi`; abaixo de `lo` vira `lo`; dentro fica; sem LOBT fica; negativa vira 0 depois da projeção.
-- [ ] Teste: `TwoStage` com `janela_lobt` e um voo com SCHED 2 h depois do LOBT e classificador que devolve p = 1 → a previsão não é `MVT − SCHED` (p zerado); com SCHED dentro da janela, p segue. Use modelos LightGBM minúsculos ou substitua `cls`/`reg` por stubs com `predict`.
-- [ ] Teste: `janela_lobt` ausente → `build_model(cfg).predict` idêntico ao de hoje (mesmo objeto de classe, sem projeção).
-- [ ] Nota de pesquisa com os números: 100 % de |BLOCK−LOBT| ≤ 3606 nas 2.062.577 DEP com LOBT (máx 3606); IOBT 99,997 %, EOBT_1 99,970 %, AOBT_3 99,914 %, SCHED 94,844 %; sem LOBT 22.470 DEP (22.424 sem NM), 78,6 % do Σy² da cauda y > 1 h; v6 no holdout 323,50 → 320,30 limitada (79 linhas); v7_cf 320,67 → 317,98 (53); ranking v6: 117 linhas fora, Σ(p−q)²/N = 16.125 → limite oficial ≤ √(314,76² − 16.125) = 288,0 se a regra valer em 2026; fonte: elegant-alligator (`scripts/queue_features.py:68,82`, assert no treino).
-- [ ] `pytest -q` verde; commit `models: janela do LOBT (projeção e p zerado fora da janela)`; push.
+- [x] Teste: `janela_lobt` com MVT 10:00, LOBT 09:40 → lo = 1200 − 3606, hi = 1200 + 3606; sem LOBT → NaN.
+- [x] Teste: `limitar_janela` — previsão acima de `hi` vira `hi`; abaixo de `lo` vira `lo`; dentro fica; sem LOBT fica; negativa vira 0 depois da projeção.
+- [x] Teste: `TwoStage` com `janela_lobt` e um voo com SCHED 2 h depois do LOBT e classificador que devolve p = 1 → a previsão não é `MVT − SCHED` (p zerado); com SCHED dentro da janela, p segue. Use modelos LightGBM minúsculos ou substitua `cls`/`reg` por stubs com `predict`.
+- [x] Teste: `janela_lobt` ausente → `build_model(cfg).predict` idêntico ao de hoje (mesmo objeto de classe, sem projeção).
+- [x] Nota de pesquisa com os números: 100 % de |BLOCK−LOBT| ≤ 3606 nas 2.062.577 DEP com LOBT (máx 3606); IOBT 99,997 %, EOBT_1 99,970 %, AOBT_3 99,914 %, SCHED 94,844 %; sem LOBT 22.470 DEP (22.424 sem NM), 78,6 % do Σy² da cauda y > 1 h; v6 no holdout 323,50 → 320,30 limitada (79 linhas); v7_cf 320,67 → 317,98 (53); ranking v6: 117 linhas fora, Σ(p−q)²/N = 16.125 → limite oficial ≤ √(314,76² − 16.125) = 288,0 se a regra valer em 2026; fonte: elegant-alligator (`scripts/queue_features.py:68,82`, assert no treino).
+- [x] `pytest -q` verde; commit `models: janela do LOBT (projeção e p zerado fora da janela)`; push.
 
 **Acceptance:** testes passam; `experiment.py --help` mostra `--janela-lobt`.
 
@@ -51,9 +51,9 @@
 - Consumes: `models.janela_lobt`, `models.limitar_janela`.
 - Produces: `corrector_frame(df, pred, adsb=True, janela=False)` — com `janela`, colunas `dist_lo = pred − lo`, `dist_hi = hi − pred` (NaN sem LOBT). `stack.py --crossfit` liga `janela` quando `base_config["janela_lobt"]`; a saída do corretor passa por `limitar_janela`. `train.py` (rota `stack_cf`) faz o mesmo, lendo do `base_config`.
 
-- [ ] Teste: `corrector_frame(..., janela=True)` tem `dist_lo`/`dist_hi` com os valores certos para um voo sintético; `janela=False` não tem.
-- [ ] Teste: saída do corretor com correção enorme é projetada em `[lo, hi]` quando a base tem `janela_lobt` (teste na função que monta a saída, não no `main`).
-- [ ] `pytest -q` verde; commit `stack/train: janela do LOBT no corretor`; push.
+- [x] Teste: `corrector_frame(..., janela=True)` tem `dist_lo`/`dist_hi` com os valores certos para um voo sintético; `janela=False` não tem.
+- [x] Teste: saída do corretor com correção enorme é projetada em `[lo, hi]` quando a base tem `janela_lobt` (teste na função que monta a saída, não no `main`).
+- [x] `pytest -q` verde; commit `stack/train: janela do LOBT no corretor`; push.
 
 **Acceptance:** testes passam; sem `janela_lobt` na base, saídas idênticas às de hoje.
 

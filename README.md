@@ -382,6 +382,15 @@ gravado na data do SCHED) e 4,5 % normais; 25 desses no ranking 2026.
     (66,5 % dos voos com contagem). Corretor barato: 317,57 → 317,36, normais 206,27 →
     206,07. As janelas de congestionamento do NM (decolagens e pousos de 10–60 min) já
     carregam essa informação. Script descartado.
+  - [x] Plano 7 (`docs/superpowers/plans/2026-09-27-plano7-janela-lobt.md`), janela do
+    LOBT: em 100 % das 2.062.577 DEP de 2025 com LOBT, |BLOCK − LOBT| ≤ 3606 s
+    (`docs/research/2026-09-27-janela-lobt.md`). `--janela-lobt`: previsão projetada em
+    `MVT − LOBT ± 3606` e `p` da cópia zerado com o SCHED fora da janela; o corretor
+    ganha `dist_lo`/`dist_hi`. Base `janela` 320,29 (ganho 3,2 s, IC 0,4 a 8,7);
+    `v9_cf` (v7 + janela, 17 min, pico 6,58 GB) **317,23**: contra a v6 ganho 6,3 s (IC
+    2,6 a 12,5; jan 3,3, jul 9,0) e contra a v7 3,4 s → não comprovado (< 10 s). O holdout
+    de 2025 quase não tem previsões fora da janela; no ranking a v6 tem 117, e só
+    projetá-las garante v6 ≤ 288,0 oficial (se a regra valer em 2026).
   - [ ] README "Dados externos" (tarefa 6).
 - [ ] 5. Features de vizinhos (item 6).
 - [ ] 6. Ensemble XGBoost CUDA + seeds LightGBM (item 7) — **baixa prioridade**:
