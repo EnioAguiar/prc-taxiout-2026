@@ -74,10 +74,13 @@ deixa a validação otimista e o modelo cego para eles (erro da v1).
 
 ## Modelo atual (`src/`)
 
-Campeão em `champion.json`: **a configuração da v5 com as features `adsb_*`** (off-block
-observado pelo ADS-B do adsb.lol, `src/adsb_events.py`; `two_stage_nm` com
-`--nm-min-ms 21600`, id `20260926-223248-nm_retas_6h_adsb`), 323,50 s na simulação.
-É a v6, a melhor submissão oficial (**314,76 s**). Promovida à mão com o ok do usuário
+Campeão em `champion.json`: **v9 = `stack_cf` com janela do LOBT** (id
+`20260927-133718-v9_cf`, 317,23 na simulação, **275,90 oficial**, a melhor nota): base
+`two_stage_nm` (`--nm-min-ms 21600 --janela-lobt`, features `adsb_*`) com corretor
+treinado fora do bloco por meses (`src/crossfit.py`, `stack.py --crossfit`); toda previsão
+projetada em `MVT − LOBT ± 3606 s`. Promovida à mão com o ok do usuário ("não comprovado"
+na regra: ganho 6,3 s). Envio: `train.py submit N` (~27 min, pico 6,94 GB). Antes dela, a
+v6 (id `20260926-223248-nm_retas_6h_adsb`, 314,76) foi promovida à mão com o ok do usuário
 depois do oficial: no `compare.py` o veredito foi "não comprovado" (ganho 9,4 s, IC
 7,5 a 11,7, abaixo dos 10 s; sem os 10 maiores 8,7; jan e jul > 0). As colunas
 `adsb_*` entram por `cache.load_split` (merge com `events.parquet`, NaN sem evento),
@@ -160,6 +163,8 @@ fora do cache de features. `train.py submit N` precisa do `events.parquet` no SS
 | v4 | 24/09 | `two_stage_nm`: retas por aeroporto em `MVT − SCHED` para os voos sem NM | 345,89 / 285,52 | **337,2** |
 | v5 | 24/09 | v3 + retas só em NM ausente com atraso > 6 h (96 linhas) | 332,86 (com o novo código) / 269,66 | **331,0** (−7,7 s sobre a v3; teto calculado 8,5 s) |
 | v6 | 26/09 | configuração da v5 + features `adsb_*` (adsb.lol, 2025 inteiro + jan/jul 2026; 57 % do ranking com evento) | 323,50 / 257,91 | **314,76** (−16,2 s sobre a v5; relação oficial/simulação 0,973) |
+| v9 | 27/09 | v7 (corretor com cross-fitting por mês) + janela do LOBT (projeção em `MVT − LOBT ± 3606`, `p` zerado fora dela) | 317,23 / 254,24 | **275,90** (−38,9 s sobre a v6; relação 0,870) |
+| v10 | 27/09 | diagnóstico: v6 + só as 117 linhas projetadas na janela (garantia ≤ 288,01) | 320,30 / — | 284,17 (a regra vale em 2026) |
 
 A simulação da v3 e da v4 vem do holdout novo (`experiment.py`), mais rigoroso que o
 `sim_ranking.py` que mediu a v1 e a v2. A da v5 é a de `nm_retas_6h` (seeds
@@ -391,6 +396,9 @@ gravado na data do SCHED) e 4,5 % normais; 25 desses no ranking 2026.
     2,6 a 12,5; jan 3,3, jul 9,0) e contra a v7 3,4 s → não comprovado (< 10 s). O holdout
     de 2025 quase não tem previsões fora da janela; no ranking a v6 tem 117, e só
     projetá-las garante v6 ≤ 288,0 oficial (se a regra valer em 2026).
+    **Oficial (27/09): v9 = 275,90** (−38,9 s sobre a v6; relação oficial/simulação 0,870)
+    e v10 (diagnóstico: v6 só com as 117 linhas projetadas) = 284,17 ≤ 288,01 → a regra
+    vale em 2026; a janela sozinha valeu −30,6 s e o corretor + base nova −8,3 s.
   - [ ] README "Dados externos" (tarefa 6).
 - [ ] 5. Features de vizinhos (item 6).
 - [ ] 6. Ensemble XGBoost CUDA + seeds LightGBM (item 7) — **baixa prioridade**:
@@ -499,7 +507,7 @@ prc-taxiout-2026/
 ## Leaderboard
 
 <https://prc-challenge-2026.vercel.app/>. Em 24/09/2026: 188 equipes,
-melhor RMSE 234,1 s, mediana ~305 s. Nós: 314,76 s (v6, 26/09; antes 331,0, 338,7 e 384,7).
+melhor RMSE 234,1 s, mediana ~305 s. Nós: **275,90 s** (v9, 27/09, ~44º de 186; antes 314,76, 331,0, 338,7 e 384,7).
 
 ## Referências
 

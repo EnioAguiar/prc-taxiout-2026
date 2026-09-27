@@ -8,9 +8,9 @@
    "ganho_s": 2.7,
    "prob": 0.7,
    "dias": 0.5,
-   "status": "pendente",
-   "ganho_real_s": null,
-   "evidencia": "v7_cf 323,50 → 320,67: ganho 2,8 s (IC 1,5 a 4,5), jan e jul > 0, não comprovado (< 10 s); falta envio (FRÁGIL, ok do usuário)"
+   "status": "feito",
+   "ganho_real_s": 8.3,
+   "evidencia": "enviado dentro da v9 (275,90); corretor + base nova valem −8,3 s sobre a v10 (284,17)"
   },
   {
    "id": "detector",
@@ -68,6 +68,52 @@
    "dias": 1,
    "status": "pendente",
    "evidencia": "playbook NVIDIA / Discord (feature com escala dependente do histórico custou 3 s a outro time); inferência"
+  },
+  {
+   "id": "janela_lobt",
+   "nome": "janela do LOBT (|BLOCK−LOBT| ≤ 3606 s)",
+   "ganho_s": 30.6,
+   "prob": 1.0,
+   "dias": 0,
+   "status": "feito",
+   "ganho_real_s": 30.6,
+   "evidencia": "v10 284,17 contra v6 314,76; v9 275,90"
+  },
+  {
+   "id": "catboost_residuo",
+   "nome": "2ª família (CatBoost) no resíduo sobre MVT−AOBT_3, alvo cortado em ±7200 só no treino",
+   "ganho_s": 5,
+   "prob": 0.5,
+   "dias": 1,
+   "status": "pendente",
+   "evidencia": "zestful-fountain: −7,1 s oficial com CatBoost fundo + corte; GREKI (Discord 27/09): 2ª família sobre base forte > features novas"
+  },
+  {
+   "id": "arr_vizinhos",
+   "nome": "taxi-in das ARR do ranking + vizinhos passados/futuros de MVT−AOBT_3",
+   "ganho_s": 4,
+   "prob": 0.5,
+   "dias": 1,
+   "status": "pendente",
+   "evidencia": "zestful-fountain: −2,6 s (ARR) e −2,8 s (vizinhos) oficiais"
+  },
+  {
+   "id": "media_mensal_oficial",
+   "nome": "média mensal publicada de taxi-out por aeroporto (ansperformance.eu), jan/jul 2026",
+   "ganho_s": 2,
+   "prob": 0.4,
+   "dias": 0.5,
+   "status": "pendente",
+   "evidencia": "organizador liberou (Discord 27/09); inferência do ganho"
+  },
+  {
+   "id": "deriva_adsb",
+   "nome": "tirar adsb_lat0/lon0 (onde foi ouvido; KS 0,26 entre 2025 e 2026)",
+   "ganho_s": 2,
+   "prob": 0.3,
+   "dias": 0.5,
+   "status": "pendente",
+   "evidencia": "GREKI (Discord 27/09); só mensurável no placar (holdout não tem a deriva)"
   }
  ]
 }
