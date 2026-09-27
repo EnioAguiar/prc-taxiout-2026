@@ -480,7 +480,7 @@ ranking entram só como entrada (rastros de jan/jul 2026), como qualquer feature
 
 Não usamos clima, layout de aeroporto nem dados de placar.
 
-## Reprodução (da v9, 275,90)
+## Reprodução (da v12, 264,74)
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
@@ -489,14 +489,14 @@ export PRC_ADSB_RAIZ=/caminho/com/6GB     # recortes do adsb.lol e events.parque
 .venv/bin/python src/s3.py download       # dados do organizador em data/
 bin/run src/adsb.py baixar --dias 2025-01,2025-02,2025-03,2025-04,2025-05,2025-06,2025-07,2025-08,2025-09,2025-10,2025-11,2025-12,2026-01,2026-07 --procs 10
 bin/run src/adsb_events.py                # eventos por voo → $PRC_ADSB_RAIZ/events.parquet
-bin/run src/cache.py                      # features dos 5 splits
+bin/run src/cache.py                      # features dos 5 splits (inclui ctx_* de src/contexto.py)
 bin/run src/experiment.py janela --model two_stage_nm --nm-min-ms 21600 --seed 0 --janela-lobt
-bin/run src/stack.py v9_cf --crossfit --base <id da corrida janela>
-bin/run src/compare.py <id da v9_cf> --promover   # ou champion.json já versionado
-bin/run src/train.py submit 9             # submissions/<TEAM>_v9.parquet (~27 min, pico 7 GB)
+bin/run src/stack.py v12_cf --crossfit --conjunto --base <id da corrida janela>
+bin/run src/compare.py <id da v12_cf> --promover   # ou champion.json já versionado
+bin/run src/train.py submit 12            # submissions/<TEAM>_v12.parquet (~32 min, pico 7,5 GB)
 ```
 
-Seeds fixas (`deterministic`, `force_row_wise`): a mesma máquina reproduz o mesmo número.
+Seeds fixas (`deterministic`, `force_row_wise`): a mesma máquina reproduz o mesmo número no LightGBM; o CatBoost do `--conjunto` roda na GPU e pode variar na última casa.
 Hardware usado: Xeon E5-2670 v3 (6 núcleos físicos via `bin/run`), 15 GB de RAM.
 
 ## Uso
@@ -522,7 +522,7 @@ bin/run src/stack.py <nome> [--base <id>] [--sem-adsb] [--crossfit [--seeds N] [
 ```
 
 Todo comando pesado passa pelo `bin/run`, que limita a 6 núcleos físicos e
-prioridade baixa. Limite do placar: 5 envios por dia, 1 GB por bucket. Conta
+prioridade baixa. Limite do placar: 5 envios por dia UTC (zera às 00:00 UTC, 21h em Brasília), 1 GB por bucket. Conta
 a melhor submissão. A organização monitora quem tenta "aprender com o
 placar": testar localmente e enviar só o que melhorou.
 

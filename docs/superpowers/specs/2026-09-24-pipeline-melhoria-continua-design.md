@@ -184,6 +184,18 @@ Plano: `docs/superpowers/plans/2026-09-27-plano5-v7-crossfit.md`.
   aparecem no placar. Regras exatas do dado (verificadas em 100 % do treino) podem ser
   enviadas com a garantia calculada no ranking (projeção em conjunto convexo).
 
+## Parte 7 — contexto e conjunto de corretores (adendo de 27/09, noite)
+
+- `src/contexto.py` (plano 8): colunas `ctx_*` só no corretor, a partir dos movimentos brutos
+  do mesmo período (taxi-in das ARR, última chegada no stand, média de `MVT − AOBT_3` das DEP
+  vizinhas antes e depois). Nunca lê alvo/BLOCK de DEP. Oficial: v11 = 266,81.
+- `--conjunto` (plano 9): média de LightGBM global, LightGBM por aeroporto e CatBoost no
+  corretor. Oficial: v12 = 264,74.
+- Descartados por teste barato ou medição: seeds, detector de pushback, fila ADS-B, CatBoost
+  sozinho, média mensal oficial (exclui voos de degelo).
+- Limite do placar: 5 envios por dia **UTC**; o `_result.json` de envio recusado traz
+  `DAILY_LIMIT_REACHED`.
+
 ## Verificação
 
 - Infra: `experiment.py baseline` reproduz 460 ± 5 s; tempo total ≤ 3 min;
