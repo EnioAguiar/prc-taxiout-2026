@@ -14,7 +14,11 @@ Entradas do corretor: `pred`, aeroporto, `nm_missing`, hora, `to_takeoff_from_*`
 então passa pelo `compare.py` como qualquer outra.
 
 Uso:
-    bin/run src/stack.py <nome> [--base <id>] [--crossfit] [--sem-adsb]
+    bin/run src/stack.py <nome> [--base <id>] [--crossfit [--seeds N]] [--sem-adsb]
+
+Com `--crossfit`, `--seeds N` (N > 1) manda a base de cada bloco ser a média de N seeds:
+sobrescreve `seeds` na config da corrida base. A base do holdout vem pronta de `--base`,
+que já deve ser a corrida de N seeds.
 """
 from __future__ import annotations
 
@@ -45,6 +49,12 @@ def base_config(base_id: str) -> dict:
         if rec.get("id") == base_id:
             return rec["config"]
     raise SystemExit(f"corrida base {base_id} não está em {REGISTRY.name}")
+
+
+def config_da_base(base_id: str, seeds: int) -> dict:
+    """Config dos blocos: a da corrida base, com média de N seeds quando N > 1."""
+    cfg = base_config(base_id)
+    return {**cfg, "seeds": seeds} if seeds > 1 else cfg
 
 
 def corrector_frame(df: pd.DataFrame, pred: np.ndarray, adsb: bool = True) -> pd.DataFrame:
@@ -143,12 +153,17 @@ def main() -> None:
     ap.add_argument("--crossfit", action="store_true",
                     help="corretor treinado no ano, nas previsões da base fora do bloco")
     ap.add_argument("--sem-adsb", action="store_true", help="controle: mesmo empilhamento sem adsb_*")
+    ap.add_argument("--seeds", type=int, default=1,
+                    help="--crossfit: base de cada bloco é a média de N seeds")
     ap.add_argument("--nota", default="")
     a = ap.parse_args()
+    if a.seeds > 1 and not a.crossfit:
+        ap.error("--seeds só vale com --crossfit (a base do holdout vem pronta em --base)")
     base_id = a.base or json.loads((ROOT / "champion.json").read_text())["id"]
     adsb = not a.sem_adsb
     if a.crossfit:
-        cfg = {"model": "stack_cf", "base": base_id, "base_config": base_config(base_id),
+        cfg = {"model": "stack_cf", "base": base_id,
+               "base_config": config_da_base(base_id, a.seeds),
                "adsb": adsb, "rounds": ROUNDS, "seed": PARAMS["seed"]}
     else:
         cfg = {"model": "stack", "base": base_id, "adsb": adsb, "folds": FOLDS,

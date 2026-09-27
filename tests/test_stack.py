@@ -8,7 +8,7 @@ import features as F
 import stack
 from adsb_events import FEATURES as ADSB
 from cache import TRUTH
-from stack import apply_corrector, base_config, corrector_frame
+from stack import apply_corrector, base_config, config_da_base, corrector_frame
 
 
 class _Corretor:
@@ -97,3 +97,14 @@ def test_base_config_falha_quando_a_corrida_nao_existe(tmp_path, monkeypatch):
 
     with pytest.raises(SystemExit, match="20260101-a"):
         base_config("20260101-a")
+
+
+def test_config_da_base_soma_a_media_de_seeds_aos_blocos(tmp_path, monkeypatch):
+    registro = tmp_path / "experiments.jsonl"
+    registro.write_text(json.dumps(
+        {"id": "20260101-a", "config": {"model": "two_stage_nm", "seed": 0}}
+    ) + "\n", encoding="utf-8")
+    monkeypatch.setattr(stack, "REGISTRY", registro)
+
+    assert config_da_base("20260101-a", 1) == {"model": "two_stage_nm", "seed": 0}
+    assert config_da_base("20260101-a", 5) == {"model": "two_stage_nm", "seed": 0, "seeds": 5}

@@ -1,8 +1,11 @@
 """Modelos com interface única.
 
     cols = prepare(train, [outros...])
-    modelo = MODELS[nome](cfg).fit(train, cols, run=run, valid=holdout)
+    modelo = build_model(cfg).fit(train, cols, run=run, valid=holdout)
     pred = modelo.predict(df)
+
+`cfg["seeds"] > 1` faz `build_model` devolver a média de N cópias (`SeedAvg`); ausente ou
+1 devolve o modelo de `MODELS[cfg["model"]]`, idêntico ao de hoje.
 """
 
 from __future__ import annotations
@@ -213,3 +216,29 @@ class TwoStageNM(TwoStage):
 
 
 MODELS = {"single": SingleLGBM, "two_stage": TwoStage, "two_stage_nm": TwoStageNM}
+
+
+class SeedAvg:
+    """Média de N cópias do mesmo modelo com seeds consecutivas."""
+
+    def __init__(self, cfg: dict) -> None:
+        n, s0 = int(cfg["seeds"]), int(cfg.get("seed", 0))
+        self.cfgs = [{**cfg, "seed": s0 + k, "seeds": 1} for k in range(n)]
+        self.best_iter: int | None = None
+
+    def fit(self, train, cols, run=None, valid=None) -> "SeedAvg":
+        self.models = []
+        for k, c in enumerate(self.cfgs):
+            if run:
+                run.log(f"seed {k + 1}/{len(self.cfgs)} (seed={c['seed']})")
+            self.models.append(MODELS[c["model"]](c).fit(train, cols, run=run, valid=valid))
+        self.best_iter = self.models[0].best_iter
+        return self
+
+    def predict(self, df) -> np.ndarray:
+        return np.mean([m.predict(df) for m in self.models], axis=0)
+
+
+def build_model(cfg: dict):
+    """O modelo da config: média de seeds com `seeds` > 1, senão o modelo de hoje."""
+    return SeedAvg(cfg) if int(cfg.get("seeds", 1)) > 1 else MODELS[cfg["model"]](cfg)

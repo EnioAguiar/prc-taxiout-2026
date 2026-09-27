@@ -14,7 +14,7 @@ import pandas as pd
 
 import features as F
 from cache import TRUTH
-from models import MODELS, leaky_columns, prepare
+from models import build_model, leaky_columns, prepare
 
 TIME = "MVT_TIME_UTC_mvt"
 
@@ -45,7 +45,7 @@ def oof_base(
         cols = prepare(tr, [te])
         drop = leaky_columns(tr, ranking_cols_ref, cols)
         cols = [c for c in cols if c not in drop]
-        model = MODELS[cfg["model"]](cfg).fit(tr, cols, run=run)
+        model = build_model(cfg).fit(tr, cols, run=run)
         partes.append(pd.DataFrame({
             F.ID: te[F.ID].to_numpy(),
             "dia": te[TIME].dt.strftime("%Y-%m-%d").to_numpy(),

@@ -4,6 +4,9 @@
     bin/run src/experiment.py <nome> --model two_stage [--cls-rounds 400] [--reg-rounds 400]
     bin/run src/experiment.py <nome> --model two_stage_nm [--nm-split-ms] [--nm-min-ms S]
 
+Qualquer modelo aceita `--seeds N`: a previsão passa a ser a média de N cópias treinadas
+com as seeds `--seed`, `--seed`+1, …; N = 1 (padrão) é o comportamento de sempre.
+
 Treina em train2025 (10 meses), prevê holdout2025 (jan+jul/2025 montados como o
 ranking) e registra RMSE completo, sem outliers, por grupo, por fatia de erro
 (voos normais com NM, alarmes falsos, cauda que é cópia, sem loteria) e por
@@ -19,7 +22,7 @@ import pandas as pd
 
 import features as F
 from cache import TRUTH, load_split
-from models import MODELS, leaky_columns, prepare
+from models import MODELS, build_model, leaky_columns, prepare
 from runlog import ROOT, Run
 
 RUNS = ROOT / "runs"
@@ -82,16 +85,19 @@ def metrics(df: pd.DataFrame, pred: np.ndarray) -> dict:
 
 def config(a: argparse.Namespace) -> dict:
     if a.model == "single":
-        return {"model": a.model, "rounds": a.rounds, "seed": a.seed}
-    cfg = {
-        "model": a.model,
-        "cls_rounds": a.cls_rounds,
-        "reg_rounds": a.reg_rounds,
-        "seed": a.seed,
-    }
-    if a.model == "two_stage_nm":
-        cfg["nm_split_ms"] = a.nm_split_ms
-        cfg["nm_min_ms"] = a.nm_min_ms
+        cfg = {"model": a.model, "rounds": a.rounds, "seed": a.seed}
+    else:
+        cfg = {
+            "model": a.model,
+            "cls_rounds": a.cls_rounds,
+            "reg_rounds": a.reg_rounds,
+            "seed": a.seed,
+        }
+        if a.model == "two_stage_nm":
+            cfg["nm_split_ms"] = a.nm_split_ms
+            cfg["nm_min_ms"] = a.nm_min_ms
+    if a.seeds > 1:  # config de uma seed continua idêntica às antigas
+        cfg["seeds"] = a.seeds
     return cfg
 
 
@@ -107,6 +113,8 @@ def main() -> None:
     ap.add_argument("--nm-min-ms", type=float, default=0.0,
                     help="two_stage_nm: só usa a reta com atraso acima de S segundos")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--seeds", type=int, default=1,
+                    help="média das previsões de N cópias, com seeds seed..seed+N−1")
     ap.add_argument("--nota", default="")
     a = ap.parse_args()
     if a.model != "two_stage_nm" and (a.nm_split_ms or a.nm_min_ms):
@@ -127,7 +135,7 @@ def main() -> None:
                 f" · ignoradas: {drop or 'nenhuma'}"
             )
         with run.phase("treino", 0.75):
-            model = MODELS[a.model](cfg).fit(train, cols, run=run, valid=hold)
+            model = build_model(cfg).fit(train, cols, run=run, valid=hold)
         with run.phase("métricas", 0.10):
             pred = model.predict(hold)
             m = metrics(hold, pred)

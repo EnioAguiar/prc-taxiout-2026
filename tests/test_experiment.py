@@ -1,9 +1,11 @@
+import argparse
+
 import numpy as np
 import pandas as pd
 
 import features as F
 from cache import TRUTH
-from experiment import lottery_mask, metrics
+from experiment import config, lottery_mask, metrics
 
 GAPS = [f"to_takeoff_from_{c}" for c in F.PLAN_REFS]
 MS = GAPS[0]  # to_takeoff_from_SCHED_TIME_UTC_mvt = MVT − SCHED, em segundos
@@ -53,3 +55,24 @@ def test_metricas_por_fatia():
     assert m["alarmes_falsos"]["parte_erro2"] == round(err2[1] / err2.sum(), 4)
     sem_lot = np.sqrt(np.mean(err2[:3]))
     assert m["sem_loteria"] == round(sem_lot, 2)
+
+
+def _args(**kw) -> argparse.Namespace:
+    padrao = dict(model="two_stage_nm", rounds=400, cls_rounds=400, reg_rounds=400,
+                  nm_split_ms=False, nm_min_ms=21600.0, seed=0, seeds=1)
+    return argparse.Namespace(**{**padrao, **kw})
+
+
+def test_config_so_registra_seeds_quando_tem_media():
+    assert "seeds" not in config(_args(seeds=1))
+    assert "seeds" not in config(_args(model="single", seeds=1))
+    assert config(_args(seeds=5))["seeds"] == 5
+    assert config(_args(model="single", seeds=5))["seeds"] == 5
+
+
+def test_config_de_uma_seed_continua_a_de_hoje():
+    assert config(_args(model="single")) == {"model": "single", "rounds": 400, "seed": 0}
+    assert config(_args()) == {
+        "model": "two_stage_nm", "cls_rounds": 400, "reg_rounds": 400, "seed": 0,
+        "nm_split_ms": False, "nm_min_ms": 21600.0,
+    }

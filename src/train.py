@@ -24,7 +24,7 @@ import runlog
 from cache import DATA, TRUTH, load_split
 from compare import CHAMPION
 from crossfit import oof_base
-from models import MODELS, leaky_columns, prepare
+from models import build_model, leaky_columns, prepare
 from runlog import ROOT, Run
 from stack import apply_corrector, corrector_frame, fit_corrector
 
@@ -90,7 +90,7 @@ def base_final(cfg: dict, full: pd.DataFrame, rk: pd.DataFrame, run: Run) -> np.
     drop = leaky_columns(full, rk, cols)
     cols = [c for c in cols if c not in drop]
     run.log(f"treino {len(full):,} · ranking {len(rk):,} · ignoradas: {drop or 'nenhuma'}")
-    return MODELS[cfg["model"]](cfg).fit(full, cols, run=run).predict(rk)
+    return build_model(cfg).fit(full, cols, run=run).predict(rk)
 
 
 def corretor_final(cfg_bloco: dict, adsb: bool, full: pd.DataFrame, rk: pd.DataFrame,
