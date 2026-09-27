@@ -4,10 +4,12 @@ Splits:
     train2025    10 meses de 2025 (sem jan e jul), com alvo
     holdout2025  jan + jul/2025 montados como o ranking (BLOCK e alvo apagados nas
                  DEP antes das features); a verdade fica na coluna y_true
+    blind2025    12 meses de 2025 montados como o ranking (igual ao holdout2025,
+                 sem filtro de mês); usado nas previsões fora do bloco
     full2025     12 meses de 2025, com alvo (treino da versão final)
     ranking2026  ranking.parquet
 
-    bin/run src/cache.py    # monta os 4 em sequência (pico ~5 GB; rodar sozinho)
+    bin/run src/cache.py    # monta os 5 em sequência (pico ~5 GB; rodar sozinho)
 """
 
 from __future__ import annotations
@@ -27,7 +29,7 @@ CACHE = DATA / "cache"
 HOLDOUT_MONTHS = {1, 7}
 TRUTH = "y_true"
 BLOCK = "BLOCK_TIME_UTC_mvt"
-SPLITS = ("train2025", "holdout2025", "full2025", "ranking2026")
+SPLITS = ("train2025", "holdout2025", "blind2025", "full2025", "ranking2026")
 
 
 def _month(p: Path) -> int:
@@ -42,7 +44,7 @@ def split_paths(name: str) -> list[Path]:
             return [p for p in training if _month(p) not in HOLDOUT_MONTHS]
         case "holdout2025":
             return [p for p in training if _month(p) in HOLDOUT_MONTHS]
-        case "full2025":
+        case "full2025" | "blind2025":
             return training
         case "ranking2026":
             return [DATA / "ranking.parquet"]
@@ -78,8 +80,7 @@ def load_split(name: str) -> pd.DataFrame:
     if target.exists():
         return add_features(pd.read_parquet(target))
     raw = F.load(paths)
-    df = build_blind(raw) if name == "holdout2025" else F.build(raw)
-    del raw
+    df = build_blind(raw) if name in ("holdout2025", "blind2025") else F.build(raw)
     if name in ("train2025", "full2025"):
         df = df[df[F.TARGET].notna()]
     df = df.reset_index(drop=True)

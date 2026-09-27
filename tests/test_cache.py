@@ -1,5 +1,6 @@
+import cache
 import features as F
-from cache import TRUTH, build_blind
+from cache import BLOCK, TRUTH, build_blind
 
 
 def test_holdout_montado_sem_ver_o_alvo(raw_movements):
@@ -10,3 +11,43 @@ def test_holdout_montado_sem_ver_o_alvo(raw_movements):
     truth = raw_movements[raw_movements["PHASE_mvt"] == "DEP"].set_index(F.ID)[F.TARGET]
     assert out.set_index(F.ID)[TRUTH].to_dict() == truth.to_dict()
     assert raw_movements[F.TARGET].notna().all()  # não altera a entrada
+
+
+def _cria_meses(tmp_path) -> list[str]:
+    nomes = []
+    for m in range(1, 13):
+        fim = "2026-01-01" if m == 12 else f"2025-{m + 1:02d}-01"
+        nome = f"training_2025-{m:02d}-01_{fim}.parquet"
+        (tmp_path / nome).write_bytes(b"")
+        nomes.append(nome)
+    return nomes
+
+
+def test_blind2025_pega_os_doze_meses(tmp_path, monkeypatch):
+    nomes = _cria_meses(tmp_path)
+    monkeypatch.setattr(cache, "DATA", tmp_path)
+    assert [p.name for p in cache.split_paths("blind2025")] == sorted(nomes)
+    assert "blind2025" in cache.SPLITS
+
+
+def test_blind2025_montado_como_o_ranking(tmp_path, monkeypatch, raw_movements):
+    _cria_meses(tmp_path)
+    monkeypatch.setattr(cache, "DATA", tmp_path)
+    monkeypatch.setattr(cache, "CACHE", tmp_path / "cache")
+    monkeypatch.setattr(cache, "add_features", lambda df: df)
+    monkeypatch.setattr(F, "load", lambda paths: raw_movements.copy())
+    visto = {}
+
+    def build(df):
+        visto["block_dep_nulo"] = df.loc[df["PHASE_mvt"] == "DEP", BLOCK].isna().all()
+        visto["block_arr"] = df.loc[df["PHASE_mvt"] == "ARR", BLOCK].notna().all()
+        return df[df["PHASE_mvt"] == "DEP"].copy()
+
+    monkeypatch.setattr(F, "build", build)
+
+    out = cache.load_split("blind2025")
+
+    assert visto == {"block_dep_nulo": True, "block_arr": True}
+    assert out[F.TARGET].isna().all()
+    dep = raw_movements[raw_movements["PHASE_mvt"] == "DEP"]
+    assert out.set_index(F.ID)[TRUTH].to_dict() == dep.set_index(F.ID)[F.TARGET].to_dict()
