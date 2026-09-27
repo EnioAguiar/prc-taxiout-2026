@@ -333,12 +333,18 @@ gravado na data do SCHED) e 4,5 % normais; 25 desses no ranking 2026.
     (download ~1,5–3 min/dia, leitura 14–30 min/dia). Sobreviveu a uma queda de
     energia (dias prontos íntegros; retomar pula os feitos). 29/01/2026 tinha um
     rastro corrompido (`zlib.error`): agora o rastro é pulado e contado.
-  - [ ] Fev–jun e ago–dez de 2025 (serviço `prc-adsb`, iniciado 26/09 de
-    madrugada, ~15 h) — para ter as features também no treino.
-  - [ ] Plano 4: eventos por voo → cobertura por aeroporto → teto barato → features
-    no modelo → candidato. Cuidado: cobertura de chão fraca em LFPG, LIRF, LEMD,
-    LTFM (relato); na cauda "cópia do SCHED" o ADS-B mostra o off-block real, não a
-    verdade oficial.
+  - [x] Resto de 2025 (serviço `prc-adsb`, 10 processos): **427 dias completos**
+    (2025 inteiro + jan/jul 2026), 5,7 GB, 0 rastros corrompidos; sobreviveu a 3
+    quedas de energia (espera a rede, reinicia sozinho). 2025-12-31 está no
+    repositório de 2026.
+  - [x] Plano 4, tarefas 1–3 (`src/adsb_events.py`;
+    `docs/research/2026-09-26-adsb-cobertura.md`): cobertura boa em EHAM, LEBL,
+    EDDF, LSZH, EDDM; nula em LTFM; fraca em LEMD, LFPG, EGLL. Avião visto parado:
+    erro mediano 20–50 s. Troca direta não ganha; **empilhamento fora do fold
+    332,86 → 317,44 (−15,4 s)**, normais 248,2 → 223,9, jan e jul melhoram.
+  - [ ] Plano 4, tarefa 4: controle sem `adsb_*`, eventos do ano inteiro, features no
+    treino da campeã, `compare.py`. Cuidado: na cauda "cópia do SCHED" o ADS-B mostra
+    o off-block real, não a verdade oficial.
 - [ ] 5. Features de vizinhos (item 6).
 - [ ] 6. Ensemble XGBoost CUDA + seeds LightGBM (item 7) — **baixa prioridade**:
   no Discord, XGBoost ganhou peso zero e pesos de blend ajustados perderam 4/4.

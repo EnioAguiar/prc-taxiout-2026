@@ -136,6 +136,11 @@ aberto declarado é permitido; o modelo é pós-operação).
 
 Plano: `docs/superpowers/plans/2026-09-26-plano4-adsb.md`.
 
+Estado em 26/09 (noite): 427 dias baixados (2025 inteiro + jan/jul 2026). Teto barato
+(empilhamento fora do fold) −15,4 s → segue para features no modelo. Possível etapa
+final oculta (Discord): o pipeline adsb → eventos → features → modelo precisa rodar
+para qualquer período com um comando.
+
 ## Verificação
 
 - Infra: `experiment.py baseline` reproduz 460 ± 5 s; tempo total ≤ 3 min;
