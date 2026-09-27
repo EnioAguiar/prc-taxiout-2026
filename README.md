@@ -376,6 +376,12 @@ gravado na data do SCHED) e 4,5 % normais; 25 desses no ranking 2026.
     barato (5 folds por dia) com `adsb_dist_stand` e `adsb_visto_parado`: 317,57 →
     316,81, normais 206,27 → 205,41 — o corretor já aprende o atraso do "visto
     andando" com `adsb_gs0`/`adsb_lat0`/`adsb_lon0`. Scripts descartados.
+  - [x] Fila vista pelo ADS-B (`fila_adsb`), teste barato de 27/09 — **descartado (0,2 s)**.
+    Aviões distintos no chão e andando (gs > 1 kt) por aeroporto × minuto nos recortes,
+    lidos no off-block estimado (`MVT − pred`), no meio do táxi e 1 min antes do MVT
+    (66,5 % dos voos com contagem). Corretor barato: 317,57 → 317,36, normais 206,27 →
+    206,07. As janelas de congestionamento do NM (decolagens e pousos de 10–60 min) já
+    carregam essa informação. Script descartado.
   - [ ] README "Dados externos" (tarefa 6).
 - [ ] 5. Features de vizinhos (item 6).
 - [ ] 6. Ensemble XGBoost CUDA + seeds LightGBM (item 7) — **baixa prioridade**:

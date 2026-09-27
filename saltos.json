@@ -28,8 +28,9 @@
    "ganho_s": 7,
    "prob": 0.4,
    "dias": 2,
-   "status": "pendente",
-   "evidencia": "organizador: 'o que está ocupado, o que vem'; inferência"
+   "status": "descartado",
+   "evidencia": "teste barato 27/09: aviões andando/no chão por minuto; corretor 317,57 → 317,36",
+   "ganho_real_s": 0.2
   },
   {
    "id": "clima",
