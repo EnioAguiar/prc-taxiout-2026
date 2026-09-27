@@ -102,6 +102,7 @@ def main() -> None:
     ultima = next(d for _, d in reversed(fs) if not d.get("parcial"))
 
     envios = [json.loads(l) for l in (ROOT / "submissions.jsonl").read_text().splitlines() if l.strip()]
+    envios = [e for e in envios if e["oficial"] is not None]  # envio recusado (limite diário) não tem nota
     nossa = min(e["oficial"] for e in envios)
     nossa_placar = next((x["best"] for x in ultima["teams"] if x["team"] == TEAM), None)
     serie_nossa, melhor = [], np.inf

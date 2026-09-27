@@ -46,7 +46,7 @@ def checar_placar_e_envios() -> None:
         ok(True, "placar do dia salvo em `placar/` e `docs/projecao.md` regenerado")
     except Exception as e:  # noqa: BLE001 — sem rede não derruba o resto
         ok(False, f"placar/projeção não atualizados: {e}")
-    melhor = min(e["oficial"] for e in envios())
+    melhor = min(e["oficial"] for e in envios() if e["oficial"] is not None)
     ultima = json.loads(sorted((ROOT / "placar").glob("*.json"))[-1].read_text())
     no_placar = next((x["best"] for x in ultima["teams"] if x["team"] == projecao.TEAM), None)
     ok(no_placar is not None and abs(no_placar - melhor) < 0.01,
@@ -79,7 +79,7 @@ def checar_campea() -> None:
        "se não, `train.py submit` precisa de --forcar ou re-medir a campeã")
     readme = (ROOT / "README.md").read_text()
     ok(champ["id"] in readme, "README cita o id da campeã")
-    melhor = min(e["oficial"] for e in envios())
+    melhor = min(e["oficial"] for e in envios() if e["oficial"] is not None)
     txt = f"{melhor:.2f}".replace(".", ",")
     ok(txt in readme, f"README cita a melhor nota oficial ({txt})")
     ctx = (PAI / "CONTEXTO.md").read_text()
