@@ -81,6 +81,7 @@ def load_split(name: str) -> pd.DataFrame:
         return add_features(pd.read_parquet(target))
     raw = F.load(paths)
     df = build_blind(raw) if name in ("holdout2025", "blind2025") else F.build(raw)
+    del raw
     if name in ("train2025", "full2025"):
         df = df[df[F.TARGET].notna()]
     df = df.reset_index(drop=True)
