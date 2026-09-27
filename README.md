@@ -224,8 +224,8 @@ Feito:
   sobre `nm_retas` (IC 95% 1,5 a 7,7) → não comprovado (abaixo de 10 s);
   re-testado com seed no plano 3a: FRÁGIL.
 
-Próximo (fila em `saltos.json`, 27/09 noite): envio final com v12 + pós-regra de Roma;
-envio sem `adsb_lat0/lon0` (deriva). A v12 (`--conjunto`) fica guardada para o envio final. Evidência em
+Próximo (28/09, depois de 00:00 UTC): enviar v13 (v12 + regra de Roma) e v14 (v12 sem
+`adsb_lat0/lon0`), os dois arquivos prontos; conforme as notas, v15 = v14 + regra. A v12 (`--conjunto`) fica guardada para o envio final. Evidência em
 `docs/research/2026-09-27-concorrentes.md`. Plano 3b segue pausado (itens 5 a 8).
 
 Antes de 11/10 (abrir entre 08 e 10/10, decisão de 27/09): repositório público
@@ -430,6 +430,11 @@ gravado na data do SCHED) e 4,5 % normais; 25 desses no ranking 2026.
     q = 0,62 ajustado fora de jan/jul): holdout 311,09 → 307,21; no ranking são 4 voos.
     Arquivo pronto: `submissions/outgoing-boat_v13.parquet` (v12 + regra). Rejeitado em 27/09 pelo
     limite diário (5 envios por dia UTC, a v6 da madrugada contou); reenviar depois de 00:00 UTC.
+  - [ ] Plano 10 (`docs/superpowers/plans/2026-09-27-plano10-sem-latlon.md`), v14 = v12 sem
+    `adsb_lat0`/`adsb_lon0` (deriva 2025 → 2026, dica do GREKI): `20260927-182244-v14_cf` 311,88,
+    −2,1 s no holdout (IC −3,5 a −1,0), o que o holdout não consegue medir. Arquivo pronto
+    (`submissions/outgoing-boat_v14.parquet`). Enviar v13 e v14 depois de 00:00 UTC de 28/09:
+    cada uma contra a v12 (264,74) mede uma mudança; se as duas ganharem, v15 = v14 + regra de Roma.
   - [x] README "Dados externos" e "Reprodução" (tarefa 6, 27/09); `PRC_ADSB_RAIZ` configurável.
 - [ ] 5. Features de vizinhos (item 6).
 - [ ] 6. Ensemble XGBoost CUDA + seeds LightGBM (item 7), baixa prioridade:

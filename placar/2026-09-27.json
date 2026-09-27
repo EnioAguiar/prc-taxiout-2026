@@ -1,5 +1,5 @@
 {
- "updated": "2026-09-27T20:41:34Z",
+ "updated": "2026-09-27T22:42:26Z",
  "totalSubmissions": 3000,
  "teams": [
   {
@@ -63,16 +63,16 @@
    "lastAt": "2026-09-27T14:29:10.24404Z"
   },
   {
+   "team": "enthusiastic-daisy",
+   "best": 242.6813,
+   "n": 102,
+   "lastAt": "2026-09-27T20:56:57.310495Z"
+  },
+  {
    "team": "youthful-giraffe",
    "best": 242.8064,
    "n": 28,
    "lastAt": "2026-09-27T13:10:04.749574Z"
-  },
-  {
-   "team": "enthusiastic-daisy",
-   "best": 243.0104,
-   "n": 101,
-   "lastAt": "2026-09-27T19:31:32.820496Z"
   },
   {
    "team": "gentle-lemon",
@@ -111,16 +111,16 @@
    "lastAt": "2026-09-27T18:36:47.091248Z"
   },
   {
+   "team": "noble-tractor",
+   "best": 250.7047,
+   "n": 32,
+   "lastAt": "2026-09-27T22:10:39.674405Z"
+  },
+  {
    "team": "merry-quicksand",
    "best": 251.3146,
    "n": 33,
    "lastAt": "2026-09-27T09:40:35.348827Z"
-  },
-  {
-   "team": "noble-tractor",
-   "best": 251.7632,
-   "n": 31,
-   "lastAt": "2026-09-27T19:24:19.254185Z"
   },
   {
    "team": "dynamic-lobster",
@@ -191,13 +191,13 @@
   {
    "team": "strong-moose",
    "best": 267.8575,
-   "n": 68,
-   "lastAt": "2026-09-27T19:07:09.528862Z"
+   "n": 69,
+   "lastAt": "2026-09-27T22:38:23.627354Z"
   },
   {
    "team": "kind-earthquake",
    "best": 268.5216,
-   "n": 22,
+   "n": 21,
    "lastAt": "2026-09-17T00:05:45.779117Z"
   },
   {
@@ -253,6 +253,12 @@
    "best": 273.5557,
    "n": 12,
    "lastAt": "2026-09-13T16:53:09.951438Z"
+  },
+  {
+   "team": "smart-jigsaw",
+   "best": 274.2505,
+   "n": 17,
+   "lastAt": "2026-09-27T21:34:52.029747Z"
   },
   {
    "team": "generous-quilt",
@@ -589,12 +595,6 @@
    "best": 299.2862,
    "n": 5,
    "lastAt": "2026-09-14T02:26:42.261507Z"
-  },
-  {
-   "team": "smart-jigsaw",
-   "best": 299.6874,
-   "n": 12,
-   "lastAt": "2026-09-20T10:58:36.519193Z"
   },
   {
    "team": "knowledgeable-alligator",
@@ -935,7 +935,7 @@
   {
    "team": "ambitious-hippo",
    "best": 532.5678,
-   "n": 3,
+   "n": 2,
    "lastAt": "2026-09-18T11:06:40.952734Z"
   },
   {
@@ -1001,7 +1001,7 @@
   {
    "team": "enthusiastic-apple",
    "best": 573.7462,
-   "n": 8,
+   "n": 5,
    "lastAt": "2026-09-09T14:28:54.84465Z"
   },
   {
@@ -1013,7 +1013,7 @@
   {
    "team": "fearless-umbrella",
    "best": 576.5988,
-   "n": 4,
+   "n": 3,
    "lastAt": "2026-09-13T23:15:30.877336Z"
   },
   {
@@ -1085,8 +1085,8 @@
   {
    "team": "thoughtful-jungle",
    "best": 613.4944,
-   "n": 2,
-   "lastAt": "2026-09-09T00:23:33.562648Z"
+   "n": 1,
+   "lastAt": "2026-09-09T00:03:27.52861Z"
   },
   {
    "team": "gracious-tractor",
@@ -1099,12 +1099,6 @@
    "best": 619.2649,
    "n": 1,
    "lastAt": "2026-09-14T01:39:26.48019Z"
-  },
-  {
-   "team": "jubilant-mushroom",
-   "best": 622.2266,
-   "n": 1,
-   "lastAt": "2026-09-17T15:05:46.830303Z"
   }
  ]
 }

@@ -45,8 +45,10 @@
 
 - [x] Base: `bin/run src/experiment.py janela_sem_latlon --model two_stage_nm --nm-min-ms 21600 --janela-lobt --sem-feature adsb_lat0 --sem-feature adsb_lon0` (mesma config da base `20260927-133137-janela` + `sem_features`).
 - [x] Corretor: `bin/run src/stack.py v14_cf --crossfit --conjunto --base <id da base acima> --sem-feature adsb_lat0 --sem-feature adsb_lon0` → `compare.py` contra `20260927-160433-v12_cf` (309,78). Critério: não piorar mais que o ruído (IC do `compare.py` incluindo zero ou ganho). Se piorar além do ruído, **parar e mostrar ao usuário** antes de gerar o arquivo.
-- [ ] `bin/run src/train.py submit 14 --corrida <id da v14_cf>`; conferir 0 linhas fora da janela do LOBT e mediana parecida com a v12.
+- [x] `bin/run src/train.py submit 14 --corrida <id da v14_cf>`; conferir 0 linhas fora da janela do LOBT e mediana parecida com a v12.
 - [x] Docs: README (Submissões/Roadmap), CONTEXTO.md ("Retomar"), `saltos.json` (`deriva_adsb`: simulação medida, status "pronto para envio"), caixas deste plano; commit + push.
 - [x] **Parar e mostrar ao usuário.** Ordem proposta às 00:00 UTC: v13 (Roma), v14 (sem lat/lon); cada uma muda uma coisa só em relação à v12.
 
 **Resultado (27/09 21:41 UTC):** base `20260927-181854-janela_sem_latlon` 321,23 (a da v12, 320,29); `20260927-182244-v14_cf` = 311,88 contra 309,78 da v12: **−2,1 s (IC −3,5 a −1,0)**, pior além do ruído no holdout de 2025, como o critério previa. Parado antes do `train.py submit 14 --corrida 20260927-182244-v14_cf` (cerca de 20 min): decisão do usuário, porque a deriva só aparece no placar.
+
+**Arquivo (27/09 22:46 UTC):** `train.py submit 14 --corrida 20260927-182244-v14_cf` interrompido por queda de energia (19:13 local, base final a 10 %); relançado e concluído em 28m46s, pico 8,1 GB. `submissions/outgoing-boat_v14.parquet`: 344.841 linhas, 0 nulos, 0 negativos, 0 fora da janela do LOBT; diferença para a v12 49 s (RMS), média −0,2 s. Aguarda envio depois de 00:00 UTC junto com a v13.
