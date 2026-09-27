@@ -497,7 +497,7 @@ bin/run src/train.py submit N [--forcar]          # gera a vN (não envia)
 .venv/bin/python src/s3.py submit submissions/<TEAM>_vN.parquet   # só após aprovação
 bin/run src/adsb.py baixar [--dias 2025-01,2025-07] [--dia AAAA-MM-DD] [--procs 5]   # recortes adsb.lol no SSD
 bin/run src/adsb_events.py                        # eventos por voo → <SSD>/events.parquet
-bin/run src/stack.py <nome> [--base <id>] [--sem-adsb] [--crossfit [--seeds N]]   # corretor fora do fold (teste barato) ou fora do bloco no ano (enviável; ~17 min, rodar via systemd-run --user)
+bin/run src/stack.py <nome> [--base <id>] [--sem-adsb] [--crossfit [--seeds N] [--conjunto]]   # corretor fora do fold (teste barato) ou fora do bloco no ano (enviável; ~17 min, rodar via systemd-run --user); --conjunto = média de global, por aeroporto e CatBoost
 .venv/bin/python ferramentas/projecao.py          # placar do dia + docs/projecao.md
 .venv/bin/python ferramentas/auditoria.py         # docs/auditoria/AAAA-MM-DD.md
 .venv/bin/python -m pytest -q

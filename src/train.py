@@ -94,7 +94,7 @@ def base_final(cfg: dict, full: pd.DataFrame, rk: pd.DataFrame, run: Run) -> np.
 
 
 def corretor_final(cfg_bloco: dict, adsb: bool, full: pd.DataFrame, rk: pd.DataFrame,
-                   caminho_oof, run: Run):
+                   caminho_oof, run: Run, conjunto: bool = False):
     """Corretor treinado nas cegas com a previsão de uma base que não viu o mês delas."""
     blind = load_split("blind2025")
     run.log(f"cegas {len(blind):,}")
@@ -108,7 +108,7 @@ def corretor_final(cfg_bloco: dict, adsb: bool, full: pd.DataFrame, rk: pd.DataF
     del cegas
     if adsb:
         run.log(f"adsb no treino do corretor: {X['adsb_taxi'].notna().mean():.1%}")
-    return fit_corrector(X, oof[TRUTH].to_numpy(float), pred_oof)
+    return fit_corrector(X, oof[TRUTH].to_numpy(float), pred_oof, conjunto)
 
 
 def corrigir_ranking(corretor, cfg_bloco: dict, adsb: bool, rk: pd.DataFrame,
@@ -135,6 +135,7 @@ def submit(version: int, forcar: bool = False) -> None:
                 corretor = corretor_final(
                     champ["config"]["base_config"], champ["config"]["adsb"], full, rk,
                     OUT / f"{team}_v{version}_oof.parquet", run,
+                    champ["config"].get("corretor") == "conjunto",
                 )
             with run.phase("base final", 0.30):
                 pred = base_final(cfg["base_config"], full, rk, run)

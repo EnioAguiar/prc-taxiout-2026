@@ -1,5 +1,6 @@
 import json
 
+import lightgbm as lgb
 import numpy as np
 import pandas as pd
 import pytest
@@ -158,3 +159,73 @@ def test_config_da_base_soma_a_media_de_seeds_aos_blocos(tmp_path, monkeypatch):
 
     assert config_da_base("20260101-a", 1) == {"model": "two_stage_nm", "seed": 0}
     assert config_da_base("20260101-a", 5) == {"model": "two_stage_nm", "seed": 0, "seeds": 5}
+
+
+def _entradas(n: int = 60) -> pd.DataFrame:
+    """Entradas sintéticas do corretor: dois aeroportos, colunas numéricas simples."""
+    rng = np.random.default_rng(0)
+    return pd.DataFrame({
+        F.AIRPORT: pd.Series(["LIRF", "EDDF"] * (n // 2), dtype="category"),
+        "nm_missing": rng.integers(0, 2, n).astype(float),
+        "hour": rng.uniform(0, 24, n),
+        "pred": rng.uniform(500, 1500, n),
+    })
+
+
+def test_conjunto_preve_a_media_dos_tres_submodelos():
+    X = _entradas(6)
+    conj = stack.Conjunto(
+        _Corretor(10.0),
+        {"LIRF": _Corretor(20.0), "EDDF": _Corretor(20.0)},
+        _Corretor(60.0),
+    )
+
+    np.testing.assert_allclose(conj.predict(X), np.full(len(X), 30.0))
+
+
+def test_aeroporto_visto_so_na_previsao_usa_o_modelo_global():
+    X = _entradas(4)
+    X[F.AIRPORT] = pd.Series(["LIRF", "LFPG", "LIRF", "LFPG"], dtype="category")
+    conj = stack.Conjunto(_Corretor(10.0), {"LIRF": _Corretor(70.0)}, _Corretor(10.0))
+
+    # LIRF: (10 + 70 + 10)/3 = 30; LFPG sem modelo próprio cai no global: 10
+    np.testing.assert_allclose(conj.predict(X), [30.0, 10.0, 30.0, 10.0])
+
+
+def test_sem_conjunto_o_corretor_e_o_booster_de_hoje(monkeypatch):
+    X = _entradas()
+    y, base = X["pred"].to_numpy() + 100, X["pred"].to_numpy()
+    monkeypatch.setattr(stack, "ROUNDS", 5)
+
+    assert isinstance(stack.fit_corrector(X, y, base), lgb.Booster)
+
+
+def test_com_conjunto_o_corretor_e_a_media_dos_tres(monkeypatch):
+    X = _entradas()
+    y = X["pred"].to_numpy() + 100 + np.linspace(-5, 5, len(X))
+    base = X["pred"].to_numpy()
+    monkeypatch.setattr(stack, "ROUNDS", 5)
+    monkeypatch.setattr(stack, "CATBOOST", {**stack.CATBOOST, "iterations": 5})
+
+    model = stack.fit_corrector(X, y, base, conjunto=True)
+
+    assert isinstance(model, stack.Conjunto)
+    assert set(model.aeroportos) == {"EDDF", "LIRF"}
+    # o conjunto corrige de verdade: a correção aprendida é ~100 (y − base)
+    np.testing.assert_allclose(model.predict(X), np.full(len(X), 100.0), atol=40)
+
+
+def test_a_config_do_crossfit_so_tem_corretor_com_a_flag(tmp_path, monkeypatch):
+    registro = tmp_path / "experiments.jsonl"
+    registro.write_text(json.dumps(
+        {"id": "20260101-a", "config": {"model": "two_stage_nm", "seed": 0}}
+    ) + "\n", encoding="utf-8")
+    monkeypatch.setattr(stack, "REGISTRY", registro)
+
+    com = stack.config_da_corrida(
+        stack.parser().parse_args(["v12", "--crossfit", "--conjunto"]), "20260101-a")
+    sem = stack.config_da_corrida(
+        stack.parser().parse_args(["v12", "--crossfit"]), "20260101-a")
+
+    assert com["corretor"] == "conjunto"
+    assert "corretor" not in sem

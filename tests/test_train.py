@@ -3,6 +3,8 @@ import pandas as pd
 import pytest
 
 import features as F
+import train
+from cache import TRUTH
 from train import build_submission, corrigir_ranking, final_config
 
 
@@ -88,3 +90,38 @@ def test_envio_sem_janela_na_base_e_o_de_hoje():
     pred = corrigir_ranking(_Corretor(120.0), {"model": "two_stage_nm"}, False, rk, base)
 
     np.testing.assert_allclose(pred, [1120.0, 1120.0])  # voo 1 ficaria em 3594 com janela
+
+
+class _Run:
+    def log(self, *a, **k) -> None:
+        pass
+
+
+def _cegas() -> pd.DataFrame:
+    df = _ranking()
+    df[TRUTH] = [900.0, 1100.0]
+    return df
+
+
+def _corretor_final_com(config: dict, monkeypatch, tmp_path) -> bool:
+    """Roda `corretor_final` com dados falsos e devolve o `conjunto` que chegou ao fit."""
+    cegas = _cegas()
+    visto = {}
+    monkeypatch.setattr(train, "load_split", lambda nome: cegas)
+    monkeypatch.setattr(train, "oof_base", lambda *a, **k: pd.DataFrame(
+        {F.ID: cegas[F.ID], TRUTH: cegas[TRUTH], "pred": [800.0, 1000.0]}))
+    monkeypatch.setattr(train, "fit_corrector",
+                        lambda X, y, base, conjunto=False: visto.setdefault("conjunto", conjunto))
+    train.corretor_final(config.get("base_config", {}), False, cegas, cegas,
+                         tmp_path / "oof.parquet", _Run(),
+                         config.get("corretor") == "conjunto")
+    return visto["conjunto"]
+
+
+def test_sem_corretor_na_config_o_envio_segue_o_caminho_antigo(monkeypatch, tmp_path):
+    assert _corretor_final_com({"base_config": {}}, monkeypatch, tmp_path) is False
+
+
+def test_com_corretor_conjunto_o_envio_usa_o_conjunto(monkeypatch, tmp_path):
+    assert _corretor_final_com(
+        {"base_config": {}, "corretor": "conjunto"}, monkeypatch, tmp_path) is True

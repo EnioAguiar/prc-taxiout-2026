@@ -18,7 +18,12 @@ Quando a corrida base usa `janela_lobt`, o corretor de `--crossfit` ganha `dist_
 na janela antes do piso 0; sem `janela_lobt` na base, tudo segue como antes.
 
 Uso:
-    bin/run src/stack.py <nome> [--base <id>] [--crossfit [--seeds N]] [--sem-adsb]
+    bin/run src/stack.py <nome> [--base <id>] [--crossfit [--seeds N] [--conjunto]] [--sem-adsb]
+
+`--conjunto` (só com `--crossfit`) troca o corretor único pela média de três treinados
+nas mesmas entradas: LightGBM global, um LightGBM por aeroporto (aeroporto sem modelo
+próprio usa o global) e CatBoost; grava `corretor: "conjunto"` na config, que o
+`train.py` lê no envio.
 
 Com `--crossfit`, `--seeds N` (N > 1) manda a base de cada bloco ser a média de N seeds:
 sobrescreve `seeds` na config da corrida base. A base do holdout vem pronta de `--base`,
@@ -46,6 +51,8 @@ FOLDS = 5
 ROUNDS = 300
 PARAMS = dict(objective="regression", learning_rate=0.05, num_leaves=63, min_data_in_leaf=200,
               verbose=-1, num_threads=12, seed=0, deterministic=True, force_row_wise=True)
+PARAMS_AEROPORTO = {**PARAMS, "min_data_in_leaf": 100}  # menos dados por modelo
+CATBOOST = dict(iterations=800, depth=8, learning_rate=0.08, loss_function="RMSE", random_seed=0)
 
 
 def base_config(base_id: str) -> dict:
@@ -81,20 +88,79 @@ def corrector_frame(df: pd.DataFrame, pred: np.ndarray, adsb: bool = True,
     return X
 
 
-def fit_corrector(X: pd.DataFrame, y: np.ndarray, base: np.ndarray) -> lgb.Booster:
-    """Corretor L2 na diferença entre o alvo e a previsão da base."""
-    return lgb.train(PARAMS, lgb.Dataset(X, y - base), ROUNDS)
+class Conjunto:
+    """Média simples de três corretores sobre as mesmas entradas.
+
+    (1) LightGBM global; (2) um LightGBM por aeroporto (aeroporto sem modelo próprio cai
+    no global); (3) CatBoost com `AIRPORT` categórica em texto.
+    """
+
+    def __init__(self, global_, aeroportos: dict, catboost) -> None:
+        self.global_, self.aeroportos, self.catboost = global_, aeroportos, catboost
+
+    def _por_aeroporto(self, X: pd.DataFrame) -> np.ndarray:
+        out = np.asarray(self.global_.predict(X), float)  # aeroporto novo usa o global
+        aero = X[F.AIRPORT].astype(str).to_numpy()
+        for nome, modelo in self.aeroportos.items():
+            sel = aero == nome
+            if sel.any():
+                out[sel] = modelo.predict(X[sel])
+        return out
+
+    def predict(self, X: pd.DataFrame) -> np.ndarray:
+        glob = np.asarray(self.global_.predict(X), float)
+        cat = np.asarray(self.catboost.predict(catboost_frame(X)), float)
+        return (glob + self._por_aeroporto(X) + cat) / 3
 
 
-def apply_corrector(model: lgb.Booster, X: pd.DataFrame, base: np.ndarray,
+def catboost_frame(X: pd.DataFrame) -> pd.DataFrame:
+    """Entradas do CatBoost: as mesmas do LightGBM, com o aeroporto em texto."""
+    Xc = X.copy()
+    Xc[F.AIRPORT] = Xc[F.AIRPORT].astype(str)
+    return Xc
+
+
+def fit_catboost(X: pd.DataFrame, alvo: np.ndarray):
+    """CatBoost determinístico na correção; GPU quando há placa, senão 12 threads."""
+    from catboost import CatBoostRegressor, utils
+
+    params = dict(CATBOOST, verbose=0)
+    if utils.get_gpu_device_count() > 0:
+        params["task_type"] = "GPU"
+    else:
+        params["thread_count"] = 12
+    modelo = CatBoostRegressor(**params)
+    modelo.fit(catboost_frame(X), alvo, cat_features=[F.AIRPORT])
+    return modelo
+
+
+def fit_corrector(X: pd.DataFrame, y: np.ndarray, base: np.ndarray,
+                  conjunto: bool = False) -> lgb.Booster | Conjunto:
+    """Corretor L2 na diferença entre o alvo e a previsão da base.
+
+    Com `conjunto`, devolve a média de três corretores sobre as mesmas entradas.
+    """
+    alvo = np.asarray(y, float) - np.asarray(base, float)
+    global_ = lgb.train(PARAMS, lgb.Dataset(X, alvo), ROUNDS)
+    if not conjunto:
+        return global_
+    aeroportos = {}
+    aero = X[F.AIRPORT].astype(str).to_numpy()
+    for nome in np.unique(aero):
+        sel = aero == nome
+        aeroportos[nome] = lgb.train(PARAMS_AEROPORTO, lgb.Dataset(X[sel], alvo[sel]), ROUNDS)
+    return Conjunto(global_, aeroportos, fit_catboost(X, alvo))
+
+
+def apply_corrector(model: lgb.Booster | Conjunto, X: pd.DataFrame, base: np.ndarray,
                     df: pd.DataFrame | None = None) -> np.ndarray:
     """Base mais a correção, com piso 0; com `df`, projetada antes na janela do LOBT."""
     pred = np.asarray(base, float) + model.predict(X)
     return limitar_janela(pred, df) if df is not None else np.clip(pred, 0, None)
 
 
-def previsao_corrigida(model: lgb.Booster, df: pd.DataFrame, base: np.ndarray, adsb: bool,
-                       janela: bool) -> np.ndarray:
+def previsao_corrigida(model: lgb.Booster | Conjunto, df: pd.DataFrame, base: np.ndarray,
+                       adsb: bool, janela: bool) -> np.ndarray:
     """Previsão dos voos de `df` corrigida: com `janela`, dentro da janela do LOBT."""
     X = corrector_frame(df, base, adsb, janela)
     return apply_corrector(model, X, base, df if janela else None)
@@ -137,7 +203,7 @@ def simulacao_folds(
 
 
 def simulacao_crossfit(
-    run: Run, base_id: str, cfg_base: dict, adsb: bool
+    run: Run, base_id: str, cfg_base: dict, adsb: bool, conjunto: bool = False
 ) -> tuple[pd.DataFrame, pd.DataFrame, np.ndarray]:
     """Corretor treinado no ano fora do bloco; devolve (holdout, base, previsão)."""
     janela = bool(cfg_base.get("janela_lobt"))
@@ -162,14 +228,14 @@ def simulacao_crossfit(
         del cegas
         if adsb:
             run.log(f"adsb no treino do corretor: {X_oof['adsb_taxi'].notna().mean():.1%}")
-        model = fit_corrector(X_oof, oof[TRUTH].to_numpy(float), pred_oof)
+        model = fit_corrector(X_oof, oof[TRUTH].to_numpy(float), pred_oof, conjunto)
         del X_oof
         pred_base = base["pred"].to_numpy(float)
         pred = previsao_corrigida(model, hold, pred_base, adsb, janela)
     return hold, base, pred
 
 
-def main() -> None:
+def parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     ap.add_argument("nome")
     ap.add_argument("--base", help="id da corrida base (padrão: campeã)")
@@ -178,24 +244,42 @@ def main() -> None:
     ap.add_argument("--sem-adsb", action="store_true", help="controle: mesmo empilhamento sem adsb_*")
     ap.add_argument("--seeds", type=int, default=1,
                     help="--crossfit: base de cada bloco é a média de N seeds")
+    ap.add_argument("--conjunto", action="store_true",
+                    help="--crossfit: corretor = média de global, por aeroporto e CatBoost")
     ap.add_argument("--nota", default="")
+    return ap
+
+
+def config_da_corrida(a: argparse.Namespace, base_id: str) -> dict:
+    """Config gravada no registro: com `--conjunto`, a chave `corretor`."""
+    adsb = not a.sem_adsb
+    if not a.crossfit:
+        return {"model": "stack", "base": base_id, "adsb": adsb, "folds": FOLDS,
+                "rounds": ROUNDS, "seed": PARAMS["seed"]}
+    cfg = {"model": "stack_cf", "base": base_id,
+           "base_config": config_da_base(base_id, a.seeds),
+           "adsb": adsb, "rounds": ROUNDS, "seed": PARAMS["seed"]}
+    if a.conjunto:
+        cfg["corretor"] = "conjunto"
+    return cfg
+
+
+def main() -> None:
+    ap = parser()
     a = ap.parse_args()
     if a.seeds > 1 and not a.crossfit:
         ap.error("--seeds só vale com --crossfit (a base do holdout vem pronta em --base)")
+    if a.conjunto and not a.crossfit:
+        ap.error("--conjunto só vale com --crossfit")
     base_id = a.base or json.loads((ROOT / "champion.json").read_text())["id"]
     adsb = not a.sem_adsb
-    if a.crossfit:
-        cfg = {"model": "stack_cf", "base": base_id,
-               "base_config": config_da_base(base_id, a.seeds),
-               "adsb": adsb, "rounds": ROUNDS, "seed": PARAMS["seed"]}
-    else:
-        cfg = {"model": "stack", "base": base_id, "adsb": adsb, "folds": FOLDS,
-               "rounds": ROUNDS, "seed": PARAMS["seed"]}
+    cfg = config_da_corrida(a, base_id)
 
     with Run(a.nome, cfg) as run:
         run.set(nota=a.nota)
         if a.crossfit:
-            hold, base, pred = simulacao_crossfit(run, base_id, cfg["base_config"], adsb)
+            hold, base, pred = simulacao_crossfit(run, base_id, cfg["base_config"], adsb,
+                                                  a.conjunto)
         else:
             hold, base, pred = simulacao_folds(run, base_id, adsb)
         with run.phase("métricas", 0.1):
