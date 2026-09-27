@@ -41,12 +41,13 @@
   },
   {
    "id": "seeds",
-   "nome": "média de 8–10 seeds do LightGBM no modelo final",
+   "nome": "média de 5 seeds do LightGBM na base (plano 6, --seeds)",
    "ganho_s": 4,
    "prob": 0.6,
    "dias": 0.5,
-   "status": "pendente",
-   "evidencia": "PRC 2024 1º lugar: −3,0 % com 10 seeds (docs/research/2026-09-26-praticas-ml.md)"
+   "status": "descartado",
+   "ganho_real_s": 0.3,
+   "evidencia": "v8_cf (v7 + 5 seeds) 320,36 contra v7_cf 320,67: +0,3 s (IC −1,8 a 1,8), 5× o custo"
   },
   {
    "id": "cobertura",

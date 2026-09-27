@@ -362,6 +362,12 @@ gravado na data do SCHED) e 4,5 % normais; 25 desses no ranking 2026.
     nos normais o cross-fitting é melhor (+0,7 s). Envio da v7 pede
     `--aceitar-fragil`, `teto.py` e ok do usuário; `train.py submit 7 --forcar`
     (a `v7_cf` foi medida em `4822e01`; depois só `train.py` mudou).
+  - [x] Plano 6 (`docs/superpowers/plans/2026-09-27-plano6-seeds.md`), média de seeds
+    (`--seeds N`, `models.build_model`/`SeedAvg`): base com 5 seeds `seeds5` 323,29
+    (ganho 0,2 s, IC −1,9 a 1,7; normais com NM +1,3 s), 15 min. `v8_cf` (v7 + 5
+    seeds, 65 min, pico 6,46 GB): **320,36**, contra a v6 ganho 3,1 s (IC 1,3 a 4,9;
+    jul −0,5 a 5,4), contra a v7 só **0,3 s** (IC −1,8 a 1,8; normais +0,9) → as
+    seeds não pagam 5× o custo; a v7 (1 seed) fica como candidata.
   - [ ] Detector melhor (tarefa 5); README "Dados externos" (tarefa 6).
 - [ ] 5. Features de vizinhos (item 6).
 - [ ] 6. Ensemble XGBoost CUDA + seeds LightGBM (item 7) — **baixa prioridade**:

@@ -57,20 +57,20 @@ def build_model(cfg: dict):
     return SeedAvg(cfg) if int(cfg.get("seeds", 1)) > 1 else MODELS[cfg["model"]](cfg)
 ```
 
-- [ ] Teste: com um modelo falso registrado em `MODELS` (monkeypatch) que prevê a própria seed, `build_model({"model": falso, "seed": 3, "seeds": 4})` treina seeds 3,4,5,6 e prevê 4,5 em todas as linhas.
-- [ ] Teste: `build_model` com `seeds` ausente e com `seeds: 1` devolve uma instância da classe de `MODELS` (sem `SeedAvg`).
-- [ ] Teste: `experiment.config` com `--seeds 1` não inclui a chave `seeds`; com `--seeds 5` inclui `seeds: 5`.
-- [ ] Trocar todo `MODELS[...](cfg)` fora de `models.py` por `build_model(cfg)`; `pytest -q` verde.
-- [ ] Commit `models: média de seeds (SeedAvg, --seeds)`; push.
+- [x] Teste: com um modelo falso registrado em `MODELS` (monkeypatch) que prevê a própria seed, `build_model({"model": falso, "seed": 3, "seeds": 4})` treina seeds 3,4,5,6 e prevê 4,5 em todas as linhas.
+- [x] Teste: `build_model` com `seeds` ausente e com `seeds: 1` devolve uma instância da classe de `MODELS` (sem `SeedAvg`).
+- [x] Teste: `experiment.config` com `--seeds 1` não inclui a chave `seeds`; com `--seeds 5` inclui `seeds: 5`.
+- [x] Trocar todo `MODELS[...](cfg)` fora de `models.py` por `build_model(cfg)`; `pytest -q` verde.
+- [x] Commit `models: média de seeds (SeedAvg, --seeds)`; push.
 
 **Acceptance:** testes passam; `grep -n "MODELS\[" src/` só acha `models.py`.
 
 ### Task 2 (controlador): medir e decidir
 
-- [ ] Base: `bin/run src/experiment.py seeds5 --model two_stage_nm --nm-min-ms 21600 --seed 0 --seeds 5` (~25 min) → `compare.py <id>` contra a v6 (323,50). Portão barato: seguir só se `normais_nm` melhorar > 1 s (ruído entre seeds ~0,5 s) ou o completo > 2 s.
-- [ ] Se passar: `bin/run src/stack.py v8_cf --crossfit --base <id seeds5> --seeds 5` (~1 h 20) → `compare.py` contra a v6 e contra `20260927-112207-v7_cf`.
-- [ ] **Parar e mostrar ao usuário** números, IC e custo do envio (6 blocos × 5 seeds + base final ≈ 2–3 h).
-- [ ] Docs: README (Modelo atual, Uso, Roadmap), CONTEXTO "Retomar", `saltos.json` (`seeds` com ganho medido), caixas deste plano; commit + push.
+- [x] Base: `bin/run src/experiment.py seeds5 --model two_stage_nm --nm-min-ms 21600 --seed 0 --seeds 5` (~25 min) → `compare.py <id>` contra a v6 (323,50). Portão barato: seguir só se `normais_nm` melhorar > 1 s (ruído entre seeds ~0,5 s) ou o completo > 2 s.
+- [x] Se passar: `bin/run src/stack.py v8_cf --crossfit --base <id seeds5> --seeds 5` (~1 h 20) → `compare.py` contra a v6 e contra `20260927-112207-v7_cf`.
+- [x] **Parar e mostrar ao usuário** números, IC e custo do envio (6 blocos × 5 seeds + base final ≈ 2–3 h).
+- [x] Docs: README (Modelo atual, Uso, Roadmap), CONTEXTO "Retomar", `saltos.json` (`seeds` com ganho medido), caixas deste plano; commit + push.
 
 ## Ordem
 

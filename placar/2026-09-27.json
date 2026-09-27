@@ -1,5 +1,5 @@
 {
- "updated": "2026-09-27T14:37:59Z",
+ "updated": "2026-09-27T16:06:52Z",
  "totalSubmissions": 3000,
  "teams": [
   {
@@ -52,9 +52,9 @@
   },
   {
    "team": "jovial-uniform",
-   "best": 237.0739,
+   "best": 237.0607,
    "n": 20,
-   "lastAt": "2026-09-27T07:06:02.299106Z"
+   "lastAt": "2026-09-27T15:54:13.600274Z"
   },
   {
    "team": "humble-giraffe",
@@ -154,9 +154,9 @@
   },
   {
    "team": "upbeat-goblin",
-   "best": 261.2616,
-   "n": 36,
-   "lastAt": "2026-09-26T22:45:29.763185Z"
+   "best": 260.9292,
+   "n": 37,
+   "lastAt": "2026-09-27T15:44:06.963821Z"
   },
   {
    "team": "kind-mango",
@@ -207,16 +207,16 @@
    "lastAt": "2026-09-15T21:15:54.689867Z"
   },
   {
+   "team": "upstanding-insect",
+   "best": 270.3037,
+   "n": 25,
+   "lastAt": "2026-09-27T15:53:24.525423Z"
+  },
+  {
    "team": "merry-octopus",
    "best": 270.43,
    "n": 45,
    "lastAt": "2026-09-27T00:04:24.072146Z"
-  },
-  {
-   "team": "upstanding-insect",
-   "best": 270.5625,
-   "n": 23,
-   "lastAt": "2026-09-20T19:43:41.549146Z"
   },
   {
    "team": "vigorous-telephone",
@@ -1001,7 +1001,7 @@
   {
    "team": "enthusiastic-apple",
    "best": 573.7462,
-   "n": 10,
+   "n": 9,
    "lastAt": "2026-09-09T14:28:54.84465Z"
   },
   {
@@ -1109,14 +1109,14 @@
   {
    "team": "creative-cactus",
    "best": 624.9191,
-   "n": 4,
+   "n": 3,
    "lastAt": "2026-09-16T12:03:43.415365Z"
   },
   {
    "team": "sincere-donkey",
    "best": 625.4325,
-   "n": 2,
-   "lastAt": "2026-09-06T08:05:54.618753Z"
+   "n": 1,
+   "lastAt": "2026-09-06T07:40:04.365282Z"
   }
  ]
 }
