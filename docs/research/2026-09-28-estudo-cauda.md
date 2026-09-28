@@ -36,3 +36,25 @@ no holdout (~1/3 do erro²), o 3º (228,6) erra ~metade do que nós na parte pre
 
 O RMSE completo do holdout é dominado por 2 voos; decisões devem olhar `sem_loteria` e
 `normais_nm`, não só o completo (o `compare.py` já imprime as duas como informação).
+
+## Voos normais (y ≤ 1 h, com NM) — mesma data
+
+| Aeroporto | RMSE v12 | Parte do erro² | ADS-B |
+|---|---|---|---|
+| LIRF | 315 | 7,7 % | 44 % |
+| LTFM | 238 | 7,9 % | 0 % |
+| LFPG | 232 | 6,3 % | 7 % |
+| EGLL | 212 | 5,4 % | 14 % |
+| LEBL | 194 | 3,3 % | 87 % |
+| LEMD | 180 | 3,4 % | 2 % |
+| EDDF | 148 | 2,4 % | 73 % |
+| LSZH | 141 | 1,3 % | 73 % |
+| EDDM | 124 | 1,3 % | 62 % |
+| EHAM | 107 | 1,4 % | 98 % |
+
+- `MVT − AOBT_3` sozinho erra 285–523 s; o AOBT_3 está a ±60 s do BLOCK em só 20,6 %
+  (8,6 % no LTFM). Acertar esses 20 % com perfeição daria só 309,78 → 305,15: não é alavanca.
+- Onde o ADS-B vê o avião parado no stand, a v12 já erra 20 s (mediana), melhor que o próprio
+  ADS-B (27 s; RMSE 293 contra 119). Visto andando: v12 RMSE 168, mediana 44 s.
+- O erro dos normais está nos aeroportos sem ADS-B. Em 2026 a cobertura subiu em EGLL
+  (14 → 79 %) e LEMD (2 → 67 %): parte da razão oficial/simulação 0,86 deve vir daí [inferência].
