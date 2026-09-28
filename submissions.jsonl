@@ -8,4 +8,5 @@
 {"versao": 10, "enviado_utc": "2026-09-27T17:05", "oficial": 284.1683, "simulacao": 320.3, "mudanca": "diagnóstico: v6 com as 117 linhas projetadas na janela do LOBT (garantia ≤ 288,01)"}
 {"versao": 11, "enviado_utc": "2026-09-27T18:45", "oficial": 266.8076, "simulacao": 311.09, "mudanca": "v9 + taxi-in das ARR e vizinhos de MVT−AOBT_3 no corretor (plano 8)"}
 {"versao": 12, "enviado_utc": "2026-09-27T20:10", "oficial": 264.7397, "simulacao": 309.78, "mudanca": "v11 com conjunto de corretores (LGB global, LGB por aeroporto, CatBoost; plano 9)"}
-{"versao": 13, "enviado_utc": "2026-09-27T20:10", "oficial": null, "simulacao": null, "mudanca": "v12 + pós-regra de Roma (LIRF sem NM, MVT−SCHED em (15 h, 30 h]); REJEITADO: DAILY_LIMIT_REACHED (5 por dia UTC). Reenviar depois de 00:00 UTC."}
+{"versao": 13, "enviado_utc": "2026-09-28T00:00", "oficial": 264.3467, "simulacao": null, "mudanca": "v12 + pós-regra de Roma (LIRF sem NM, MVT−SCHED em (15 h, 30 h], 4 voos); 1ª tentativa recusada em 27/09 pelo limite diário"}
+{"versao": 14, "enviado_utc": "2026-09-28T00:00", "oficial": 266.2839, "simulacao": 311.88, "mudanca": "v12 sem adsb_lat0/adsb_lon0 (deriva 2025 → 2026; plano 10)"}

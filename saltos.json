@@ -115,8 +115,9 @@
    "ganho_s": 2,
    "prob": 0.3,
    "dias": 0.5,
-   "status": "pronto para envio",
-   "evidencia": "v14 (v12 sem adsb_lat0/lon0): holdout 311,88 contra 309,78 (−2,1 s, esperado: a deriva não aparece em 2025); arquivo submissions/outgoing-boat_v14.parquet pronto, enviar em 28/09 00:00 UTC"
+   "status": "descartado",
+   "evidencia": "v14 266,28 contra v12 264,74: +1,54 s pior; adsb_lat0/lon0 ajudam também em 2026 apesar da deriva",
+   "ganho_real_s": -1.54
   },
   {
    "id": "conjunto_corretor",
@@ -134,8 +135,9 @@
    "ganho_s": 3,
    "prob": 0.5,
    "dias": 0,
-   "status": "pronto para envio",
-   "evidencia": "2025: 55 % \"24 h + táxi\" e 45 % cópia do SCHED (n=11 em 15–20 h; 4 de 4 acima de 20 h são 24 h + táxi); q ajustado fora de jan/jul (n=8); holdout 311,09 → 307,21 (7 linhas). Ranking 2026: 4 voos (3 mudam 15–22 mil s). Valor esperado ≈ −6 s, pior caso +4,8 s se os 3 forem cópia. Aplicar como pós-regra no envio final, junto com a v12. Arquivo v13 pronto (recusado em 27/09 pelo limite diário)."
+   "status": "feito",
+   "evidencia": "v13 264,35 contra v12 264,74: −0,39 s (esperado −6; os 4 voos foram mistos)",
+   "ganho_real_s": 0.39
   }
  ]
 }

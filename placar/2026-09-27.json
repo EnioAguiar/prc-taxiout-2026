@@ -1,5 +1,5 @@
 {
- "updated": "2026-09-27T22:42:26Z",
+ "updated": "2026-09-27T23:51:56Z",
  "totalSubmissions": 3000,
  "teams": [
   {
@@ -130,9 +130,9 @@
   },
   {
    "team": "charming-eel",
-   "best": 255.0315,
-   "n": 8,
-   "lastAt": "2026-09-27T18:57:55.424916Z"
+   "best": 252.6172,
+   "n": 9,
+   "lastAt": "2026-09-27T22:54:24.95695Z"
   },
   {
    "team": "gracious-tornado",
@@ -358,9 +358,9 @@
   },
   {
    "team": "dynamic-hamburger",
-   "best": 283.0897,
-   "n": 25,
-   "lastAt": "2026-09-25T06:54:20.502436Z"
+   "best": 283.0517,
+   "n": 27,
+   "lastAt": "2026-09-27T23:23:56.544545Z"
   },
   {
    "team": "victorious-quartz",
@@ -899,8 +899,8 @@
   {
    "team": "delightful-telephone",
    "best": 494.1053,
-   "n": 2,
-   "lastAt": "2026-09-16T11:43:47.435251Z"
+   "n": 1,
+   "lastAt": "2026-09-15T08:52:04.109255Z"
   },
   {
    "team": "thoughtful-glove",
@@ -1049,7 +1049,7 @@
   {
    "team": "delightful-zoo",
    "best": 597.5365,
-   "n": 3,
+   "n": 2,
    "lastAt": "2026-09-07T04:15:12.1394Z"
   },
   {
@@ -1093,12 +1093,6 @@
    "best": 618.2682,
    "n": 1,
    "lastAt": "2026-09-06T07:25:47.082897Z"
-  },
-  {
-   "team": "gracious-kangaroo",
-   "best": 619.2649,
-   "n": 1,
-   "lastAt": "2026-09-14T01:39:26.48019Z"
   }
  ]
 }

@@ -74,7 +74,7 @@ deixa a validação otimista e o modelo cego para eles (erro da v1).
 
 ## Modelo atual (`src/`)
 
-Campeão em `champion.json`: v12 (id `20260927-160433-v12_cf`, 309,78 na simulação, **264,74 oficial**, a melhor nota) = v11 com `--conjunto` (média de 3 corretores). A v11 (id `20260927-145005-v11_cf`, 311,09 na simulação, 266,81 oficial) = v9 + colunas `ctx_*` no corretor (`src/contexto.py`: taxi-in das chegadas e vizinhos de `MVT − AOBT_3`, plano 8). A v9 era `stack_cf` com janela do LOBT (id
+Melhor nota oficial: **v13 = 264,35** (v12 + pós-regra de Roma aplicada ao arquivo, fora do `train.py`). Campeão em `champion.json`: v12 (id `20260927-160433-v12_cf`, 309,78 na simulação, 264,74 oficial) = v11 com `--conjunto` (média de 3 corretores). A v11 (id `20260927-145005-v11_cf`, 311,09 na simulação, 266,81 oficial) = v9 + colunas `ctx_*` no corretor (`src/contexto.py`: taxi-in das chegadas e vizinhos de `MVT − AOBT_3`, plano 8). A v9 era `stack_cf` com janela do LOBT (id
 `20260927-133718-v9_cf`, 317,23 na simulação, 275,90 oficial). A base é
 `two_stage_nm` (`--nm-min-ms 21600 --janela-lobt`, features `adsb_*`) com corretor
 treinado fora do bloco por meses (`src/crossfit.py`, `stack.py --crossfit`); toda previsão é
@@ -175,6 +175,8 @@ fora do cache de features. `train.py submit N` precisa do `events.parquet` no SS
 | v9 | 27/09 | v7 (corretor com cross-fitting por mês) + janela do LOBT (projeção em `MVT − LOBT ± 3606`, `p` zerado fora dela) | 317,23 / 254,24 | **275,90** (−38,9 s sobre a v6; relação 0,870) |
 | v11 | 27/09 | v9 + taxi-in das ARR e vizinhos de `MVT − AOBT_3` no corretor (plano 8) | 311,09 / 245,81 | **266,81** (−9,1 s sobre a v9; relação 0,858) |
 | v12 | 27/09 | v11 com a média de 3 corretores (`--conjunto`, plano 9) | 309,78 / 243,96 | **264,74** (−2,1 s sobre a v11) |
+| v13 | 28/09 | v12 + pós-regra de Roma (4 voos) | — | **264,35** (−0,39 s sobre a v12) |
+| v14 | 28/09 | v12 sem `adsb_lat0`/`adsb_lon0` (plano 10) | 311,88 / — | 266,28 (+1,54 s: a deriva não atrapalha) |
 | v10 | 27/09 | diagnóstico: v6 + só as 117 linhas projetadas na janela (garantia ≤ 288,01) | 320,30 / — | 284,17 (a regra vale em 2026) |
 
 A simulação da v3 e da v4 vem do holdout novo (`experiment.py`), mais rigoroso que o
@@ -224,8 +226,7 @@ Feito:
   sobre `nm_retas` (IC 95% 1,5 a 7,7) → não comprovado (abaixo de 10 s);
   re-testado com seed no plano 3a: FRÁGIL.
 
-Próximo (28/09, depois de 00:00 UTC): enviar v13 (v12 + regra de Roma) e v14 (v12 sem
-`adsb_lat0/lon0`), os dois arquivos prontos; conforme as notas, v15 = v14 + regra. A v12 (`--conjunto`) fica guardada para o envio final. Evidência em
+Próximo (28/09): buscar o próximo salto grande (regras exatas do dado, ideias dos times à frente). A v12 (`--conjunto`) fica guardada para o envio final. Evidência em
 `docs/research/2026-09-27-concorrentes.md`. Plano 3b segue pausado (itens 5 a 8).
 
 Antes de 11/10 (abrir entre 08 e 10/10, decisão de 27/09): repositório público
@@ -426,15 +427,15 @@ gravado na data do SCHED) e 4,5 % normais; 25 desses no ranking 2026.
   - [x] Média mensal oficial (ansperformance, 27/09): descartada. A média exclui voos sem
     referência (degelo) e a fração válida caiu em jan/2026 (EDDM 0,77 → 0,67); corrigir o viés
     por ela piora o holdout (311,09 → 311,56). A v11 já não tem viés por aeroporto × mês.
-  - [ ] Pós-regra de Roma sem NM com `MVT − SCHED` em (15 h, 30 h] ("24 h + táxi" × cópia,
+  - [x] Pós-regra de Roma sem NM com `MVT − SCHED` em (15 h, 30 h] ("24 h + táxi" × cópia,
     q = 0,62 ajustado fora de jan/jul): holdout 311,09 → 307,21; no ranking são 4 voos.
     Arquivo pronto: `submissions/outgoing-boat_v13.parquet` (v12 + regra). Rejeitado em 27/09 pelo
-    limite diário (5 envios por dia UTC, a v6 da madrugada contou); reenviar depois de 00:00 UTC.
-  - [ ] Plano 10 (`docs/superpowers/plans/2026-09-27-plano10-sem-latlon.md`), v14 = v12 sem
+    limite diário (5 envios por dia UTC, a v6 da madrugada contou); reenviado em 28/09 00:00 UTC: **264,35** (−0,39 s sobre a v12; esperado −6 s).
+  - [x] Plano 10 (`docs/superpowers/plans/2026-09-27-plano10-sem-latlon.md`), v14 = v12 sem
     `adsb_lat0`/`adsb_lon0` (deriva 2025 → 2026, dica do GREKI): `20260927-182244-v14_cf` 311,88,
     −2,1 s no holdout (IC −3,5 a −1,0), o que o holdout não consegue medir. Arquivo pronto
-    (`submissions/outgoing-boat_v14.parquet`). Enviar v13 e v14 depois de 00:00 UTC de 28/09:
-    cada uma contra a v12 (264,74) mede uma mudança; se as duas ganharem, v15 = v14 + regra de Roma.
+    (`submissions/outgoing-boat_v14.parquet`). Oficial (28/09): v14 = 266,28, **1,54 s pior** que a v12 → descartada; v13 (regra de Roma) =
+    264,35, −0,39 s. v15 não se justifica.
   - [x] README "Dados externos" e "Reprodução" (tarefa 6, 27/09); `PRC_ADSB_RAIZ` configurável.
 - [ ] 5. Features de vizinhos (item 6).
 - [ ] 6. Ensemble XGBoost CUDA + seeds LightGBM (item 7), baixa prioridade:
@@ -585,7 +586,7 @@ prc-taxiout-2026/
 ## Leaderboard
 
 <https://prc-challenge-2026.vercel.app/>. Em 27/09/2026: 186 equipes, 1º 224,50, 3º
-228,59, 10º 242,81, 50º 278,39. Nós: **264,74 s** (v12, 27/09; antes 266,81, 275,90, 314,76, 331,0,
+228,59, 10º 242,81, 50º 278,39. Nós: **264,35 s** (v13, 28/09; antes 264,74, 266,81, 275,90, 314,76, 331,0,
 338,7 e 384,7). Fotos diárias em `placar/`.
 
 ## Referências
