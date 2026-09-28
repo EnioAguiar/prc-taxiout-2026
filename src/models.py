@@ -20,6 +20,7 @@ import pandas as pd
 
 import features as F
 from cache import TRUTH
+from plano13 import colunas_p13, vocabulario
 
 PARAMS = dict(
     objective="regression",  # L2 no alvo bruto, alinhado ao RMSE
@@ -44,11 +45,13 @@ def params_for(cfg: dict) -> dict:
 
 
 def prepare(train: pd.DataFrame, others: list[pd.DataFrame],
-            sem: Iterable[str] = (), ctx: bool = False) -> list[str]:
+            sem: Iterable[str] = (), ctx: bool = False, p13: bool = False) -> list[str]:
     """Referência P10 (só do treino) e o mesmo vocabulário de categorias em todos.
 
     `sem` tira nomes da lista de colunas (nome que não é candidato é erro). `ctx` (config
     `base_ctx`) soma as colunas `ctx_*` de `src/contexto.py`, que antes só o corretor via.
+    `p13` (config `base_p13`) grava em todos os frames as colunas de `src/plano13.py`
+    (METAR, rotação no stand, consistência NM e `cia` com o vocabulário do treino).
     """
     ref = F.fit_reference(train)
     for df in (train, *others):
@@ -58,6 +61,13 @@ def prepare(train: pd.DataFrame, others: list[pd.DataFrame],
     cols = F.feature_columns(train) + [c for c in train.columns if c.startswith("adsb_")]
     if ctx:
         cols += [c for c in train.columns if c.startswith("ctx_")]
+    if p13:
+        cias = vocabulario(train)
+        for df in (train, *others):
+            extra = colunas_p13(df, cias)
+            for c in extra.columns:
+                df[c] = extra[c].array
+        cols += list(extra.columns)
     return sem_colunas(cols, sem)
 
 

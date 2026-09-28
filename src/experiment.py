@@ -111,6 +111,8 @@ def config(a: argparse.Namespace) -> dict:
         cfg["sem_features"] = list(a.sem_feature)
     if a.base_ctx:  # idem
         cfg["base_ctx"] = True
+    if a.base_p13:  # idem
+        cfg["base_p13"] = True
     return cfg
 
 
@@ -138,6 +140,8 @@ def main() -> None:
                     help="tira do treino do regressor as linhas de LIRF sem NM")
     ap.add_argument("--base-ctx", action="store_true",
                     help="a base também usa as colunas ctx_* (contexto de chegadas, stand, vizinhos)")
+    ap.add_argument("--base-p13", action="store_true",
+                    help="a base também usa as colunas do plano 13 (METAR, rotação, consistência NM, cia)")
     ap.add_argument("--nota", default="")
     a = ap.parse_args()
     if a.model != "two_stage_nm" and (a.nm_split_ms or a.nm_min_ms):
@@ -151,7 +155,8 @@ def main() -> None:
         with run.phase("dados", 0.15):
             train, hold = load_split("train2025"), load_split("holdout2025")
             rk = load_split("ranking2026")
-            cols = prepare(train, [hold], cfg.get("sem_features", ()), cfg.get("base_ctx", False))
+            cols = prepare(train, [hold], cfg.get("sem_features", ()),
+                   cfg.get("base_ctx", False), cfg.get("base_p13", False))
             drop = leaky_columns(train, rk, cols)
             cols = [c for c in cols if c not in drop]
             del rk
