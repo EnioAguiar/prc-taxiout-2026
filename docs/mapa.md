@@ -2,6 +2,28 @@
 
 Resumo para se localizar. Detalhes: `README.md` (modelo, roadmap, envios) e `CONTEXTO.md` (linha do tempo).
 
+## Objetivo: top 3 (decisão do usuário, 28/09)
+
+Entramos para ganhar. O top 3 não vem de melhorar os voos normais: pela conta da v11,
+a cauda (voos de horas, off-block gravado como horário programado ou padrão, aeroportos sem
+ADS-B) é ~60 % do erro², e mesmo zerando o erro dos normais não chegaríamos a 228. O topo
+erra menos na cauda.
+
+Princípios:
+
+1. **Se um competidor achou, a gente acha.** Buscar ativamente dados abertos que expliquem a
+   cauda e cubram os aeroportos sem ADS-B (LTFM, LFPG, EGLL), e regras exatas no próprio dado
+   (como a janela do LOBT). Ideias de repositórios públicos valem; código deles, não (regra de
+   originalidade).
+2. **Busca automática em massa onde ela ajuda:** centenas de combinações do corretor barato
+   (~1 min cada) rodando à noite, com a simulação decidindo. Tuning sozinho não ganhou para
+   ninguém (Discord); a busca serve para combinar features e fontes novas.
+3. **Decidir pela simulação**, enviar só o que melhora, e guardar os 5 envios diários para
+   confirmar.
+
+Frentes abertas: fontes de dados (OPDI, OpenSky, regulações ATFM, meteorologia, layout de
+aeroporto); estudo da cauda; plano 11 (regressor limpo).
+
 ## Onde estamos
 
 | Item | Situação |
