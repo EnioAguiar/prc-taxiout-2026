@@ -112,7 +112,7 @@ def base_final(cfg: dict, full: pd.DataFrame, rk: pd.DataFrame, run: Run) -> np.
 def corretor_final(cfg_bloco: dict, adsb: bool, full: pd.DataFrame, rk: pd.DataFrame,
                    caminho_oof, run: Run, conjunto: bool = False, sem: Iterable[str] = (),
                    copia: CopiaCia | None = None, cias: list[str] | None = None,
-                   fila: bool = False):
+                   fila: bool = False, dist_plano: bool = False, sem_ctx: bool = False):
     """Corretor treinado nas cegas com a previsão de uma base que não viu o mês delas.
 
     Com `copia` (config `externos`), as cegas ganham as colunas `ext_*`: a taxa de cópia
@@ -129,7 +129,8 @@ def corretor_final(cfg_bloco: dict, adsb: bool, full: pd.DataFrame, rk: pd.DataF
     del blind
     ext = colunas_ext(cegas, copia, MESES_2025) if copia else None
     p13 = colunas_p13(cegas, cias, com_fila=fila) if cias is not None else None
-    X = corrector_frame(cegas, pred_oof, adsb, bool(cfg_bloco.get("janela_lobt")), sem, ext, p13)
+    X = corrector_frame(cegas, pred_oof, adsb, bool(cfg_bloco.get("janela_lobt")), sem, ext, p13,
+                        dist_plano, sem_ctx)
     del cegas
     if adsb:
         run.log(f"adsb no treino do corretor: {X['adsb_taxi'].notna().mean():.1%}")
@@ -139,12 +140,13 @@ def corretor_final(cfg_bloco: dict, adsb: bool, full: pd.DataFrame, rk: pd.DataF
 def corrigir_ranking(corretor, cfg_bloco: dict, adsb: bool, rk: pd.DataFrame,
                      pred: np.ndarray, sem: Iterable[str] = (),
                      copia: CopiaCia | None = None,
-                     cias: list[str] | None = None, fila: bool = False) -> np.ndarray:
+                     cias: list[str] | None = None, fila: bool = False,
+                     dist_plano: bool = False, sem_ctx: bool = False) -> np.ndarray:
     """Previsão final do ranking: na janela do LOBT quando os blocos da base usam."""
     ext = colunas_ext(rk, copia, MESES_2025) if copia else None
     p13 = colunas_p13(rk, cias, com_fila=fila) if cias is not None else None
     return previsao_corrigida(corretor, rk, pred, adsb, bool(cfg_bloco.get("janela_lobt")),
-                              sem, ext, p13)
+                              sem, ext, p13, dist_plano, sem_ctx)
 
 
 def corrida_registrada(corrida_id: str) -> dict:
@@ -182,6 +184,8 @@ def submit(version: int, forcar: bool = False, corrida: str | None = None) -> No
                     champ["config"].get("corretor") == "conjunto",
                     champ["config"].get("sem_features", ()), copia, cias,
                     bool(champ["config"].get("fila")),
+                    bool(champ["config"].get("dist_plano")),
+                    bool(champ["config"].get("corretor_sem_ctx")),
                 )
             with run.phase("base final", 0.30):
                 pred = base_final(cfg["base_config"], full, rk, run)
@@ -189,6 +193,8 @@ def submit(version: int, forcar: bool = False, corrida: str | None = None) -> No
                     corretor, champ["config"]["base_config"], champ["config"]["adsb"], rk, pred,
                     champ["config"].get("sem_features", ()), copia, cias,
                     bool(champ["config"].get("fila")),
+                    bool(champ["config"].get("dist_plano")),
+                    bool(champ["config"].get("corretor_sem_ctx")),
                 )
         else:
             with run.phase("treino", 0.85):
