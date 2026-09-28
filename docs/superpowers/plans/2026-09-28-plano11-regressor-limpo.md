@@ -19,14 +19,16 @@
 
 **Files:** `src/models.py`, `src/experiment.py`, `README.md` (linha de `experiment.py` em "Uso"); testes em `tests/test_models.py`, `tests/test_experiment.py`.
 
-- [ ] Teste: com `reg_corte=7200`, o regressor recebe alvo ≤ 7200 (capturar o `lgb.Dataset` via monkeypatch de `lgb.train` ou um stub) e o classificador recebe as mesmas linhas de hoje.
-- [ ] Teste: com `reg_sem_lirf_nm=True`, nenhuma linha LIRF sem NM entra no regressor; linhas LIRF com NM e sem NM de outros aeroportos continuam.
-- [ ] Teste: `experiment.config` inclui `reg_corte`/`reg_sem_lirf_nm` só quando ligados.
-- [ ] `pytest -q` verde; commit `models: regressor com alvo cortado e sem LIRF sem NM (opcional)`; push.
+- [x] Teste: com `reg_corte=7200`, o regressor recebe alvo ≤ 7200 (capturar o `lgb.Dataset` via monkeypatch de `lgb.train` ou um stub) e o classificador recebe as mesmas linhas de hoje.
+- [x] Teste: com `reg_sem_lirf_nm=True`, nenhuma linha LIRF sem NM entra no regressor; linhas LIRF com NM e sem NM de outros aeroportos continuam.
+- [x] Teste: `experiment.config` inclui `reg_corte`/`reg_sem_lirf_nm` só quando ligados.
+- [x] `pytest -q` verde; commit `models: regressor com alvo cortado e sem LIRF sem NM (opcional)`; push.
 
 ### Task 2 (controlador): medir e decidir
 
-- [ ] Três bases (≈4 min cada, uma por vez): `--reg-corte 7200`, `--reg-sem-lirf-nm`, as duas; todas com `--model two_stage_nm --nm-min-ms 21600 --seed 0 --janela-lobt`. Comparar com `20260927-133137-janela` (320,29) no `compare.py`; ler também jan e jul separados.
-- [ ] A melhor, se ganhar: `stack.py v15_cf --crossfit --conjunto --base <id>` → `compare.py` contra a v12 (309,78).
-- [ ] Se ganhar: `train.py submit 15`, 0 fora da janela, regra de Roma por cima (como a v13), **parar e mostrar ao usuário**.
-- [ ] Docs: README, CONTEXTO, `saltos.json`, caixas; commit + push.
+- [x] Três bases (≈4 min cada, uma por vez): `--reg-corte 7200`, `--reg-sem-lirf-nm`, as duas; todas com `--model two_stage_nm --nm-min-ms 21600 --seed 0 --janela-lobt`. Comparar com `20260927-133137-janela` (320,29) no `compare.py`; ler também jan e jul separados.
+- [x] A melhor, se ganhar: `stack.py v15_cf --crossfit --conjunto --base <id>` → `compare.py` contra a v12 (309,78).
+- [x] Se ganhar: `train.py submit 15`, 0 fora da janela, regra de Roma por cima (como a v13), **parar e mostrar ao usuário**.
+- [x] Docs: README, CONTEXTO, `saltos.json`, caixas; commit + push.
+
+**Resultado (28/09):** bases `reg_corte` 317,25, `reg_sem_lirf` 318,29, `reg_ambos` 318,00 (contra 320,29). `v15_cf` (v12 com `--reg-corte 7200`) = 309,15 contra 309,78 da v12: +0,6 s (IC −1,6 a 3,1; sem os 10 maiores −2,0) → não compensa gerar e enviar. O corretor já corrigia o que o corte melhora na base.

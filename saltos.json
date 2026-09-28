@@ -155,8 +155,18 @@
    "ganho_s": 3,
    "prob": 0.6,
    "dias": 0,
-   "status": "medindo",
-   "evidencia": "base 320,29 → 317,25 (−3,0 s, IC 0,3 a 6,1), alarmes falsos 211 → 173; v15_cf em andamento"
+   "status": "descartado",
+   "evidencia": "base −3,0 s, mas v15_cf (v12 + corte) 309,15 contra 309,78: +0,6 s (IC −1,6 a 3,1), sem os 10 maiores −2,0: o corretor já absorvia o ganho",
+   "ganho_real_s": 0.6
+  },
+  {
+   "id": "series_diarias",
+   "nome": "séries diárias EUROCONTROL (slot adherence, atraso pré-partida total e ATC) no corretor",
+   "ganho_s": 0.8,
+   "prob": 0,
+   "dias": 0,
+   "status": "guardado",
+   "evidencia": "28/09: corretor barato 309,27 → 308,48 (−0,8 s); LTFM 259,2 → 256,9; abaixo do portão; candidato a somar com outras features pequenas"
   }
  ]
 }
