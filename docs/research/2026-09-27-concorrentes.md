@@ -65,3 +65,18 @@ EDDM 62 % → 96 %, EDDF 73 % → 56 %, LIRF 45 % → 24 %. O ano de 2025 inteir
 novo (LEMD ~95 % em mar–jun e set–dez; EGLL até 39 % em dez), então o treino o vê; o holdout
 jan/jul 2025 é que subestima o ADS-B. Maior deriva de distribuição: `adsb_lon0` (KS 0,26) e
 `adsb_lat0` (0,13) — candidatas a sair (só mensurável no placar).
+
+## Releitura de 28/09 (ideias ainda não testadas)
+
+Nenhuma equipe do top 11 tem código público. Espelho do placar: <https://prc-leaderboard.fly.dev/data.json>.
+kind-mango (265,27, logo atrás de nós): `skylinkapi/prc-data-challenge-2026-kind-mango`.
+
+| Ideia | Onde | Ganho que reportam |
+|---|---|---|
+| Regressor-base sem as linhas que ele não serve (LIRF inteiro, y > 80.000) / resíduo cortado em ±7200 só no treino | kind-mango README:124 (v51); zestful `arrival_boost_contest.py:62,73` | −5,99 oficial; −7,11 oficial (misturado com CatBoost fundo) |
+| Rotação no stand: tipo e prefixo da companhia da última ARR iguais ao da DEP | zestful `arrival_features.py:29-30,64-68` | parte do bloco ARR (−2,62 oficial) |
+| Consistência NM: duração planejada EOBT_1→ARVT_1 × real AOBT_3→ARVT_3, campos mvt × flt iguais | zestful `duration_contest.py:36-55`; kind-mango v65 `plan_nm_taxi` | −1,42; −1,22 oficiais |
+| Prefixo da companhia (regex em `FLIGHT_mvt`) e serviço recorrente como categorias | zestful `traffic_features.py:124-125`, `arrival_contest.py:32-34` | −3,9 local (misturado) |
+| Especialista de resíduo sobre `MVT − LOBT`, α por aeroporto encolhido | alligator `scripts/autoresearch_known_lobt.py`, `_regional.py` | −1,97 e −0,52 oficiais |
+| Teto por aeroporto fora do LIRF (5 linhas) | kind-mango README:121 (v48) | −2,33 oficial |
+| Isotônica fora da amostra no classificador | kind-mango v64 | −1,14 oficial |
