@@ -1,8 +1,8 @@
 {
-  "id": "20260927-160433-v12_cf",
+  "id": "20260927-223230-v16_cf",
   "config": {
     "model": "stack_cf",
-    "base": "20260927-133137-janela",
+    "base": "20260927-211418-reg_corte",
     "base_config": {
       "model": "two_stage_nm",
       "cls_rounds": 400,
@@ -10,15 +10,17 @@
       "seed": 0,
       "nm_split_ms": false,
       "nm_min_ms": 21600.0,
-      "janela_lobt": true
+      "janela_lobt": true,
+      "reg_corte": 7200.0
     },
     "adsb": true,
     "rounds": 300,
     "seed": 0,
-    "corretor": "conjunto"
+    "corretor": "conjunto",
+    "externos": true
   },
   "best_iter": null,
-  "rmse_simulacao": 309.78,
-  "src_hash": "7abd003ebbdb",
-  "git_commit": "40c25e3"
+  "rmse_simulacao": 306.65,
+  "src_hash": "75d999f7da69",
+  "git_commit": "020e97f"
 }
