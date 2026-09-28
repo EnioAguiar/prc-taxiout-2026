@@ -1,8 +1,8 @@
 {
-  "id": "20260928-113219-v18_cf",
+  "id": "20260928-131704-v20_cf",
   "config": {
     "model": "stack_cf",
-    "base": "20260927-211418-reg_corte",
+    "base": "20260928-131214-base_ctx",
     "base_config": {
       "model": "two_stage_nm",
       "cls_rounds": 400,
@@ -11,7 +11,8 @@
       "nm_split_ms": false,
       "nm_min_ms": 21600.0,
       "janela_lobt": true,
-      "reg_corte": 7200.0
+      "reg_corte": 7200.0,
+      "base_ctx": true
     },
     "adsb": true,
     "rounds": 300,
@@ -21,7 +22,7 @@
     "plano13": true
   },
   "best_iter": null,
-  "rmse_simulacao": 303.82,
-  "src_hash": "d73789d7f759",
-  "git_commit": "b798fa1"
+  "rmse_simulacao": 301.73,
+  "src_hash": "50d6b1a33cca",
+  "git_commit": "4ec07af"
 }

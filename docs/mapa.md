@@ -1,4 +1,4 @@
-# Mapa do projeto (atualizado em 28/09, 02h30 UTC)
+# Mapa do projeto (atualizado em 28/09, 19h UTC)
 
 Resumo para se localizar. Detalhes: `README.md` (modelo, roadmap, envios) e `CONTEXTO.md` (linha do tempo).
 
@@ -31,10 +31,10 @@ aeroporto); estudo da cauda; plano 11 (regressor limpo).
 
 | Item | Situação |
 |---|---|
-| Nota oficial | **253,95 s** (v19) |
-| Posição | ~26º de 176 |
-| 3º colocado | 226,90 (faltam 30 s) |
-| 10º colocado | 237,06 (faltam 20 s) |
+| Nota oficial | **252,34 s** (v21) |
+| Posição | ~26º de 166 |
+| 3º colocado | 224,50 (faltam 28 s) |
+| 10º colocado | 237,05 (faltam 15 s) |
 | Prazo | 11/10, 23:59 (horário da Europa) |
 | Envios | 5 por dia UTC (zera às 21h de Brasília) |
 | Repositório | privado; abrir entre 08 e 10/10 (condição do prêmio) |
@@ -53,6 +53,7 @@ flowchart LR
     H --> I["v13 264,35<br/>regra de Roma"]
     I --> J2["v17 256,86<br/>regressor limpo +<br/>companhia, séries diárias, OPDI"]
     J2 --> K["v19 253,95<br/>METAR, rotação no stand,<br/>consistência NM, companhia"]
+    K --> L["v21 252,34<br/>base com contexto (ctx_*)"]
 ```
 
 ## Como o modelo funciona
@@ -85,25 +86,28 @@ tirar lat/lon do ADS-B, alvo residual, calibração de p, mistura multiclasse.
 
 ## Para onde vamos (a partir de 29/09)
 
+Feito em 28/09: plano 13 no corretor (v19 253,95) e base com `ctx_*` (v21 252,34). Testado e
+descartado contra a v20: base com plano 13 (v22), bloco `--fila` no corretor (v23), base com mais
+rodadas (v24), mexer no hedge de Roma (diagnóstico), simular a cobertura ADS-B de 2026.
+
 ```mermaid
 flowchart TD
-    A["Plano 13: mais sinais no corretor<br/>METAR (tempo), prefixo da companhia<br/>nos voos com NM, rotação no stand<br/>(tipo/companhia da última chegada),<br/>consistência NM (ARVT_1/ARVT_3)"] --> T{"ganhou na simulação?<br/>(sem_loteria e normais)"}
-    T -->|sim| E["v18: submit + regra de Roma,<br/>conferir, mostrar, enviar"]
-    T -->|não| B
-    E --> B["Validação jan→jul e jul→jan<br/>(dica do GREKI)"]
-    B --> C["Plano 14: especialista no resíduo<br/>do LOBT, teto por aeroporto,<br/>calibração fora da amostra"]
-    C --> FIM["08–10/10: README em inglês,<br/>repositório público GPLv3"]
+    A["Laço noturno de busca<br/>(docs/research/2026-09-28-analise-de-erros-aplicacao.md):<br/>candidatos em dados, corretor barato,<br/>portão por fatia, guarda jan↔jul"] --> B["Validação jan→jul e jul→jan<br/>(dica do GREKI)"]
+    B --> C["Base mais forte: o que ainda falta<br/>na base (externos, 2º modelo na base,<br/>árvore de erro sobre o resíduo)"]
+    C --> D["Plano 14: especialista no resíduo<br/>do LOBT, calibração fora da amostra"]
+    D --> FIM["08–10/10: README em inglês,<br/>repositório público GPLv3"]
 ```
 
 | Etapa | Ganho esperado (oficial) | Quando |
 |---|---|---|
-| Plano 13 (sinais no corretor) | −3 a −6 s | 29–30/09 |
+| Laço noturno + árvore de erro | acha candidatos; −1 a −3 s | 29–30/09 |
 | Validação jan↔jul | melhora as decisões | 30/09 |
-| Plano 14 | −2 a −4 s | até 03/10 |
-| Meta | ~245 (top 10–15); top 3 pede ~227 | até 11/10 |
+| Base mais forte / plano 14 | −2 a −5 s | até 03/10 |
+| Meta | ~245 (top 10–15); top 3 pede ~224 | até 11/10 |
 
-Lição de 28/09: juntar vários sinais pequenos no corretor rende mais no oficial que na
-simulação (v17: −3,1 s simulado, −7,5 s oficial).
+Lições de 28/09: juntar vários sinais pequenos no corretor rende mais no oficial que na
+simulação (v17: −3,1 s simulado, −7,5 s oficial); a simulação acertou a v19 (−2,8 → −2,91) e
+a v21 (−2,1 → −1,61). Sinais que o corretor já vê não rendem de novo na base.
 
 ## Regras
 

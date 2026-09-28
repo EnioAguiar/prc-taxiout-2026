@@ -12,3 +12,4 @@
 {"versao": 14, "enviado_utc": "2026-09-28T00:00", "oficial": 266.2839, "simulacao": 311.88, "mudanca": "v12 sem adsb_lat0/adsb_lon0 (deriva 2025 → 2026; plano 10)"}
 {"versao": 17, "enviado_utc": "2026-09-28T02:29", "oficial": 256.8579, "simulacao": 306.65, "mudanca": "v16 (regressor com alvo cortado em 2 h + companhia, séries diárias EUROCONTROL e OPDI no corretor; plano 12) + regra de Roma"}
 {"versao": 19, "enviado_utc": "2026-09-28T15:33", "oficial": 253.9499, "simulacao": 303.82, "mudanca": "v18 (plano 13: METAR, rotação no stand, consistência NM, companhia no corretor) + regra de Roma"}
+{"versao": 21, "enviado_utc": "2026-09-28T19:17", "oficial": 252.3376, "simulacao": 301.73, "mudanca": "v20 (base com ctx_*: --base-ctx) + regra de Roma"}
