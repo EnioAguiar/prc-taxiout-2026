@@ -247,6 +247,55 @@ def test_com_externos_o_corretor_ganha_so_as_colunas_ext():
     np.testing.assert_allclose(X["ext_solo_s"].to_numpy(float), [60.0, np.nan, 90.0])
 
 
+def _plano13() -> pd.DataFrame:
+    """Quadro do plano 13 de três voos, com a companhia categórica de vocabulário fixo."""
+    return pd.DataFrame({
+        "met_temp": [1.0, np.nan, 12.0],
+        "rot_idade": [3600.0, np.nan, 7200.0],
+        "cia": pd.Categorical(["AZA", "outro", "DLH"], categories=["AZA", "DLH", "outro"]),
+    }, index=[7, 8, 9])  # índice diferente do quadro: as colunas entram por posição
+
+
+def test_com_plano13_o_corretor_ganha_as_colunas_novas_e_a_cia_categorica():
+    df = _voos()
+    pred = np.array([800.0, 900.0, 1000.0])
+    hoje = corrector_frame(df, pred)
+
+    X = corrector_frame(df, pred, plano13=_plano13())
+
+    assert list(X.columns) == [*hoje.columns, "met_temp", "rot_idade", "cia"]
+    pd.testing.assert_frame_equal(X[hoje.columns], hoje)
+    np.testing.assert_allclose(X["rot_idade"].to_numpy(float), [3600.0, np.nan, 7200.0])
+    assert list(X["cia"].cat.categories) == ["AZA", "DLH", "outro"]
+
+
+def test_o_catboost_recebe_todas_as_categoricas_em_texto():
+    X = corrector_frame(_voos(), np.array([800.0, 900.0, 1000.0]), plano13=_plano13())
+
+    Xc = stack.catboost_frame(X)
+
+    assert stack.colunas_cat(X) == [F.AIRPORT, "cia"]
+    assert Xc[F.AIRPORT].tolist() == ["LIRF", "EDDF", "LIRF"]
+    assert Xc["cia"].tolist() == ["AZA", "outro", "DLH"]
+    assert not stack.colunas_cat(Xc)
+
+
+def test_a_config_do_crossfit_so_tem_plano13_com_a_flag(tmp_path, monkeypatch):
+    registro = tmp_path / "experiments.jsonl"
+    registro.write_text(json.dumps(
+        {"id": "20260101-a", "config": {"model": "two_stage_nm", "seed": 0}}
+    ) + "\n", encoding="utf-8")
+    monkeypatch.setattr(stack, "REGISTRY", registro)
+
+    com = stack.config_da_corrida(
+        stack.parser().parse_args(["v18", "--crossfit", "--externos", "--plano13"]), "20260101-a")
+    sem = stack.config_da_corrida(
+        stack.parser().parse_args(["v18", "--crossfit", "--externos"]), "20260101-a")
+
+    assert com["plano13"] is True and com["externos"] is True
+    assert "plano13" not in sem
+
+
 def test_a_config_do_crossfit_so_tem_externos_com_a_flag(tmp_path, monkeypatch):
     registro = tmp_path / "experiments.jsonl"
     registro.write_text(json.dumps(

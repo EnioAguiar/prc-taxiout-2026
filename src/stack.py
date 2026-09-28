@@ -19,7 +19,7 @@ na janela antes do piso 0; sem `janela_lobt` na base, tudo segue como antes.
 
 Uso:
     bin/run src/stack.py <nome> [--base <id>] [--crossfit [--seeds N] [--conjunto]] [--sem-adsb]
-                                [--sem-feature COLUNA] [--externos]
+                                [--sem-feature COLUNA] [--externos] [--plano13]
 
 `--sem-feature COLUNA` (pode repetir, só com `--crossfit`) tira a coluna da base e do
 corretor e grava `sem_features` na config da corrida e na `base_config`; sem a flag, nada
@@ -38,6 +38,11 @@ que já deve ser a corrida de N seeds.
 `src/externos.py` (taxa de cópia do SCHED por companhia, séries diárias da EUROCONTROL e
 tempo em solo do OPDI) e grava `externos: true` na config. A taxa de cópia é aprendida só
 nos meses do oof (os 10 do treino) e nunca no mês da própria linha.
+
+`--plano13` (só com `--crossfit`) soma ao corretor os quatro sinais de `src/plano13.py`
+(METAR do aeroporto, rotação no stand, consistência do plano NM e a companhia como
+categoria) e grava `plano13: true` na config. O vocabulário de companhias é fixado nas
+linhas de treino e vale igual para as cegas, o holdout e o ranking.
 """
 from __future__ import annotations
 
@@ -57,6 +62,7 @@ from crossfit import oof_base
 from externos import colunas_ext, copia_cia_2025
 from experiment import RUNS, metrics, rmse
 from models import janela_lobt, limitar_janela
+from plano13 import colunas_p13, vocabulario
 from runlog import REGISTRY, ROOT, Run
 
 FOLDS = 5
@@ -84,7 +90,8 @@ def config_da_base(base_id: str, seeds: int) -> dict:
 
 def corrector_frame(df: pd.DataFrame, pred: np.ndarray, adsb: bool = True,
                     janela: bool = False, sem: Iterable[str] = (),
-                    externos: dict | None = None) -> pd.DataFrame:
+                    externos: dict | None = None,
+                    plano13: pd.DataFrame | None = None) -> pd.DataFrame:
     """Entradas do corretor: a previsão da base, o contexto do voo e o rastro ADS-B.
 
     `sem` tira as colunas com esses nomes (nome que não está no quadro é ignorado: a
@@ -92,6 +99,9 @@ def corrector_frame(df: pd.DataFrame, pred: np.ndarray, adsb: bool = True,
 
     `externos` (`src/externos.py`, `--externos`) são colunas `ext_*` prontas, uma por
     linha e na mesma ordem de `df`; sem elas o quadro é o de sempre.
+
+    `plano13` (`src/plano13.py`, `--plano13`) é o quadro com as colunas `met_*`, `rot_*`,
+    `nm_*` e `cia`, na mesma ordem de `df`; `cia` entra categórica.
     """
     cols = [F.AIRPORT, "nm_missing", "hour", *[c for c in df if c.startswith("to_takeoff_from_")],
             *[c for c in contexto.COLS if c in df]]
@@ -107,6 +117,9 @@ def corrector_frame(df: pd.DataFrame, pred: np.ndarray, adsb: bool = True,
         X["adsb_menos_pred"] = X["adsb_taxi_move"] - X["pred"]
     for nome, valores in (externos or {}).items():
         X[nome] = np.asarray(valores, float)
+    if plano13 is not None:
+        for nome in plano13.columns:
+            X[nome] = plano13[nome].array  # posicional; `cia` continua categórica
     return X.drop(columns=[c for c in sem if c in X.columns])
 
 
@@ -114,7 +127,7 @@ class Conjunto:
     """Média simples de três corretores sobre as mesmas entradas.
 
     (1) LightGBM global; (2) um LightGBM por aeroporto (aeroporto sem modelo próprio cai
-    no global); (3) CatBoost com `AIRPORT` categórica em texto.
+    no global); (3) CatBoost com as categóricas em texto.
     """
 
     def __init__(self, global_, aeroportos: dict, catboost) -> None:
@@ -135,10 +148,16 @@ class Conjunto:
         return (glob + self._por_aeroporto(X) + cat) / 3
 
 
+def colunas_cat(X: pd.DataFrame) -> list[str]:
+    """Colunas categóricas do quadro: o aeroporto e, com `--plano13`, a companhia."""
+    return [c for c in X.columns if isinstance(X[c].dtype, pd.CategoricalDtype)]
+
+
 def catboost_frame(X: pd.DataFrame) -> pd.DataFrame:
-    """Entradas do CatBoost: as mesmas do LightGBM, com o aeroporto em texto."""
+    """Entradas do CatBoost: as mesmas do LightGBM, com as categóricas em texto."""
     Xc = X.copy()
-    Xc[F.AIRPORT] = Xc[F.AIRPORT].astype(str)
+    for col in colunas_cat(X):
+        Xc[col] = Xc[col].astype(str)
     return Xc
 
 
@@ -152,7 +171,7 @@ def fit_catboost(X: pd.DataFrame, alvo: np.ndarray):
     else:
         params["thread_count"] = 12
     modelo = CatBoostRegressor(**params)
-    modelo.fit(catboost_frame(X), alvo, cat_features=[F.AIRPORT])
+    modelo.fit(catboost_frame(X), alvo, cat_features=colunas_cat(X))
     return modelo
 
 
@@ -183,9 +202,10 @@ def apply_corrector(model: lgb.Booster | Conjunto, X: pd.DataFrame, base: np.nda
 
 def previsao_corrigida(model: lgb.Booster | Conjunto, df: pd.DataFrame, base: np.ndarray,
                        adsb: bool, janela: bool, sem: Iterable[str] = (),
-                       externos: dict | None = None) -> np.ndarray:
+                       externos: dict | None = None,
+                       plano13: pd.DataFrame | None = None) -> np.ndarray:
     """Previsão dos voos de `df` corrigida: com `janela`, dentro da janela do LOBT."""
-    X = corrector_frame(df, base, adsb, janela, sem, externos)
+    X = corrector_frame(df, base, adsb, janela, sem, externos, plano13)
     return apply_corrector(model, X, base, df if janela else None)
 
 
@@ -227,7 +247,7 @@ def simulacao_folds(
 
 def simulacao_crossfit(
     run: Run, base_id: str, cfg_base: dict, adsb: bool, conjunto: bool = False,
-    sem: Iterable[str] = (), externos: bool = False
+    sem: Iterable[str] = (), externos: bool = False, plano13: bool = False
 ) -> tuple[pd.DataFrame, pd.DataFrame, np.ndarray]:
     """Corretor treinado no ano fora do bloco; devolve (holdout, base, previsão)."""
     janela = bool(cfg_base.get("janela_lobt"))
@@ -236,6 +256,7 @@ def simulacao_crossfit(
         hold = holdout_da_base(base)
         train, blind = load_split("train2025"), load_split("blind2025")
         rk = load_split("ranking2026")
+        cias = vocabulario(train) if plano13 else None  # vocabulário fixo do treino
         run.log(f"treino {len(train):,} · cegas {len(blind):,} · holdout {len(hold):,}")
     with run.phase("base fora do bloco", 0.7):
         oof = oof_base(cfg_base, train, blind, rk, run)
@@ -256,14 +277,19 @@ def simulacao_crossfit(
             copia = copia_cia_2025(run)
             ext_cegas, ext_hold = (colunas_ext(d, copia, meses) for d in (cegas, hold))
             run.log(f"externos: meses de treino da taxa de cópia {meses}")
-        X_oof = corrector_frame(cegas, pred_oof, adsb, janela, sem, ext_cegas)
+        p13_cegas = p13_hold = None
+        if plano13:
+            p13_cegas, p13_hold = (colunas_p13(d, cias) for d in (cegas, hold))
+            run.log(f"plano 13: {len(cias)} companhias no vocabulário · rotação em "
+                    f"{p13_cegas['rot_idade'].notna().mean():.1%} das cegas")
+        X_oof = corrector_frame(cegas, pred_oof, adsb, janela, sem, ext_cegas, p13_cegas)
         del cegas
         if adsb:
             run.log(f"adsb no treino do corretor: {X_oof['adsb_taxi'].notna().mean():.1%}")
         model = fit_corrector(X_oof, oof[TRUTH].to_numpy(float), pred_oof, conjunto)
         del X_oof
         pred_base = base["pred"].to_numpy(float)
-        pred = previsao_corrigida(model, hold, pred_base, adsb, janela, sem, ext_hold)
+        pred = previsao_corrigida(model, hold, pred_base, adsb, janela, sem, ext_hold, p13_hold)
     return hold, base, pred
 
 
@@ -282,6 +308,8 @@ def parser() -> argparse.ArgumentParser:
                     help="tira a coluna da base e do corretor (pode repetir)")
     ap.add_argument("--externos", action="store_true",
                     help="--crossfit: soma as colunas ext_* (companhia, séries diárias, OPDI)")
+    ap.add_argument("--plano13", action="store_true",
+                    help="--crossfit: soma METAR, rotação no stand, consistência NM e a companhia")
     ap.add_argument("--nota", default="")
     return ap
 
@@ -290,7 +318,7 @@ def config_da_corrida(a: argparse.Namespace, base_id: str) -> dict:
     """Config gravada no registro: com `--conjunto`, a chave `corretor`.
 
     Com `--sem-feature`, `sem_features` no topo (corretor) e na `base_config` (blocos);
-    com `--externos`, `externos: true`.
+    com `--externos`, `externos: true`; com `--plano13`, `plano13: true`.
     """
     adsb = not a.sem_adsb
     sem = list(a.sem_feature)
@@ -310,6 +338,8 @@ def config_da_corrida(a: argparse.Namespace, base_id: str) -> dict:
         cfg["corretor"] = "conjunto"
     if a.externos:
         cfg["externos"] = True
+    if a.plano13:
+        cfg["plano13"] = True
     if sem:
         cfg["sem_features"] = sem
     return cfg
@@ -326,6 +356,8 @@ def main() -> None:
         ap.error("--sem-feature só vale com --crossfit (nos folds nada confere o nome)")
     if a.externos and not a.crossfit:
         ap.error("--externos só vale com --crossfit (os folds não têm meses de treino separados)")
+    if a.plano13 and not a.crossfit:
+        ap.error("--plano13 só vale com --crossfit (os folds não têm vocabulário de treino)")
     base_id = a.base or json.loads((ROOT / "champion.json").read_text())["id"]
     adsb = not a.sem_adsb
     cfg = config_da_corrida(a, base_id)
@@ -335,7 +367,7 @@ def main() -> None:
         sem = cfg.get("sem_features", ())
         if a.crossfit:
             hold, base, pred = simulacao_crossfit(run, base_id, cfg["base_config"], adsb,
-                                                  a.conjunto, sem, a.externos)
+                                                  a.conjunto, sem, a.externos, a.plano13)
         else:
             hold, base, pred = simulacao_folds(run, base_id, adsb, sem)
         with run.phase("métricas", 0.1):
