@@ -1,6 +1,6 @@
 {
  "_como_usar": "Fila de saltos candidatos. ganho_s = ganho OFICIAL estimado (s) se funcionar; prob = chance de funcionar; dias = dias de trabalho. Atualizar a cada experimento: status feito/descartado + ganho_real_s. Estimativas marcadas como inferência até medidas.",
- "atualizado": "2026-09-27",
+ "atualizado": "2026-09-28",
  "saltos": [
   {
    "id": "v7_stack",
@@ -34,12 +34,12 @@
   },
   {
    "id": "clima",
-   "nome": "METAR (IEM): temperatura, spread de orvalho, vento",
+   "nome": "METAR (IEM): temperatura, spread de orvalho, vento, visibilidade; degelo e tempestade em jan",
    "ganho_s": 3,
    "prob": 0.5,
    "dias": 1,
    "status": "pendente",
-   "evidencia": "outro time: +3,4 s ao consertar o join do clima (Discord)"
+   "evidencia": "alligator e kind-mango usam; kind-mango: 5 colunas METAR no EOBT +0,33 s (pior); IEM tem LTFM com vento por pista"
   },
   {
    "id": "seeds",
@@ -167,6 +167,60 @@
    "dias": 0,
    "status": "feito",
    "evidencia": "28/09: corretor barato 309,27 → 308,48 (−0,8 s); LTFM 259,2 → 256,9; abaixo do portão; candidato a somar com outras features pequenas | Entrou na v17 (plano 12): v16_cf 306,65 contra 309,78 da v12; oficial v17 256,86 (−7,49 s sobre a v13)."
+  },
+  {
+   "id": "cia_com_nm",
+   "nome": "prefixo da companhia (FLIGHT_mvt) e aeroporto:companhia como categoria também nos voos com NM",
+   "ganho_s": 2,
+   "prob": 0.5,
+   "dias": 0.5,
+   "status": "pendente",
+   "evidencia": "zestful: carrier + day-of-month −3,9 s local (misturado); nosso teste só no corretor: completo −3 s mas via loterias"
+  },
+  {
+   "id": "rotacao_stand",
+   "nome": "tipo e companhia da última chegada no mesmo stand iguais ao da DEP (mesmo avião girando)",
+   "ganho_s": 2,
+   "prob": 0.5,
+   "dias": 0.5,
+   "status": "pendente",
+   "evidencia": "zestful arrival_features.py:29-30,64-68, parte do −2,62 s oficial"
+  },
+  {
+   "id": "consistencia_nm",
+   "nome": "duração planejada EOBT_1→ARVT_1 × real AOBT_3→ARVT_3; campos mvt × flt iguais",
+   "ganho_s": 1.5,
+   "prob": 0.5,
+   "dias": 0.5,
+   "status": "pendente",
+   "evidencia": "zestful duration_contest.py −1,42 s oficial; kind-mango plan_nm_taxi −1,22"
+  },
+  {
+   "id": "validacao_janjul",
+   "nome": "validação treinando em jan e testando em jul (e o contrário)",
+   "ganho_s": 0,
+   "prob": 1.0,
+   "dias": 0.5,
+   "status": "pendente",
+   "evidencia": "GREKI (Discord 27/09): CV de 12 meses e por dia enganou"
+  },
+  {
+   "id": "especialista_lobt",
+   "nome": "especialista no resíduo sobre MVT−LOBT com peso por aeroporto",
+   "ganho_s": 2,
+   "prob": 0.4,
+   "dias": 1,
+   "status": "pendente",
+   "evidencia": "alligator: −1,97 e −0,52 s oficiais"
+  },
+  {
+   "id": "teto_aeroporto",
+   "nome": "teto da previsão por aeroporto fora do LIRF",
+   "ganho_s": 1,
+   "prob": 0.4,
+   "dias": 0.2,
+   "status": "pendente",
+   "evidencia": "kind-mango v48: −2,33 s oficial em 5 linhas"
   }
  ]
 }

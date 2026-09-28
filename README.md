@@ -229,7 +229,8 @@ Feito:
   sobre `nm_retas` (IC 95% 1,5 a 7,7) → não comprovado (abaixo de 10 s);
   re-testado com seed no plano 3a: FRÁGIL.
 
-Próximo (28/09): buscar o próximo salto grande (regras exatas do dado, ideias dos times à frente).
+Próximo (29/09): plano 13, mais sinais no corretor (METAR, prefixo da companhia nos voos com NM,
+rotação no stand, consistência NM); depois validação jan↔jul. Ver `docs/mapa.md`.
 
 Achados de 28/09 (scripts descartáveis): (1) outras janelas não são exatas como a do LOBT:
 |BLOCK − IOBT| passa de 3606 s em 0,003 % das DEP (máx. 10.737), EOBT_1 e AOBT_3 bem mais;

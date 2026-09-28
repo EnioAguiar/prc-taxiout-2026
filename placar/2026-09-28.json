@@ -1,5 +1,5 @@
 {
- "updated": "2026-09-28T02:25:42Z",
+ "updated": "2026-09-28T02:32:02Z",
  "totalSubmissions": 3000,
  "teams": [
   {
@@ -60,7 +60,7 @@
    "team": "jovial-uniform",
    "best": 237.0607,
    "n": 20,
-   "lastAt": "2026-09-27T16:07:04.752793Z"
+   "lastAt": "2026-09-28T02:28:09.673284Z"
   },
   {
    "team": "strong-turtle",
@@ -153,6 +153,12 @@
    "lastAt": "2026-09-27T19:48:19.071576Z"
   },
   {
+   "team": "outgoing-boat",
+   "best": 256.8579,
+   "n": 13,
+   "lastAt": "2026-09-28T02:30:10.74964Z"
+  },
+  {
    "team": "nice-umbrella",
    "best": 259.4302,
    "n": 48,
@@ -169,12 +175,6 @@
    "best": 260.9292,
    "n": 37,
    "lastAt": "2026-09-27T15:44:06.963821Z"
-  },
-  {
-   "team": "outgoing-boat",
-   "best": 264.3467,
-   "n": 12,
-   "lastAt": "2026-09-28T00:01:23.272475Z"
   },
   {
    "team": "kind-mango",
@@ -539,7 +539,7 @@
   {
    "team": "spirited-clown",
    "best": 295.8599,
-   "n": 11,
+   "n": 10,
    "lastAt": "2026-09-14T13:59:29.559413Z"
   },
   {
@@ -587,7 +587,7 @@
   {
    "team": "happy-lantern",
    "best": 299.0092,
-   "n": 39,
+   "n": 38,
    "lastAt": "2026-09-27T01:23:44.876173Z"
   },
   {
@@ -617,8 +617,8 @@
   {
    "team": "logical-ladder",
    "best": 304.3859,
-   "n": 14,
-   "lastAt": "2026-09-28T02:08:58.825849Z"
+   "n": 15,
+   "lastAt": "2026-09-28T02:29:39.368905Z"
   },
   {
    "team": "cheerful-unicorn",

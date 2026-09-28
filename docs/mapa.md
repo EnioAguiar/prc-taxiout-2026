@@ -82,24 +82,27 @@ flowchart TD
 Seeds, detector de pushback, fila vista pelo ADS-B, CatBoost sozinho, média mensal oficial,
 tirar lat/lon do ADS-B, alvo residual, calibração de p, mistura multiclasse.
 
-## Para onde vamos
+## Para onde vamos (a partir de 29/09)
 
 ```mermaid
 flowchart TD
-    N["Plano 11 (agora)<br/>regressor sem as 'loterias'<br/>e sem Roma sem NM"] --> T{"ganhou na<br/>simulação?"}
-    T -->|sim| V15["v15: gerar, conferir,<br/>mostrar, enviar"]
-    T -->|não| P12
-    V15 --> P12["Plano 12: features baratas<br/>rotação no stand, consistência NM,<br/>prefixo da companhia"]
-    P12 --> P13["Plano 13: especialista no resíduo<br/>do LOBT, teto por aeroporto,<br/>calibração"]
-    P13 --> FIM["08–10/10: README em inglês,<br/>repositório público GPLv3"]
+    A["Plano 13: mais sinais no corretor<br/>METAR (tempo), prefixo da companhia<br/>nos voos com NM, rotação no stand<br/>(tipo/companhia da última chegada),<br/>consistência NM (ARVT_1/ARVT_3)"] --> T{"ganhou na simulação?<br/>(sem_loteria e normais)"}
+    T -->|sim| E["v18: submit + regra de Roma,<br/>conferir, mostrar, enviar"]
+    T -->|não| B
+    E --> B["Validação jan→jul e jul→jan<br/>(dica do GREKI)"]
+    B --> C["Plano 14: especialista no resíduo<br/>do LOBT, teto por aeroporto,<br/>calibração fora da amostra"]
+    C --> FIM["08–10/10: README em inglês,<br/>repositório público GPLv3"]
 ```
 
-| Etapa | Ganho esperado | Quando |
+| Etapa | Ganho esperado (oficial) | Quando |
 |---|---|---|
-| Plano 11 | −3 a −6 s | 28/09 |
-| Plano 12 | −2 a −5 s | 29–30/09 |
-| Plano 13 | −2 a −4 s | até 03/10 |
-| Meta realista | ~250 a 255 (top 15–20) | até 11/10 |
+| Plano 13 (sinais no corretor) | −3 a −6 s | 29–30/09 |
+| Validação jan↔jul | melhora as decisões | 30/09 |
+| Plano 14 | −2 a −4 s | até 03/10 |
+| Meta | ~245 (top 10–15); top 3 pede ~227 | até 11/10 |
+
+Lição de 28/09: juntar vários sinais pequenos no corretor rende mais no oficial que na
+simulação (v17: −3,1 s simulado, −7,5 s oficial).
 
 ## Regras
 
