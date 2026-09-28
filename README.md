@@ -8,6 +8,8 @@ OpenSky Network (OSN). Não é Kaggle.
 - Termos/elegibilidade: <https://prc-data-challenge-2026.netlify.app/eligibility.html>
 - Discord: servidor OpenSky (<https://discord.gg/RPh89jpVVz>), canal `#prc-data-competition`
 
+Mapa curto do projeto: `docs/mapa.md`.
+
 ## Problema
 
 Prever o taxi-out de cada decolagem: segundos entre sair do
