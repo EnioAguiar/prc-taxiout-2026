@@ -80,3 +80,16 @@ kind-mango (265,27, logo atrás de nós): `skylinkapi/prc-data-challenge-2026-ki
 | Especialista de resíduo sobre `MVT − LOBT`, α por aeroporto encolhido | alligator `scripts/autoresearch_known_lobt.py`, `_regional.py` | −1,97 e −0,52 oficiais |
 | Teto por aeroporto fora do LIRF (5 linhas) | kind-mango README:121 (v48) | −2,33 oficial |
 | Isotônica fora da amostra no classificador | kind-mango v64 | −1,14 oficial |
+
+## Fontes de dados abertas (levantamento de 28/09)
+
+Nenhuma fonte aberta traz o off-block real por voo em LTFM, LFPG ou EGLL.
+
+| Fonte | O que traz | Cobertura jan/jul 2026 | Potencial |
+|---|---|---|---|
+| OPDI v0.0.2 (EUROCONTROL/OpenSky; <https://www.opdi.aero/>) | flight list mensal (icao24, adep, ades, first_seen, last_seen) e eventos por voo; **sem off-block** (`exit-parking_position` quase vazio: 0 em FCO, 0,2 % em CDG) | sim | tempo de solo da mesma aeronave antes do voo (`first_seen` − `last_seen` do voo anterior do mesmo `icao24`); likable-eagle: LB 278,84 → 276,99 só em LIRF sem NM. Eventos v4 com AOBT em ~90 % existem em pesquisa (PR `euctrl-pru/OPDI#8`), não publicados |
+| Séries diárias EUROCONTROL (<https://ansperformance.eu/csv/>): slot adherence, atraso pré-partida (total e ATC), atraso ATFM de chegada por causa | aeroporto × dia; LTFM incluído | sim | dias de disrupção (greve, tempestade, espera no stand por sequenciamento) |
+| METAR do IEM (domínio público) | a cada 30 min; RMK com vento por pista em LTFM | sim | degelo e tempestade na cauda de jan |
+| ERA5 via Open-Meteo (CC-BY 4.0) | neve, precipitação, rajada por hora | sim | complementa o METAR |
+| OSM `aeroway` (ODbL), OurAirports | stands, taxiways, pistas | estático | distância/caminho stand → pista |
+| Média mensal de taxi-out | mensal por aeroporto | sim | já testada e descartada (27/09) |
