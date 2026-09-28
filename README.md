@@ -226,7 +226,15 @@ Feito:
   sobre `nm_retas` (IC 95% 1,5 a 7,7) → não comprovado (abaixo de 10 s);
   re-testado com seed no plano 3a: FRÁGIL.
 
-Próximo (28/09): buscar o próximo salto grande (regras exatas do dado, ideias dos times à frente). A v12 (`--conjunto`) fica guardada para o envio final. Evidência em
+Próximo (28/09): buscar o próximo salto grande (regras exatas do dado, ideias dos times à frente).
+
+Achados de 28/09 (scripts descartáveis): (1) outras janelas não são exatas como a do LOBT:
+|BLOCK − IOBT| passa de 3606 s em 0,003 % das DEP (máx. 10.737), EOBT_1 e AOBT_3 bem mais;
+projetar a v13 em `MVT − IOBT ± 3606` mexe em 10 voos e vale no máximo −0,2 s. (2) Voos sem NM
+parecem ser os em que o casamento com o NM falhou por |BLOCK − LOBT| > 3606: nos 918 (4 %) cuja
+chegada em outro dos 10 aeroportos tem NM, BLOCK − LOBT da chegada tem mediana +4.384 s e só
+2,5 % cabem na janela. Esses 918 cobrem 3,8 % do Σy² dos sem NM: recuperar o AOBT_3 pela chegada
+(|y − proxy| mediano 184 s) não é salto grande. A v12 (`--conjunto`) fica guardada para o envio final. Evidência em
 `docs/research/2026-09-27-concorrentes.md`. Plano 3b segue pausado (itens 5 a 8).
 
 Antes de 11/10 (abrir entre 08 e 10/10, decisão de 27/09): repositório público
