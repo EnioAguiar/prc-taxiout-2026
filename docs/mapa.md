@@ -1,4 +1,4 @@
-# Mapa do projeto (atualizado em 28/09, madrugada UTC)
+# Mapa do projeto (atualizado em 28/09, 02h30 UTC)
 
 Resumo para se localizar. Detalhes: `README.md` (modelo, roadmap, envios) e `CONTEXTO.md` (linha do tempo).
 
@@ -31,10 +31,10 @@ aeroporto); estudo da cauda; plano 11 (regressor limpo).
 
 | Item | Situação |
 |---|---|
-| Nota oficial | **264,35 s** (v13) |
-| Posição | ~28º de 182 |
-| 1º colocado | 224,50 (faltam 40 s) |
-| 10º colocado | 242,81 (faltam 22 s) |
+| Nota oficial | **256,86 s** (v17) |
+| Posição | ~26º de 176 |
+| 3º colocado | 226,90 (faltam 30 s) |
+| 10º colocado | 237,06 (faltam 20 s) |
 | Prazo | 11/10, 23:59 (horário da Europa) |
 | Envios | 5 por dia UTC (zera às 21h de Brasília) |
 | Repositório | privado; abrir entre 08 e 10/10 (condição do prêmio) |
@@ -51,6 +51,7 @@ flowchart LR
     F --> G["v11 267<br/>taxi-in chegadas<br/>+ vizinhos"]
     G --> H["v12 265<br/>3 corretores"]
     H --> I["v13 264,35<br/>regra de Roma"]
+    I --> J2["v17 256,86<br/>regressor limpo +<br/>companhia, séries diárias, OPDI"]
 ```
 
 ## Como o modelo funciona

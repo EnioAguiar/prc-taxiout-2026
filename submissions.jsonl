@@ -10,3 +10,4 @@
 {"versao": 12, "enviado_utc": "2026-09-27T20:10", "oficial": 264.7397, "simulacao": 309.78, "mudanca": "v11 com conjunto de corretores (LGB global, LGB por aeroporto, CatBoost; plano 9)"}
 {"versao": 13, "enviado_utc": "2026-09-28T00:00", "oficial": 264.3467, "simulacao": null, "mudanca": "v12 + pós-regra de Roma (LIRF sem NM, MVT−SCHED em (15 h, 30 h], 4 voos); 1ª tentativa recusada em 27/09 pelo limite diário"}
 {"versao": 14, "enviado_utc": "2026-09-28T00:00", "oficial": 266.2839, "simulacao": 311.88, "mudanca": "v12 sem adsb_lat0/adsb_lon0 (deriva 2025 → 2026; plano 10)"}
+{"versao": 17, "enviado_utc": "2026-09-28T02:29", "oficial": 256.8579, "simulacao": 306.65, "mudanca": "v16 (regressor com alvo cortado em 2 h + companhia, séries diárias EUROCONTROL e OPDI no corretor; plano 12) + regra de Roma"}

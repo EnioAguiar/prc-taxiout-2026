@@ -25,15 +25,17 @@
 
 ### Task 1: `src/externos.py`, `corrector_frame`, `--externos`, README
 
-- [ ] Teste `CopiaCia`: com 3 meses sintéticos, a taxa de uma linha do mês 2 ignora o mês 2 e usa só `meses_treino`; grupo sem histórico cai na taxa do aeroporto.
-- [ ] Teste `diarias`: junção por (dia UTC, aeroporto) com CSV sintético em `tmp_path`; dia ausente → NaN.
-- [ ] Teste `opdi`: casamento por callsign ±600 s e fallback ±90 s; `ext_solo_s` = first_seen − last_seen anterior da mesma aeronave.
-- [ ] Teste: `corrector_frame` sem `externos` igual ao de hoje; com, acrescenta só colunas `ext_*`.
-- [ ] Teste: config de `stack.py --crossfit --externos` tem `externos: true`; sem a flag não tem.
-- [ ] `pytest -q` verde; commit `externos: companhia, séries diárias e OPDI no corretor`; push.
+- [x] Teste `CopiaCia`: com 3 meses sintéticos, a taxa de uma linha do mês 2 ignora o mês 2 e usa só `meses_treino`; grupo sem histórico cai na taxa do aeroporto.
+- [x] Teste `diarias`: junção por (dia UTC, aeroporto) com CSV sintético em `tmp_path`; dia ausente → NaN.
+- [x] Teste `opdi`: casamento por callsign ±600 s e fallback ±90 s; `ext_solo_s` = first_seen − last_seen anterior da mesma aeronave.
+- [x] Teste: `corrector_frame` sem `externos` igual ao de hoje; com, acrescenta só colunas `ext_*`.
+- [x] Teste: config de `stack.py --crossfit --externos` tem `externos: true`; sem a flag não tem.
+- [x] `pytest -q` verde; commit `externos: companhia, séries diárias e OPDI no corretor`; push.
 
 ### Task 2 (controlador)
 
-- [ ] `bin/run src/externos.py baixar`; `stack.py v16_cf --crossfit --conjunto --externos --base 20260927-211418-reg_corte` → `compare.py` contra a v12 (olhar `sem_loteria` e normais).
-- [ ] Se ganhar: `train.py submit 16`, 0 fora da janela, regra de Roma por cima, **parar e mostrar ao usuário**.
-- [ ] Docs: README, CONTEXTO, `docs/mapa.md`, `saltos.json`, caixas; commit + push.
+- [x] `bin/run src/externos.py baixar`; `stack.py v16_cf --crossfit --conjunto --externos --base 20260927-211418-reg_corte` → `compare.py` contra a v12 (olhar `sem_loteria` e normais).
+- [x] Se ganhar: `train.py submit 16`, 0 fora da janela, regra de Roma por cima, **parar e mostrar ao usuário**.
+- [x] Docs: README, CONTEXTO, `docs/mapa.md`, `saltos.json`, caixas; commit + push.
+
+**Resultado (28/09):** `v16_cf` 306,65 (ganho 3,1 s sobre a v12, IC 0,7 a 5,9; normais +1,8; sem loteria +2,7). Promovida. `submit 16` 33m33s, pico 8,45 GB. v17 = v16 + regra de Roma: **256,86 oficial** (−7,49 s sobre a v13).

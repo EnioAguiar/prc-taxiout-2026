@@ -76,7 +76,7 @@ deixa a validação otimista e o modelo cego para eles (erro da v1).
 
 ## Modelo atual (`src/`)
 
-Melhor nota oficial: **v13 = 264,35** (v12 + pós-regra de Roma aplicada ao arquivo, fora do `train.py`). Campeão em `champion.json`: v12 (id `20260927-160433-v12_cf`, 309,78 na simulação, 264,74 oficial) = v11 com `--conjunto` (média de 3 corretores). A v11 (id `20260927-145005-v11_cf`, 311,09 na simulação, 266,81 oficial) = v9 + colunas `ctx_*` no corretor (`src/contexto.py`: taxi-in das chegadas e vizinhos de `MVT − AOBT_3`, plano 8). A v9 era `stack_cf` com janela do LOBT (id
+Melhor nota oficial: **v17 = 256,86** = v16 (id `20260927-223230-v16_cf`, campeã em `champion.json`, 306,65 na simulação; base `--reg-corte 7200`, corretor `--conjunto --externos`) + pós-regra de Roma aplicada ao arquivo. Antes: v13 = 264,35; v12 (id `20260927-160433-v12_cf`, 309,78 na simulação, 264,74 oficial) = v11 com `--conjunto` (média de 3 corretores). A v11 (id `20260927-145005-v11_cf`, 311,09 na simulação, 266,81 oficial) = v9 + colunas `ctx_*` no corretor (`src/contexto.py`: taxi-in das chegadas e vizinhos de `MVT − AOBT_3`, plano 8). A v9 era `stack_cf` com janela do LOBT (id
 `20260927-133718-v9_cf`, 317,23 na simulação, 275,90 oficial). A base é
 `two_stage_nm` (`--nm-min-ms 21600 --janela-lobt`, features `adsb_*`) com corretor
 treinado fora do bloco por meses (`src/crossfit.py`, `stack.py --crossfit`); toda previsão é
@@ -177,6 +177,7 @@ fora do cache de features. `train.py submit N` precisa do `events.parquet` no SS
 | v9 | 27/09 | v7 (corretor com cross-fitting por mês) + janela do LOBT (projeção em `MVT − LOBT ± 3606`, `p` zerado fora dela) | 317,23 / 254,24 | **275,90** (−38,9 s sobre a v6; relação 0,870) |
 | v11 | 27/09 | v9 + taxi-in das ARR e vizinhos de `MVT − AOBT_3` no corretor (plano 8) | 311,09 / 245,81 | **266,81** (−9,1 s sobre a v9; relação 0,858) |
 | v12 | 27/09 | v11 com a média de 3 corretores (`--conjunto`, plano 9) | 309,78 / 243,96 | **264,74** (−2,1 s sobre a v11) |
+| v17 | 28/09 | v16 (plano 11 + 12: regressor com alvo cortado em 2 h; companhia, séries diárias EUROCONTROL e OPDI no corretor) + regra de Roma | 306,65 / 238,65 | **256,86** (−7,49 s sobre a v13) |
 | v13 | 28/09 | v12 + pós-regra de Roma (4 voos) | — | **264,35** (−0,39 s sobre a v12) |
 | v14 | 28/09 | v12 sem `adsb_lat0`/`adsb_lon0` (plano 10) | 311,88 / — | 266,28 (+1,54 s: a deriva não atrapalha) |
 | v10 | 27/09 | diagnóstico: v6 + só as 117 linhas projetadas na janela (garantia ≤ 288,01) | 320,30 / — | 284,17 (a regra vale em 2026) |
@@ -606,7 +607,7 @@ prc-taxiout-2026/
 ## Leaderboard
 
 <https://prc-challenge-2026.vercel.app/>. Em 27/09/2026: 186 equipes, 1º 224,50, 3º
-228,59, 10º 242,81, 50º 278,39. Nós: **264,35 s** (v13, 28/09; antes 264,74, 266,81, 275,90, 314,76, 331,0,
+228,59, 10º 242,81, 50º 278,39. Nós: **256,86 s** (v17, 28/09; antes 264,35, 264,74, 266,81, 275,90, 314,76, 331,0,
 338,7 e 384,7). Fotos diárias em `placar/`.
 
 ## Referências

@@ -145,9 +145,9 @@
    "ganho_s": 0.8,
    "prob": 0,
    "dias": 0,
-   "status": "descartado",
+   "status": "feito",
    "ganho_real_s": 0.8,
-   "evidencia": "28/09: casamento 91 % (LTFM 72 %); corretor barato 309,27 → 308,49 (−0,8 s), LTFM 259,2 → 259,0, cauda 4101 → 4098; abaixo do portão de 3 s"
+   "evidencia": "28/09: casamento 91 % (LTFM 72 %); corretor barato 309,27 → 308,49 (−0,8 s), LTFM 259,2 → 259,0, cauda 4101 → 4098; abaixo do portão de 3 s | Entrou na v17 (plano 12): v16_cf 306,65 contra 309,78 da v12; oficial v17 256,86 (−7,49 s sobre a v13)."
   },
   {
    "id": "reg_corte",
@@ -155,8 +155,8 @@
    "ganho_s": 3,
    "prob": 0.6,
    "dias": 0,
-   "status": "descartado",
-   "evidencia": "base −3,0 s, mas v15_cf (v12 + corte) 309,15 contra 309,78: +0,6 s (IC −1,6 a 3,1), sem os 10 maiores −2,0: o corretor já absorvia o ganho",
+   "status": "feito",
+   "evidencia": "base −3,0 s, mas v15_cf (v12 + corte) 309,15 contra 309,78: +0,6 s (IC −1,6 a 3,1), sem os 10 maiores −2,0: o corretor já absorvia o ganho | Entrou na v17 (plano 12): v16_cf 306,65 contra 309,78 da v12; oficial v17 256,86 (−7,49 s sobre a v13).",
    "ganho_real_s": 0.6
   },
   {
@@ -165,8 +165,8 @@
    "ganho_s": 0.8,
    "prob": 0,
    "dias": 0,
-   "status": "guardado",
-   "evidencia": "28/09: corretor barato 309,27 → 308,48 (−0,8 s); LTFM 259,2 → 256,9; abaixo do portão; candidato a somar com outras features pequenas"
+   "status": "feito",
+   "evidencia": "28/09: corretor barato 309,27 → 308,48 (−0,8 s); LTFM 259,2 → 256,9; abaixo do portão; candidato a somar com outras features pequenas | Entrou na v17 (plano 12): v16_cf 306,65 contra 309,78 da v12; oficial v17 256,86 (−7,49 s sobre a v13)."
   }
  ]
 }
