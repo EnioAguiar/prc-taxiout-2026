@@ -232,6 +232,37 @@ def test_a_config_do_crossfit_so_tem_corretor_com_a_flag(tmp_path, monkeypatch):
     assert "corretor" not in sem
 
 
+def test_com_externos_o_corretor_ganha_so_as_colunas_ext():
+    df = _voos()
+    pred = np.array([800.0, 900.0, 1000.0])
+    hoje = corrector_frame(df, pred)
+
+    X = corrector_frame(df, pred, externos={
+        "ext_taxa_cia": [0.1, 0.2, 0.3], "ext_solo_s": [60.0, np.nan, 90.0],
+    })
+
+    assert [c for c in hoje.columns if c.startswith("ext_")] == []
+    assert list(X.columns) == [*hoje.columns, "ext_taxa_cia", "ext_solo_s"]
+    pd.testing.assert_frame_equal(X[hoje.columns], hoje)
+    np.testing.assert_allclose(X["ext_solo_s"].to_numpy(float), [60.0, np.nan, 90.0])
+
+
+def test_a_config_do_crossfit_so_tem_externos_com_a_flag(tmp_path, monkeypatch):
+    registro = tmp_path / "experiments.jsonl"
+    registro.write_text(json.dumps(
+        {"id": "20260101-a", "config": {"model": "two_stage_nm", "seed": 0}}
+    ) + "\n", encoding="utf-8")
+    monkeypatch.setattr(stack, "REGISTRY", registro)
+
+    com = stack.config_da_corrida(
+        stack.parser().parse_args(["v16", "--crossfit", "--externos"]), "20260101-a")
+    sem = stack.config_da_corrida(
+        stack.parser().parse_args(["v16", "--crossfit"]), "20260101-a")
+
+    assert com["externos"] is True
+    assert "externos" not in sem
+
+
 def test_sem_feature_tira_as_colunas_do_corretor_e_mantem_as_outras():
     df = _voos()
     pred = np.array([800.0, 900.0, 1000.0])

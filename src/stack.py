@@ -19,7 +19,7 @@ na janela antes do piso 0; sem `janela_lobt` na base, tudo segue como antes.
 
 Uso:
     bin/run src/stack.py <nome> [--base <id>] [--crossfit [--seeds N] [--conjunto]] [--sem-adsb]
-                                [--sem-feature COLUNA]
+                                [--sem-feature COLUNA] [--externos]
 
 `--sem-feature COLUNA` (pode repetir, só com `--crossfit`) tira a coluna da base e do
 corretor e grava `sem_features` na config da corrida e na `base_config`; sem a flag, nada
@@ -33,6 +33,11 @@ próprio usa o global) e CatBoost; grava `corretor: "conjunto"` na config, que o
 Com `--crossfit`, `--seeds N` (N > 1) manda a base de cada bloco ser a média de N seeds:
 sobrescreve `seeds` na config da corrida base. A base do holdout vem pronta de `--base`,
 que já deve ser a corrida de N seeds.
+
+`--externos` (só com `--crossfit`) soma ao corretor as colunas `ext_*` de
+`src/externos.py` (taxa de cópia do SCHED por companhia, séries diárias da EUROCONTROL e
+tempo em solo do OPDI) e grava `externos: true` na config. A taxa de cópia é aprendida só
+nos meses do oof (os 10 do treino) e nunca no mês da própria linha.
 """
 from __future__ import annotations
 
@@ -49,6 +54,7 @@ import features as F
 from adsb_events import FEATURES as ADSB
 from cache import TRUTH, load_split
 from crossfit import oof_base
+from externos import colunas_ext, copia_cia_2025
 from experiment import RUNS, metrics, rmse
 from models import janela_lobt, limitar_janela
 from runlog import REGISTRY, ROOT, Run
@@ -77,11 +83,15 @@ def config_da_base(base_id: str, seeds: int) -> dict:
 
 
 def corrector_frame(df: pd.DataFrame, pred: np.ndarray, adsb: bool = True,
-                    janela: bool = False, sem: Iterable[str] = ()) -> pd.DataFrame:
+                    janela: bool = False, sem: Iterable[str] = (),
+                    externos: dict | None = None) -> pd.DataFrame:
     """Entradas do corretor: a previsão da base, o contexto do voo e o rastro ADS-B.
 
     `sem` tira as colunas com esses nomes (nome que não está no quadro é ignorado: a
     lista é a mesma da base, que tem colunas que o corretor não usa).
+
+    `externos` (`src/externos.py`, `--externos`) são colunas `ext_*` prontas, uma por
+    linha e na mesma ordem de `df`; sem elas o quadro é o de sempre.
     """
     cols = [F.AIRPORT, "nm_missing", "hour", *[c for c in df if c.startswith("to_takeoff_from_")],
             *[c for c in contexto.COLS if c in df]]
@@ -95,6 +105,8 @@ def corrector_frame(df: pd.DataFrame, pred: np.ndarray, adsb: bool = True,
     if adsb:
         X = X.join(df[ADSB])
         X["adsb_menos_pred"] = X["adsb_taxi_move"] - X["pred"]
+    for nome, valores in (externos or {}).items():
+        X[nome] = np.asarray(valores, float)
     return X.drop(columns=[c for c in sem if c in X.columns])
 
 
@@ -170,9 +182,10 @@ def apply_corrector(model: lgb.Booster | Conjunto, X: pd.DataFrame, base: np.nda
 
 
 def previsao_corrigida(model: lgb.Booster | Conjunto, df: pd.DataFrame, base: np.ndarray,
-                       adsb: bool, janela: bool, sem: Iterable[str] = ()) -> np.ndarray:
+                       adsb: bool, janela: bool, sem: Iterable[str] = (),
+                       externos: dict | None = None) -> np.ndarray:
     """Previsão dos voos de `df` corrigida: com `janela`, dentro da janela do LOBT."""
-    X = corrector_frame(df, base, adsb, janela, sem)
+    X = corrector_frame(df, base, adsb, janela, sem, externos)
     return apply_corrector(model, X, base, df if janela else None)
 
 
@@ -214,7 +227,7 @@ def simulacao_folds(
 
 def simulacao_crossfit(
     run: Run, base_id: str, cfg_base: dict, adsb: bool, conjunto: bool = False,
-    sem: Iterable[str] = ()
+    sem: Iterable[str] = (), externos: bool = False
 ) -> tuple[pd.DataFrame, pd.DataFrame, np.ndarray]:
     """Corretor treinado no ano fora do bloco; devolve (holdout, base, previsão)."""
     janela = bool(cfg_base.get("janela_lobt"))
@@ -235,14 +248,22 @@ def simulacao_crossfit(
         pred_oof = oof["pred"].to_numpy(float)
         cegas = blind.set_index(F.ID).loc[oof[F.ID]].reset_index()  # mesma ordem do oof
         del blind
-        X_oof = corrector_frame(cegas, pred_oof, adsb, janela, sem)
+        ext_cegas = ext_hold = None
+        if externos:
+            # meses do oof: os 10 do treino, nunca jan/jul — nem as cegas nem o holdout
+            # veem a taxa de cópia do próprio mês.
+            meses = sorted({int(m) for m in oof["mes"]})
+            copia = copia_cia_2025(run)
+            ext_cegas, ext_hold = (colunas_ext(d, copia, meses) for d in (cegas, hold))
+            run.log(f"externos: meses de treino da taxa de cópia {meses}")
+        X_oof = corrector_frame(cegas, pred_oof, adsb, janela, sem, ext_cegas)
         del cegas
         if adsb:
             run.log(f"adsb no treino do corretor: {X_oof['adsb_taxi'].notna().mean():.1%}")
         model = fit_corrector(X_oof, oof[TRUTH].to_numpy(float), pred_oof, conjunto)
         del X_oof
         pred_base = base["pred"].to_numpy(float)
-        pred = previsao_corrigida(model, hold, pred_base, adsb, janela, sem)
+        pred = previsao_corrigida(model, hold, pred_base, adsb, janela, sem, ext_hold)
     return hold, base, pred
 
 
@@ -259,6 +280,8 @@ def parser() -> argparse.ArgumentParser:
                     help="--crossfit: corretor = média de global, por aeroporto e CatBoost")
     ap.add_argument("--sem-feature", action="append", default=[], metavar="COLUNA",
                     help="tira a coluna da base e do corretor (pode repetir)")
+    ap.add_argument("--externos", action="store_true",
+                    help="--crossfit: soma as colunas ext_* (companhia, séries diárias, OPDI)")
     ap.add_argument("--nota", default="")
     return ap
 
@@ -266,7 +289,8 @@ def parser() -> argparse.ArgumentParser:
 def config_da_corrida(a: argparse.Namespace, base_id: str) -> dict:
     """Config gravada no registro: com `--conjunto`, a chave `corretor`.
 
-    Com `--sem-feature`, `sem_features` no topo (corretor) e na `base_config` (blocos).
+    Com `--sem-feature`, `sem_features` no topo (corretor) e na `base_config` (blocos);
+    com `--externos`, `externos: true`.
     """
     adsb = not a.sem_adsb
     sem = list(a.sem_feature)
@@ -284,6 +308,8 @@ def config_da_corrida(a: argparse.Namespace, base_id: str) -> dict:
            "adsb": adsb, "rounds": ROUNDS, "seed": PARAMS["seed"]}
     if a.conjunto:
         cfg["corretor"] = "conjunto"
+    if a.externos:
+        cfg["externos"] = True
     if sem:
         cfg["sem_features"] = sem
     return cfg
@@ -298,6 +324,8 @@ def main() -> None:
         ap.error("--conjunto só vale com --crossfit")
     if a.sem_feature and not a.crossfit:
         ap.error("--sem-feature só vale com --crossfit (nos folds nada confere o nome)")
+    if a.externos and not a.crossfit:
+        ap.error("--externos só vale com --crossfit (os folds não têm meses de treino separados)")
     base_id = a.base or json.loads((ROOT / "champion.json").read_text())["id"]
     adsb = not a.sem_adsb
     cfg = config_da_corrida(a, base_id)
@@ -307,7 +335,7 @@ def main() -> None:
         sem = cfg.get("sem_features", ())
         if a.crossfit:
             hold, base, pred = simulacao_crossfit(run, base_id, cfg["base_config"], adsb,
-                                                  a.conjunto, sem)
+                                                  a.conjunto, sem, a.externos)
         else:
             hold, base, pred = simulacao_folds(run, base_id, adsb, sem)
         with run.phase("métricas", 0.1):

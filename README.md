@@ -483,16 +483,24 @@ Pesquisa de 25/09 (Discord do desafio), para não repetir:
 
 ## Dados externos
 
-Condição do prêmio (`eligibility.html`): todo dado externo aberto e documentado. Usamos só um:
+Condição do prêmio (`eligibility.html`): todo dado externo aberto e documentado. Usamos três:
 
 | Fonte | O que é | Licença | Como obter |
 |---|---|---|---|
 | adsb.lol `globe_history_2025` e `globe_history_2026` (<https://github.com/adsblol/globe_history_2025>, <https://github.com/adsblol/globe_history_2026>) | rastros ADS-B/MLAT diários de todo o mundo, um release por dia (2–4 GB) | **ODbL 1.0** | `bin/run src/adsb.py baixar --dias 2025-01,…,2026-07` escolhe a réplica em `PREFERRED_RELEASES.txt`, lê o tar em fluxo e guarda só os pontos no chão ou ≤ 3.000 ft a ±0,10° dos 10 aeroportos (`PRC_ADSB_RAIZ/cut/AAAA-MM-DD.parquet`, ~7–19 MB/dia; 427 dias = 5,7 GB, ~1 dia de download com 10 processos) |
+| Séries diárias da EUROCONTROL (<https://ansperformance.eu/csv/>): `atfm_slot_adherence`, `all_pre_departure_delays` e `atc_pre_departure_delays` de 2025 e 2026 | por aeroporto e dia: voos regulados, saídas fora do slot, atraso pré-partida total e de ATC por voo | dados públicos da EUROCONTROL (uso livre com atribuição) | `bin/run src/externos.py baixar` → `data/externo/*.csv` (~33 MB) |
+| OPDI v0.0.2 (EUROCONTROL/OpenSky, <https://www.opdi.aero/>), flight lists de 2025-01…2025-12, 2026-01 e 2026-07 | um voo por linha: `icao24`, `adep`, `ades`, `first_seen`, `last_seen` (ADS-B tratado) | open data, "freely used … provided that the data source is attributed" | `bin/run src/externos.py baixar` → `data/externo/opdi/flight_list_AAAAMM.parquet` (~30–55 MB/mês) |
 
-Deles só saem features derivadas por voo (`adsb_*`, `src/adsb_events.py` →
+Do adsb.lol só saem features derivadas por voo (`adsb_*`, `src/adsb_events.py` →
 `PRC_ADSB_RAIZ/events.parquet`): off-block e decolagem observados, velocidade no 1º ponto,
-pontos e lacunas no chão. Nenhum dado de 2026 do organizador (verdade) é usado; os meses do
-ranking entram só como entrada (rastros de jan/jul 2026), como qualquer feature.
+pontos e lacunas no chão. Das duas fontes da EUROCONTROL sai parte das colunas `ext_*` do
+corretor (`src/externos.py`, só com `--externos`; as outras, `ext_taxa_cia*`, saem só dos
+dados do organizador): das séries diárias, a fração de voos
+regulados do dia, a fração deles que saiu fora do slot e os minutos de atraso pré-partida
+total e de ATC; do OPDI, quanto tempo a aeronave ficou em solo desde o pouso anterior e se
+esse pouso foi no mesmo aeroporto (casando callsign e horário a ±600 s, ou só aeroporto a
+±90 s). Nenhum dado de 2026 do organizador (verdade) é usado; os meses do ranking entram só
+como entrada (rastros de jan/jul 2026), como qualquer feature.
 
 Não usamos clima, layout de aeroporto nem dados de placar.
 
@@ -531,7 +539,8 @@ bin/run src/train.py submit N [--forcar] [--corrida <id>]   # gera a vN (não en
 .venv/bin/python src/s3.py submit submissions/<TEAM>_vN.parquet   # só após aprovação
 bin/run src/adsb.py baixar [--dias 2025-01,2025-07] [--dia AAAA-MM-DD] [--procs 5]   # recortes adsb.lol no SSD
 bin/run src/adsb_events.py                        # eventos por voo → <SSD>/events.parquet
-bin/run src/stack.py <nome> [--base <id>] [--sem-adsb] [--crossfit [--seeds N] [--conjunto]] [--sem-feature COLUNA]   # corretor fora do fold (teste barato) ou fora do bloco no ano (enviável; ~17 min, rodar via systemd-run --user); --conjunto = média de global, por aeroporto e CatBoost
+bin/run src/stack.py <nome> [--base <id>] [--sem-adsb] [--crossfit [--seeds N] [--conjunto] [--externos]] [--sem-feature COLUNA]   # corretor fora do fold (teste barato) ou fora do bloco no ano (enviável; ~17 min, rodar via systemd-run --user); --conjunto = média de global, por aeroporto e CatBoost; --externos = colunas ext_*
+bin/run src/externos.py baixar                    # séries diárias da EUROCONTROL e flight lists do OPDI → data/externo/ (pula o que já existe)
 .venv/bin/python ferramentas/projecao.py          # placar do dia + docs/projecao.md
 .venv/bin/python ferramentas/auditoria.py         # docs/auditoria/AAAA-MM-DD.md
 .venv/bin/python -m pytest -q
@@ -579,6 +588,7 @@ prc-taxiout-2026/
   src/stack.py        # corretor LightGBM sobre uma corrida base (fora do fold no holdout, ou --crossfit)
   src/crossfit.py     # previsões da base fora do bloco (meses 2 a 2) para o corretor
   src/contexto.py     # taxi-in das chegadas e vizinhos de MVT − AOBT_3 (colunas ctx_*, só no corretor)
+  src/externos.py     # dados abertos: taxa de cópia por companhia, séries diárias e OPDI (colunas ext_*)
   ferramentas/projecao.py   # placar do dia e projeção até o prazo (docs/projecao.md)
   ferramentas/auditoria.py  # auditoria diária (docs/auditoria/)
   submissions.jsonl   # nossos envios com a nota oficial (versionado)

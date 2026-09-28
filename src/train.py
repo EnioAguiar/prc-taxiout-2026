@@ -10,6 +10,10 @@ Envio separado, só depois de aprovado: .venv/bin/python src/s3.py submit <arqui
 
 Campeã `stack_cf`: o corretor treina nas cegas com a previsão da base fora do bloco
 (guardada em submissions/<TEAM>_vN_oof.parquet) e corrige a base final do ranking.
+
+Com `externos: true` na config, as cegas e o ranking ganham as colunas `ext_*` de
+`src/externos.py`: a taxa de cópia do SCHED por companhia vem dos 12 meses de 2025,
+sempre sem o mês da própria linha.
 """
 
 from __future__ import annotations
@@ -29,6 +33,7 @@ import runlog
 from cache import DATA, TRUTH, load_split
 from compare import CHAMPION
 from crossfit import oof_base
+from externos import MESES_2025, CopiaCia, colunas_ext, copia_cia_2025
 from models import build_model, leaky_columns, prepare
 from runlog import REGISTRY, ROOT, Run
 from stack import corrector_frame, fit_corrector, previsao_corrigida
@@ -99,8 +104,13 @@ def base_final(cfg: dict, full: pd.DataFrame, rk: pd.DataFrame, run: Run) -> np.
 
 
 def corretor_final(cfg_bloco: dict, adsb: bool, full: pd.DataFrame, rk: pd.DataFrame,
-                   caminho_oof, run: Run, conjunto: bool = False, sem: Iterable[str] = ()):
-    """Corretor treinado nas cegas com a previsão de uma base que não viu o mês delas."""
+                   caminho_oof, run: Run, conjunto: bool = False, sem: Iterable[str] = (),
+                   copia: CopiaCia | None = None):
+    """Corretor treinado nas cegas com a previsão de uma base que não viu o mês delas.
+
+    Com `copia` (config `externos`), as cegas ganham as colunas `ext_*`: a taxa de cópia
+    vem dos 12 meses de 2025, sempre sem o mês da própria linha.
+    """
     blind = load_split("blind2025")
     run.log(f"cegas {len(blind):,}")
     oof = oof_base(cfg_bloco, full, blind, rk, run)
@@ -109,7 +119,8 @@ def corretor_final(cfg_bloco: dict, adsb: bool, full: pd.DataFrame, rk: pd.DataF
     pred_oof = oof["pred"].to_numpy(float)
     cegas = blind.set_index(F.ID).loc[oof[F.ID]].reset_index()  # mesma ordem do oof
     del blind
-    X = corrector_frame(cegas, pred_oof, adsb, bool(cfg_bloco.get("janela_lobt")), sem)
+    ext = colunas_ext(cegas, copia, MESES_2025) if copia else None
+    X = corrector_frame(cegas, pred_oof, adsb, bool(cfg_bloco.get("janela_lobt")), sem, ext)
     del cegas
     if adsb:
         run.log(f"adsb no treino do corretor: {X['adsb_taxi'].notna().mean():.1%}")
@@ -117,9 +128,12 @@ def corretor_final(cfg_bloco: dict, adsb: bool, full: pd.DataFrame, rk: pd.DataF
 
 
 def corrigir_ranking(corretor, cfg_bloco: dict, adsb: bool, rk: pd.DataFrame,
-                     pred: np.ndarray, sem: Iterable[str] = ()) -> np.ndarray:
+                     pred: np.ndarray, sem: Iterable[str] = (),
+                     copia: CopiaCia | None = None) -> np.ndarray:
     """Previsão final do ranking: na janela do LOBT quando os blocos da base usam."""
-    return previsao_corrigida(corretor, rk, pred, adsb, bool(cfg_bloco.get("janela_lobt")), sem)
+    ext = colunas_ext(rk, copia, MESES_2025) if copia else None
+    return previsao_corrigida(corretor, rk, pred, adsb, bool(cfg_bloco.get("janela_lobt")),
+                              sem, ext)
 
 
 def corrida_registrada(corrida_id: str) -> dict:
@@ -147,17 +161,18 @@ def submit(version: int, forcar: bool = False, corrida: str | None = None) -> No
             template = pd.read_parquet(DATA / "submitting.parquet")
         if empilhado:
             with run.phase("corretor", 0.55):
+                copia = copia_cia_2025(run) if champ["config"].get("externos") else None
                 corretor = corretor_final(
                     champ["config"]["base_config"], champ["config"]["adsb"], full, rk,
                     OUT / f"{team}_v{version}_oof.parquet", run,
                     champ["config"].get("corretor") == "conjunto",
-                    champ["config"].get("sem_features", ()),
+                    champ["config"].get("sem_features", ()), copia,
                 )
             with run.phase("base final", 0.30):
                 pred = base_final(cfg["base_config"], full, rk, run)
                 pred = corrigir_ranking(
                     corretor, champ["config"]["base_config"], champ["config"]["adsb"], rk, pred,
-                    champ["config"].get("sem_features", ()),
+                    champ["config"].get("sem_features", ()), copia,
                 )
         else:
             with run.phase("treino", 0.85):
