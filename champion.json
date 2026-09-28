@@ -1,5 +1,5 @@
 {
-  "id": "20260927-223230-v16_cf",
+  "id": "20260928-113219-v18_cf",
   "config": {
     "model": "stack_cf",
     "base": "20260927-211418-reg_corte",
@@ -17,10 +17,11 @@
     "rounds": 300,
     "seed": 0,
     "corretor": "conjunto",
-    "externos": true
+    "externos": true,
+    "plano13": true
   },
   "best_iter": null,
-  "rmse_simulacao": 306.65,
-  "src_hash": "75d999f7da69",
-  "git_commit": "020e97f"
+  "rmse_simulacao": 303.82,
+  "src_hash": "d73789d7f759",
+  "git_commit": "b798fa1"
 }
