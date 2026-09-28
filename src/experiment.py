@@ -103,6 +103,10 @@ def config(a: argparse.Namespace) -> dict:
         cfg["seeds"] = a.seeds
     if a.janela_lobt:  # config sem a janela continua idêntica às antigas
         cfg["janela_lobt"] = True
+    if a.reg_corte:  # config sem o corte continua idêntica às antigas
+        cfg["reg_corte"] = a.reg_corte
+    if a.reg_sem_lirf_nm:  # idem
+        cfg["reg_sem_lirf_nm"] = True
     if a.sem_feature:  # config sem a flag continua idêntica às antigas
         cfg["sem_features"] = list(a.sem_feature)
     return cfg
@@ -126,10 +130,16 @@ def main() -> None:
                     help="prende a previsão em MVT − LOBT ± 3606 s e zera p fora da janela")
     ap.add_argument("--sem-feature", action="append", default=[], metavar="COLUNA",
                     help="tira a coluna da base (pode repetir); nome inexistente é erro")
+    ap.add_argument("--reg-corte", type=float, default=0.0, metavar="S",
+                    help="corta o alvo do regressor em S segundos (só no treino)")
+    ap.add_argument("--reg-sem-lirf-nm", action="store_true",
+                    help="tira do treino do regressor as linhas de LIRF sem NM")
     ap.add_argument("--nota", default="")
     a = ap.parse_args()
     if a.model != "two_stage_nm" and (a.nm_split_ms or a.nm_min_ms):
         ap.error("--nm-split-ms e --nm-min-ms só valem com --model two_stage_nm")
+    if a.model == "single" and (a.reg_corte or a.reg_sem_lirf_nm):
+        ap.error("--reg-corte e --reg-sem-lirf-nm não valem com --model single")
     cfg = config(a)
 
     with Run(a.nome, cfg) as run:

@@ -521,7 +521,7 @@ cp .env.example .env                              # chaves e TEAM_NAME
 .venv/bin/python src/s3.py download               # dados em data/
 bin/run src/cache.py                              # features em cache (uma vez, sozinho)
 bin/run src/experiment.py <nome> --model two_stage [--seed N] [--seeds N]
-bin/run src/experiment.py <nome> --model two_stage_nm [--nm-split-ms] [--nm-min-ms 21600] [--janela-lobt] [--seed N] [--seeds N] [--sem-feature COLUNA]
+bin/run src/experiment.py <nome> --model two_stage_nm [--nm-split-ms] [--nm-min-ms 21600] [--janela-lobt] [--reg-corte 7200] [--reg-sem-lirf-nm] [--seed N] [--seeds N] [--sem-feature COLUNA]
 bin/run src/compare.py <id> --promover            # decide contra o campeão (FRÁGIL não promove)
 bin/run src/compare.py <id> --promover --aceitar-fragil   # só após teto.py e ok do usuário
 bin/run src/teto.py <base.parquet> <novo.parquet> --oficial-base <RMSE> [--min-ms 21600] [--salvar submissions/<TEAM>_vN.parquet]

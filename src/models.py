@@ -143,6 +143,9 @@ def limitar_janela(pred, df: pd.DataFrame) -> np.ndarray:
     return np.clip(dentro, 0, None)
 
 
+ROMA = "LIRF"  # o aeroporto das esperas longas sem registro no NM
+
+
 class TwoStage:
     """Classificador 'BLOCK copiado do SCHED' + regressor L2 nos voos normais."""
 
@@ -151,6 +154,8 @@ class TwoStage:
         self.reg_rounds = int(cfg.get("reg_rounds", 400))
         self.best_iter: int | None = None
         self.janela = bool(cfg.get("janela_lobt", False))
+        self.reg_corte = float(cfg["reg_corte"]) if cfg.get("reg_corte") else None
+        self.reg_sem_lirf_nm = bool(cfg.get("reg_sem_lirf_nm", False))
         self.params = params_for(cfg)
 
     def fit(self, train, cols, run=None, valid=None) -> "TwoStage":
@@ -166,8 +171,14 @@ class TwoStage:
             callbacks=cb(self.cls_rounds, "classificador", 0.0),
         )
         normal = train[~copied]
+        if self.reg_sem_lirf_nm:  # Roma sem NM: a reta cuida dela, o regressor só se distorce
+            roma = (normal[F.AIRPORT].astype(str) == ROMA) & (normal["nm_missing"] == 1)
+            normal = normal[~roma]
+        alvo = normal[F.TARGET]
+        if self.reg_corte is not None:  # só o alvo do treino; previsão e métricas usam o bruto
+            alvo = alvo.clip(upper=self.reg_corte)
         self.reg = lgb.train(
-            self.params, lgb.Dataset(normal[cols], normal[F.TARGET]), self.reg_rounds,
+            self.params, lgb.Dataset(normal[cols], alvo), self.reg_rounds,
             callbacks=cb(self.reg_rounds, "regressor", 0.5),
         )
         return self

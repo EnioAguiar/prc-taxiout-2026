@@ -258,3 +258,63 @@ def test_sem_features_tira_so_as_colunas_pedidas():
 def test_sem_features_com_nome_inexistente_e_erro():
     with pytest.raises(ValueError, match="nao_existe"):
         models.prepare(_frame_prepare(), [_frame_prepare()], sem=("nao_existe",))
+
+
+def _treino_regressor() -> pd.DataFrame:
+    """Voos sintéticos: uma cópia do SCHED, cauda em LIRF sem NM e voos normais."""
+    import features as F
+
+    t = pd.Timestamp("2025-07-01 10:00", tz="UTC")
+    s = pd.Timedelta(seconds=1)
+    return pd.DataFrame({
+        "x": [1.0, 2.0, 3.0, 4.0, 5.0],
+        "SCHED_TIME_UTC_mvt": [t, t, t, t, t],
+        "BLOCK_TIME_UTC_mvt": [t, t + 900 * s, t + 900 * s, t + 900 * s, t + 900 * s],
+        F.AIRPORT: pd.Categorical(["LIRF", "LIRF", "LIRF", "EDDF", "EDDF"]),
+        "nm_missing": [1, 1, 0, 1, 0],
+        F.TARGET: [500.0, 80_000.0, 9000.0, 30_000.0, 600.0],
+    })
+
+
+def _treina_capturando(cfg: dict, df: pd.DataFrame, monkeypatch) -> list:
+    """Roda TwoStage.fit com lgb.train falso; devolve [(dados, alvo)] por estágio."""
+    vistos = []
+
+    def falso(params, dataset, rounds, callbacks=None):
+        vistos.append((dataset.data, np.asarray(dataset.label, float)))
+        return object()
+
+    monkeypatch.setattr(models.lgb, "train", falso)
+    models.TwoStage(cfg).fit(df, ["x"])
+    return vistos
+
+
+def test_reg_corte_limita_so_o_alvo_do_regressor(monkeypatch):
+    df = _treino_regressor()
+
+    (cls_x, cls_y), (reg_x, reg_y) = _treina_capturando({"reg_corte": 7200}, df, monkeypatch)
+
+    assert cls_x["x"].tolist() == [1.0, 2.0, 3.0, 4.0, 5.0]  # classificador vê tudo
+    assert cls_y.tolist() == [1.0, 0.0, 0.0, 0.0, 0.0]
+    assert reg_x["x"].tolist() == [2.0, 3.0, 4.0, 5.0]  # sem a cópia, como hoje
+    assert reg_y.tolist() == [7200.0, 7200.0, 7200.0, 600.0]
+
+
+def test_sem_reg_corte_o_alvo_do_regressor_e_o_bruto(monkeypatch):
+    df = _treino_regressor()
+
+    (_, _), (reg_x, reg_y) = _treina_capturando({}, df, monkeypatch)
+
+    assert reg_x["x"].tolist() == [2.0, 3.0, 4.0, 5.0]
+    assert reg_y.tolist() == [80_000.0, 9000.0, 30_000.0, 600.0]
+
+
+def test_reg_sem_lirf_nm_tira_so_as_linhas_de_roma_sem_nm(monkeypatch):
+    df = _treino_regressor()
+
+    (cls_x, _), (reg_x, reg_y) = _treina_capturando({"reg_sem_lirf_nm": True}, df, monkeypatch)
+
+    assert cls_x["x"].tolist() == [1.0, 2.0, 3.0, 4.0, 5.0]  # classificador não muda
+    # sai a LIRF sem NM (x=2); ficam LIRF com NM (3) e EDDF sem NM (4) e com NM (5)
+    assert reg_x["x"].tolist() == [3.0, 4.0, 5.0]
+    assert reg_y.tolist() == [9000.0, 30_000.0, 600.0]

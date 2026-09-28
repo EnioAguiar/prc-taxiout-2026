@@ -60,7 +60,7 @@ def test_metricas_por_fatia():
 def _args(**kw) -> argparse.Namespace:
     padrao = dict(model="two_stage_nm", rounds=400, cls_rounds=400, reg_rounds=400,
                   nm_split_ms=False, nm_min_ms=21600.0, seed=0, seeds=1, janela_lobt=False,
-                  sem_feature=[])
+                  sem_feature=[], reg_corte=0.0, reg_sem_lirf_nm=False)
     return argparse.Namespace(**{**padrao, **kw})
 
 
@@ -89,3 +89,10 @@ def test_config_so_registra_sem_features_com_a_flag():
     assert "sem_features" not in config(_args())
     assert config(_args(sem_feature=["adsb_lat0", "adsb_lon0"]))["sem_features"] == [
         "adsb_lat0", "adsb_lon0"]
+
+
+def test_config_so_registra_o_regressor_limpo_quando_ligado():
+    assert "reg_corte" not in config(_args())
+    assert "reg_sem_lirf_nm" not in config(_args())
+    assert config(_args(reg_corte=7200.0))["reg_corte"] == 7200.0
+    assert config(_args(reg_sem_lirf_nm=True))["reg_sem_lirf_nm"] is True
