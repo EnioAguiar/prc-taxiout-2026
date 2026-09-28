@@ -247,7 +247,8 @@ def simulacao_folds(
 
 def simulacao_crossfit(
     run: Run, base_id: str, cfg_base: dict, adsb: bool, conjunto: bool = False,
-    sem: Iterable[str] = (), externos: bool = False, plano13: bool = False
+    sem: Iterable[str] = (), externos: bool = False, plano13: bool = False,
+    fila: bool = False,
 ) -> tuple[pd.DataFrame, pd.DataFrame, np.ndarray]:
     """Corretor treinado no ano fora do bloco; devolve (holdout, base, previsão)."""
     janela = bool(cfg_base.get("janela_lobt"))
@@ -279,7 +280,7 @@ def simulacao_crossfit(
             run.log(f"externos: meses de treino da taxa de cópia {meses}")
         p13_cegas = p13_hold = None
         if plano13:
-            p13_cegas, p13_hold = (colunas_p13(d, cias) for d in (cegas, hold))
+            p13_cegas, p13_hold = (colunas_p13(d, cias, com_fila=fila) for d in (cegas, hold))
             run.log(f"plano 13: {len(cias)} companhias no vocabulário · rotação em "
                     f"{p13_cegas['rot_idade'].notna().mean():.1%} das cegas")
         X_oof = corrector_frame(cegas, pred_oof, adsb, janela, sem, ext_cegas, p13_cegas)
@@ -310,6 +311,8 @@ def parser() -> argparse.ArgumentParser:
                     help="--crossfit: soma as colunas ext_* (companhia, séries diárias, OPDI)")
     ap.add_argument("--plano13", action="store_true",
                     help="--crossfit: soma METAR, rotação no stand, consistência NM e a companhia")
+    ap.add_argument("--fila", action="store_true",
+                    help="--plano13: soma contagens de fila, pista e pátio do stand (diagnóstico de Roma)")
     ap.add_argument("--nota", default="")
     return ap
 
@@ -340,6 +343,8 @@ def config_da_corrida(a: argparse.Namespace, base_id: str) -> dict:
         cfg["externos"] = True
     if a.plano13:
         cfg["plano13"] = True
+    if a.fila:
+        cfg["fila"] = True
     if sem:
         cfg["sem_features"] = sem
     return cfg
@@ -356,6 +361,8 @@ def main() -> None:
         ap.error("--sem-feature só vale com --crossfit (nos folds nada confere o nome)")
     if a.externos and not a.crossfit:
         ap.error("--externos só vale com --crossfit (os folds não têm meses de treino separados)")
+    if a.fila and not a.plano13:
+        ap.error("--fila só vale com --plano13")
     if a.plano13 and not a.crossfit:
         ap.error("--plano13 só vale com --crossfit (os folds não têm vocabulário de treino)")
     base_id = a.base or json.loads((ROOT / "champion.json").read_text())["id"]
@@ -367,7 +374,8 @@ def main() -> None:
         sem = cfg.get("sem_features", ())
         if a.crossfit:
             hold, base, pred = simulacao_crossfit(run, base_id, cfg["base_config"], adsb,
-                                                  a.conjunto, sem, a.externos, a.plano13)
+                                                  a.conjunto, sem, a.externos, a.plano13,
+                                                  a.fila)
         else:
             hold, base, pred = simulacao_folds(run, base_id, adsb, sem)
         with run.phase("métricas", 0.1):

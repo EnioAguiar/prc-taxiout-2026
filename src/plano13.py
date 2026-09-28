@@ -50,6 +50,12 @@ ARR_COLS = ["PHASE_mvt", "ADES_mvt", "STAND_mvt", BLOCK, "FLIGHT_mvt", "AIRCRAFT
 CIAS_TOP = 150
 OUTRA = "outro"
 
+# Fila (bloco --fila): contagens que a base já calcula em features.py
+FILA_CONTAGENS = [f"{g}_{q}_{d}_{w}m" for g, q, ws in (("apt", "dep", (10, 30, 60)),
+                                                         ("apt", "arr", (30, 60)),
+                                                         ("rwy", "dep", (10, 30, 60)))
+                  for w in ws for d in ("prev", "next")]
+
 # Download: uma requisição por aeroporto, todo o período de uma vez.
 URL_METAR = ("https://mesonet.agron.iastate.edu/cgi-bin/request/asos.py?station={apt}"
              "&data=tmpf&data=dwpf&data=sknt&data=gust&data=vsby&data=wxcodes&data=skyc1"
@@ -221,15 +227,41 @@ def coluna_cia(df: pd.DataFrame, cias: list[str]) -> pd.Categorical:
     return pd.Categorical(cia.where(cia.isin(set(cias)), OUTRA), categories=[*cias, OUTRA])
 
 
+def prefixo_stand(stand: pd.Series) -> pd.Series:
+    """Pátio do stand: as letras iniciais (C03 → C) ou o primeiro dígito (512 → 5)."""
+    return stand.astype(str).str.extract(r"^([A-Za-z]+|\d)", expand=False).fillna("?")
+
+
+def fila(df: pd.DataFrame) -> pd.DataFrame:
+    """Bloco `--fila` (diagnóstico de Roma, 28/09): contagens de partidas e chegadas perto do
+    movimento, pista e pátio do stand como categorias. O stand exato piora; o pátio, não.
+
+    As categorias são texto: o LightGBM reaplica o vocabulário do treino na previsão e o
+    CatBoost recebe texto, então holdout e ranking não precisam do mesmo vocabulário.
+    """
+    apt = df[F.AIRPORT].astype(str)
+    out = df[[c for c in FILA_CONTAGENS if c in df]].astype(float).reset_index(drop=True)
+    out["fila_rwy_hora"] = (df["rwy_dep_prev_60m"].astype(float)
+                            + df["rwy_dep_next_60m"].astype(float)).to_numpy()
+    out["apt_rwy"] = pd.Categorical((apt + "|" + df["RUNWAY_mvt"].astype(str)).to_numpy())
+    out["stand_p"] = pd.Categorical((apt + "|" + prefixo_stand(df["STAND_mvt"])).to_numpy())
+    return out
+
+
 def colunas_p13(df: pd.DataFrame, cias: list[str], raiz: Path = RAIZ,
-                dados: Path = DATA) -> pd.DataFrame:
+                dados: Path = DATA, com_fila: bool = False) -> pd.DataFrame:
     """Todas as colunas do plano 13 das linhas de `df`, para o `corrector_frame`.
 
-    Números como float e `cia` categórica, sempre na ordem das linhas de `df`.
+    Números como float e `cia` categórica, sempre na ordem das linhas de `df`. Com
+    `com_fila`, soma o bloco `fila`.
     """
     partes = [metar(df, raiz), rotacao(df, dados), consistencia(df)]
     out = pd.concat([p.reset_index(drop=True).astype(float) for p in partes], axis=1)
     out["cia"] = coluna_cia(df, cias)
+    if com_fila:
+        extra = fila(df)
+        for c in extra.columns:
+            out[c] = extra[c].array
     return out
 
 
