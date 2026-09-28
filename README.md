@@ -546,7 +546,7 @@ bin/run src/train.py submit N [--forcar] [--corrida <id>]   # gera a vN (não en
 .venv/bin/python src/s3.py submit submissions/<TEAM>_vN.parquet   # só após aprovação
 bin/run src/adsb.py baixar [--dias 2025-01,2025-07] [--dia AAAA-MM-DD] [--procs 5]   # recortes adsb.lol no SSD
 bin/run src/adsb_events.py                        # eventos por voo → <SSD>/events.parquet
-bin/run src/stack.py <nome> [--base <id>] [--sem-adsb] [--crossfit [--seeds N] [--conjunto] [--externos] [--plano13]] [--sem-feature COLUNA]   # corretor fora do fold (teste barato) ou fora do bloco no ano (enviável; ~17 min, rodar via systemd-run --user); --conjunto = média de global, por aeroporto e CatBoost; --externos = colunas ext_*; --plano13 = METAR, rotação no stand, consistência NM e a companhia
+bin/run src/stack.py <nome> [--base <id>] [--sem-adsb] [--crossfit [--seeds N] [--conjunto] [--externos] [--plano13] [--reusar-oof <id>]] [--sem-feature COLUNA]   # corretor fora do fold (teste barato) ou fora do bloco no ano (enviável; ~25 min, rodar via systemd-run --user); --conjunto = média de global, por aeroporto e CatBoost; --externos = colunas ext_*; --plano13 = METAR, rotação no stand, consistência NM e a companhia; --reusar-oof = lê o oof daquela corrida em vez de recalcular a base fora do bloco (só com base e base_config idênticas; ~7 min)
 bin/run src/externos.py baixar                    # séries diárias da EUROCONTROL e flight lists do OPDI → data/externo/ (pula o que já existe)
 bin/run src/plano13.py baixar                     # METAR dos 10 aeroportos → data/externo/metar/ (pula o que já existe)
 .venv/bin/python ferramentas/projecao.py          # placar do dia + docs/projecao.md

@@ -357,3 +357,76 @@ def test_sem_feature_sem_crossfit_e_recusado(monkeypatch, capsys):
         stack.main()
 
     assert "--sem-feature só vale com --crossfit" in capsys.readouterr().err
+
+
+def _registro_v20(tmp_path, monkeypatch, cfg_base: dict, oof: str | None = "runs/v20_oof.parquet"):
+    """Registro com uma corrida `stack_cf` que gravou o oof daquela base."""
+    registro = tmp_path / "experiments.jsonl"
+    rec = {"id": "20260101-v20", "config": {"model": "stack_cf", "base": "20260101-a",
+                                            "base_config": cfg_base}}
+    if oof:
+        rec["oof"] = oof
+        caminho = tmp_path / oof
+        caminho.parent.mkdir(parents=True, exist_ok=True)
+        caminho.write_bytes(b"")
+    registro.write_text(json.dumps(rec) + "\n", encoding="utf-8")
+    monkeypatch.setattr(stack, "REGISTRY", registro)
+    monkeypatch.setattr(stack, "ROOT", tmp_path)
+    return registro
+
+
+def test_reusar_oof_devolve_o_caminho_quando_a_base_e_a_mesma(tmp_path, monkeypatch):
+    cfg_base = {"model": "two_stage_nm", "seed": 0, "janela_lobt": True}
+    _registro_v20(tmp_path, monkeypatch, cfg_base)
+
+    assert stack.oof_reusado("20260101-v20", "20260101-a", dict(cfg_base)) == \
+        tmp_path / "runs/v20_oof.parquet"
+
+
+def test_reusar_oof_recusa_base_config_diferente(tmp_path, monkeypatch):
+    _registro_v20(tmp_path, monkeypatch, {"model": "two_stage_nm", "seed": 0, "rounds": 400})
+
+    with pytest.raises(SystemExit, match="não é a desta"):
+        stack.oof_reusado("20260101-v20", "20260101-a",
+                          {"model": "two_stage_nm", "seed": 0, "rounds": 800})
+
+
+def test_reusar_oof_recusa_outra_corrida_base(tmp_path, monkeypatch):
+    cfg_base = {"model": "two_stage_nm", "seed": 0}
+    _registro_v20(tmp_path, monkeypatch, cfg_base)
+
+    with pytest.raises(SystemExit, match="não é a desta"):
+        stack.oof_reusado("20260101-v20", "20260101-outra", dict(cfg_base))
+
+
+def test_reusar_oof_recusa_corrida_sem_oof_gravado(tmp_path, monkeypatch):
+    cfg_base = {"model": "two_stage_nm", "seed": 0}
+    _registro_v20(tmp_path, monkeypatch, cfg_base, oof=None)
+
+    with pytest.raises(SystemExit, match="não gravou `oof`"):
+        stack.oof_reusado("20260101-v20", "20260101-a", dict(cfg_base))
+
+
+def test_a_config_do_crossfit_so_tem_reusar_oof_com_a_flag(tmp_path, monkeypatch):
+    registro = tmp_path / "experiments.jsonl"
+    registro.write_text(json.dumps(
+        {"id": "20260101-a", "config": {"model": "two_stage_nm", "seed": 0}}
+    ) + "\n", encoding="utf-8")
+    monkeypatch.setattr(stack, "REGISTRY", registro)
+
+    com = stack.config_da_corrida(stack.parser().parse_args(
+        ["v21", "--crossfit", "--reusar-oof", "20260101-v20"]), "20260101-a")
+    sem = stack.config_da_corrida(
+        stack.parser().parse_args(["v21", "--crossfit"]), "20260101-a")
+
+    assert com["reusar_oof"] == "20260101-v20"
+    assert "reusar_oof" not in sem
+
+
+def test_reusar_oof_sem_crossfit_e_recusado(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["stack.py", "v21", "--reusar-oof", "20260101-v20"])
+
+    with pytest.raises(SystemExit):
+        stack.main()
+
+    assert "--reusar-oof só vale com --crossfit" in capsys.readouterr().err

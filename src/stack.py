@@ -20,6 +20,7 @@ na janela antes do piso 0; sem `janela_lobt` na base, tudo segue como antes.
 Uso:
     bin/run src/stack.py <nome> [--base <id>] [--crossfit [--seeds N] [--conjunto]] [--sem-adsb]
                                 [--sem-feature COLUNA] [--externos] [--plano13]
+                                [--reusar-oof <id>]
 
 `--sem-feature COLUNA` (pode repetir, só com `--crossfit`) tira a coluna da base e do
 corretor e grava `sem_features` na config da corrida e na `base_config`; sem a flag, nada
@@ -47,12 +48,20 @@ linhas de treino e vale igual para as cegas, o holdout e o ranking.
 `--dist-plano` e `--corretor-sem-ctx` (só com `--crossfit`, laço de 28/09): o corretor
 ganha a distância da previsão da base a cada horário planejado, e/ou perde as colunas
 `ctx_*` quando a base já as usa (`--base-ctx`). Gravam `dist_plano` / `corretor_sem_ctx`.
+
+`--reusar-oof <id>` (só com `--crossfit`) pula o recálculo da base fora do bloco e lê o
+`oof` gravado por aquela corrida, recusando a troca se o `base` ou a `base_config` dela
+não forem idênticos aos desta. A previsão fora do bloco depende só da base, então trocar
+de corretor não exige refazê-la: a corrida cai de ~25 min para ~7 min. Grava
+`reusar_oof: <id>` na config; o `train.py` ignora a chave e refaz o oof do ano inteiro no
+envio, como sempre.
 """
 from __future__ import annotations
 
 import argparse
 import json
 from collections.abc import Iterable
+from pathlib import Path
 
 import lightgbm as lgb
 import numpy as np
@@ -77,13 +86,41 @@ PARAMS_AEROPORTO = {**PARAMS, "min_data_in_leaf": 100}  # menos dados por modelo
 CATBOOST = dict(iterations=800, depth=8, learning_rate=0.08, loss_function="RMSE", random_seed=0)
 
 
-def base_config(base_id: str) -> dict:
-    """Config com que a corrida base foi medida (a última linha dela no registro)."""
+def registro_da_corrida(run_id: str) -> dict:
+    """Última linha de `run_id` no registro (a medição que vale)."""
     for line in reversed(REGISTRY.read_text().splitlines()):
         rec = json.loads(line) if line.strip() else {}
-        if rec.get("id") == base_id:
-            return rec["config"]
-    raise SystemExit(f"corrida base {base_id} não está em {REGISTRY.name}")
+        if rec.get("id") == run_id:
+            return rec
+    raise SystemExit(f"corrida {run_id} não está em {REGISTRY.name}")
+
+
+def base_config(base_id: str) -> dict:
+    """Config com que a corrida base foi medida (a última linha dela no registro)."""
+    return registro_da_corrida(base_id)["config"]
+
+
+def oof_reusado(run_id: str, base_id: str, cfg_base: dict) -> Path:
+    """Caminho do oof de `run_id`, só se ele saiu desta mesma base.
+
+    A previsão fora do bloco depende apenas de `base` e `base_config`: com as duas iguais,
+    recalcular dá o mesmo quadro. Qualquer diferença é recusada — corretor diferente pode
+    reaproveitar, base diferente não.
+    """
+    rec = registro_da_corrida(run_id)
+    cfg = rec.get("config", {})
+    if cfg.get("base") != base_id or cfg.get("base_config") != cfg_base:
+        raise SystemExit(
+            f"--reusar-oof {run_id}: a base daquela corrida não é a desta.\n"
+            f"  lá: base {cfg.get('base')} · {json.dumps(cfg.get('base_config'), sort_keys=True, ensure_ascii=False)}\n"
+            f"  aqui: base {base_id} · {json.dumps(cfg_base, sort_keys=True, ensure_ascii=False)}"
+        )
+    if not rec.get("oof"):
+        raise SystemExit(f"--reusar-oof {run_id}: aquela corrida não gravou `oof` no registro")
+    caminho = ROOT / rec["oof"]
+    if not caminho.exists():
+        raise SystemExit(f"--reusar-oof {run_id}: falta o arquivo {caminho}")
+    return caminho
 
 
 def config_da_base(base_id: str, seeds: int) -> dict:
@@ -276,21 +313,32 @@ def simulacao_crossfit(
     run: Run, base_id: str, cfg_base: dict, adsb: bool, conjunto: bool = False,
     sem: Iterable[str] = (), externos: bool = False, plano13: bool = False,
     fila: bool = False, dist_plano: bool = False, sem_ctx: bool = False,
+    reusar_oof: str | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame, np.ndarray]:
-    """Corretor treinado no ano fora do bloco; devolve (holdout, base, previsão)."""
+    """Corretor treinado no ano fora do bloco; devolve (holdout, base, previsão).
+
+    Com `reusar_oof`, a previsão fora do bloco vem pronta daquela corrida (mesma base e
+    mesma `base_config`), e só o corretor é refeito.
+    """
     janela = bool(cfg_base.get("janela_lobt"))
+    caminho_pronto = oof_reusado(reusar_oof, base_id, cfg_base) if reusar_oof else None
     with run.phase("dados", 0.1):
         base = pd.read_parquet(RUNS / f"{base_id}.parquet")
         hold = holdout_da_base(base)
         train, blind = load_split("train2025"), load_split("blind2025")
-        rk = load_split("ranking2026")
+        rk = None if caminho_pronto else load_split("ranking2026")
         cias = vocabulario(train) if plano13 else None  # vocabulário fixo do treino
         run.log(f"treino {len(train):,} · cegas {len(blind):,} · holdout {len(hold):,}")
     with run.phase("base fora do bloco", 0.7):
-        oof = oof_base(cfg_base, train, blind, rk, run)
+        if caminho_pronto:
+            oof = pd.read_parquet(caminho_pronto)
+            caminho_oof = caminho_pronto
+            run.log(f"oof reaproveitado de {reusar_oof}: {caminho_pronto.name}")
+        else:
+            oof = oof_base(cfg_base, train, blind, rk, run)
+            caminho_oof = RUNS / f"{run.id}_oof.parquet"
+            oof.to_parquet(caminho_oof, index=False)
         del train, rk
-        caminho_oof = RUNS / f"{run.id}_oof.parquet"
-        oof.to_parquet(caminho_oof, index=False)
         run.set(oof=str(caminho_oof.relative_to(ROOT)))
         run.log(f"fora do bloco: {len(oof):,} previsões · rmse {rmse(oof[TRUTH], oof['pred']):.2f}")
     with run.phase("corretor", 0.1):
@@ -346,6 +394,8 @@ def parser() -> argparse.ArgumentParser:
                     help="--crossfit: soma a distância da previsão a cada horário planejado")
     ap.add_argument("--corretor-sem-ctx", action="store_true",
                     help="--crossfit: tira ctx_* do corretor (a base já usa, --base-ctx)")
+    ap.add_argument("--reusar-oof", metavar="ID",
+                    help="--crossfit: usa o oof já gravado por essa corrida (mesma base)")
     ap.add_argument("--nota", default="")
     return ap
 
@@ -382,6 +432,8 @@ def config_da_corrida(a: argparse.Namespace, base_id: str) -> dict:
         cfg["dist_plano"] = True
     if a.corretor_sem_ctx:
         cfg["corretor_sem_ctx"] = True
+    if a.reusar_oof:
+        cfg["reusar_oof"] = a.reusar_oof
     if sem:
         cfg["sem_features"] = sem
     return cfg
@@ -404,6 +456,8 @@ def main() -> None:
         ap.error("--dist-plano e --corretor-sem-ctx só valem com --crossfit")
     if a.plano13 and not a.crossfit:
         ap.error("--plano13 só vale com --crossfit (os folds não têm vocabulário de treino)")
+    if a.reusar_oof and not a.crossfit:
+        ap.error("--reusar-oof só vale com --crossfit (só ele calcula a base fora do bloco)")
     base_id = a.base or json.loads((ROOT / "champion.json").read_text())["id"]
     adsb = not a.sem_adsb
     cfg = config_da_corrida(a, base_id)
@@ -414,7 +468,8 @@ def main() -> None:
         if a.crossfit:
             hold, base, pred = simulacao_crossfit(run, base_id, cfg["base_config"], adsb,
                                                   a.conjunto, sem, a.externos, a.plano13,
-                                                  a.fila, a.dist_plano, a.corretor_sem_ctx)
+                                                  a.fila, a.dist_plano, a.corretor_sem_ctx,
+                                                  a.reusar_oof)
         else:
             hold, base, pred = simulacao_folds(run, base_id, adsb, sem)
         with run.phase("métricas", 0.1):
