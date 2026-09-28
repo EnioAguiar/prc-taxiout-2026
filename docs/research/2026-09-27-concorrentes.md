@@ -93,3 +93,5 @@ Nenhuma fonte aberta traz o off-block real por voo em LTFM, LFPG ou EGLL.
 | ERA5 via Open-Meteo (CC-BY 4.0) | neve, precipitação, rajada por hora | sim | complementa o METAR |
 | OSM `aeroway` (ODbL), OurAirports | stands, taxiways, pistas | estático | distância/caminho stand → pista |
 | Média mensal de taxi-out | mensal por aeroporto | sim | já testada e descartada (27/09) |
+
+Teste do OPDI (28/09): tempo em solo da mesma aeronave (`first_seen` − `last_seen` do voo anterior) casou 91 % dos voos do holdout (LTFM 72 %, LFPG 96 %, EGLL 97 %). No corretor barato: 309,27 → 308,49 (−0,8 s); LTFM e a cauda quase não mudam. Descartado (portão de 3 s). O avião no solo há menos de 30 min tem taxi-out mediano maior (1.031 s), mas o corretor já capta isso por outras colunas.

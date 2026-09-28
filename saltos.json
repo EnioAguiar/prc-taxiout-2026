@@ -138,6 +138,25 @@
    "status": "feito",
    "evidencia": "v13 264,35 contra v12 264,74: −0,39 s (esperado −6; os 4 voos foram mistos)",
    "ganho_real_s": 0.39
+  },
+  {
+   "id": "opdi_solo",
+   "nome": "tempo em solo da aeronave antes do voo (OPDI flight list)",
+   "ganho_s": 0.8,
+   "prob": 0,
+   "dias": 0,
+   "status": "descartado",
+   "ganho_real_s": 0.8,
+   "evidencia": "28/09: casamento 91 % (LTFM 72 %); corretor barato 309,27 → 308,49 (−0,8 s), LTFM 259,2 → 259,0, cauda 4101 → 4098; abaixo do portão de 3 s"
+  },
+  {
+   "id": "reg_corte",
+   "nome": "regressor-base com alvo cortado em 7200 s (plano 11)",
+   "ganho_s": 3,
+   "prob": 0.6,
+   "dias": 0,
+   "status": "medindo",
+   "evidencia": "base 320,29 → 317,25 (−3,0 s, IC 0,3 a 6,1), alarmes falsos 211 → 173; v15_cf em andamento"
   }
  ]
 }
