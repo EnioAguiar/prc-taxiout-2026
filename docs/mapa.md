@@ -21,6 +21,9 @@ Princípios:
 3. **Decidir pela simulação**, enviar só o que melhora, e guardar os 5 envios diários para
    confirmar.
 
+Estudo da cauda (28/09, `docs/research/2026-09-28-estudo-cauda.md`): loterias são um piso comum
+a todos os times; a distância para o topo está na parte previsível (normais e cópias).
+
 Frentes abertas: fontes de dados (OPDI, OpenSky, regulações ATFM, meteorologia, layout de
 aeroporto); estudo da cauda; plano 11 (regressor limpo).
 
