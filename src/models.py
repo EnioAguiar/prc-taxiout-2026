@@ -44,10 +44,11 @@ def params_for(cfg: dict) -> dict:
 
 
 def prepare(train: pd.DataFrame, others: list[pd.DataFrame],
-            sem: Iterable[str] = ()) -> list[str]:
+            sem: Iterable[str] = (), ctx: bool = False) -> list[str]:
     """Referência P10 (só do treino) e o mesmo vocabulário de categorias em todos.
 
-    `sem` tira nomes da lista de colunas (nome que não é candidato é erro).
+    `sem` tira nomes da lista de colunas (nome que não é candidato é erro). `ctx` (config
+    `base_ctx`) soma as colunas `ctx_*` de `src/contexto.py`, que antes só o corretor via.
     """
     ref = F.fit_reference(train)
     for df in (train, *others):
@@ -55,6 +56,8 @@ def prepare(train: pd.DataFrame, others: list[pd.DataFrame],
     F.as_categories([train, *others])
     # adsb_* entram por load_split (fora do cache de features: mudar os eventos não refaz o cache)
     cols = F.feature_columns(train) + [c for c in train.columns if c.startswith("adsb_")]
+    if ctx:
+        cols += [c for c in train.columns if c.startswith("ctx_")]
     return sem_colunas(cols, sem)
 
 
