@@ -165,3 +165,18 @@ quase não prende: com gap ≤ 10/15/20/30 min ele mexe em 36/104/186/372 voos e
 298,11 / 298,17 / 298,80 contra 298,05. O teto do próprio avião mexe em 70 voos e piora (386).
 O oráculo de −10 s vinha dos gaps longos, onde "outro `icao24`" não é o próximo ocupante
 (reboque, stand compartilhado ou casamento errado) [inferência]. Frente fechada.
+
+### Simulação repesada para a mistura de 2026 — não explica o oficial melhor
+
+Cobertura ADS-B por aeroporto, holdout → ranking: EGLL 0,14 → 0,79; LEMD 0,02 → 0,67; EDDM
+0,62 → 0,96; LIRF 0,45 → 0,24; EDDF 0,73 → 0,56; LTFM 0 → 0. Peso de cada voo do holdout =
+fração da célula (aeroporto × ADS-B sim/não × NM sim/não) no ranking ÷ no holdout.
+
+| Δ para a versão anterior | completo | repesado | sem loteria | repesado sem loteria | oficial |
+|---|---|---|---|---|---|
+| v28 | −1,23 | −1,84 | −1,25 | −1,54 | −1,94 |
+| v29 | −0,31 | +0,61 | −1,22 | −0,96 | −1,33 |
+| v30 | −1,06 | −1,43 | −0,68 | −0,67 | −0,07 |
+
+Nenhuma régua acerta a v30; `sem_loteria` segue a melhor nas três, e repesar não ajuda. Com
+três pontos, o ruído do próprio oficial (~0,5–1 s por envio) ainda não se separa [inferência].
