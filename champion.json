@@ -1,5 +1,5 @@
 {
-  "id": "20260928-131704-v20_cf",
+  "id": "20260928-195148-v26_cf",
   "config": {
     "model": "stack_cf",
     "base": "20260928-131214-base_ctx",
@@ -19,10 +19,12 @@
     "seed": 0,
     "corretor": "conjunto",
     "externos": true,
-    "plano13": true
+    "plano13": true,
+    "dist_plano": true,
+    "reusar_oof": "20260928-131704-v20_cf"
   },
   "best_iter": null,
-  "rmse_simulacao": 301.73,
-  "src_hash": "50d6b1a33cca",
-  "git_commit": "4ec07af"
+  "rmse_simulacao": 300.64,
+  "src_hash": "24bbdceae830",
+  "git_commit": "7e3becc"
 }

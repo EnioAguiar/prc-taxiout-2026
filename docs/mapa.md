@@ -31,7 +31,7 @@ aeroporto); estudo da cauda; plano 11 (regressor limpo).
 
 | Item | Situação |
 |---|---|
-| Nota oficial | **252,34 s** (v21) |
+| Nota oficial | **251,10 s** (v27) |
 | Posição | ~26º de 166 |
 | 3º colocado | 224,50 (faltam 28 s) |
 | 10º colocado | 237,05 (faltam 15 s) |
@@ -54,6 +54,7 @@ flowchart LR
     I --> J2["v17 256,86<br/>regressor limpo +<br/>companhia, séries diárias, OPDI"]
     J2 --> K["v19 253,95<br/>METAR, rotação no stand,<br/>consistência NM, companhia"]
     K --> L["v21 252,34<br/>base com contexto (ctx_*)"]
+    L --> M["v27 251,10<br/>distância aos horários planejados"]
 ```
 
 ## Como o modelo funciona
