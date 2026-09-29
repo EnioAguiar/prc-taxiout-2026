@@ -113,7 +113,8 @@ def base_final(cfg: dict, full: pd.DataFrame, rk: pd.DataFrame, run: Run) -> np.
 def corretor_final(cfg_bloco: dict, adsb: bool, full: pd.DataFrame, rk: pd.DataFrame,
                    caminho_oof, run: Run, conjunto: bool = False, sem: Iterable[str] = (),
                    copia: CopiaCia | None = None, cias: list[str] | None = None,
-                   fila: bool = False, dist_plano: bool = False, sem_ctx: bool = False):
+                   fila: bool = False, dist_plano: bool = False, sem_ctx: bool = False,
+                   xgb: bool = False):
     """Corretor treinado nas cegas com a previsão de uma base que não viu o mês delas.
 
     Com `copia` (config `externos`), as cegas ganham as colunas `ext_*`: a taxa de cópia
@@ -135,7 +136,7 @@ def corretor_final(cfg_bloco: dict, adsb: bool, full: pd.DataFrame, rk: pd.DataF
     del cegas
     if adsb:
         run.log(f"adsb no treino do corretor: {X['adsb_taxi'].notna().mean():.1%}")
-    return fit_corrector(X, oof[TRUTH].to_numpy(float), pred_oof, conjunto)
+    return fit_corrector(X, oof[TRUTH].to_numpy(float), pred_oof, conjunto, xgb)
 
 
 def corrigir_ranking(corretor, cfg_bloco: dict, adsb: bool, rk: pd.DataFrame,
@@ -187,6 +188,7 @@ def submit(version: int, forcar: bool = False, corrida: str | None = None) -> No
                     bool(champ["config"].get("fila")),
                     bool(champ["config"].get("dist_plano")),
                     bool(champ["config"].get("corretor_sem_ctx")),
+                    bool(champ["config"].get("corretor_xgb")),
                 )
             with run.phase("base final", 0.30):
                 pred = base_final(cfg["base_config"], full, rk, run)
