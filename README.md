@@ -76,7 +76,7 @@ deixa a validação otimista e o modelo cego para eles (erro da v1).
 
 ## Modelo atual (`src/`)
 
-Melhor nota oficial: **v27 = 251,10** = v26 (id `20260928-195148-v26_cf`, campeã em `champion.json`, 300,64 na simulação; v20 + `--dist-plano` no corretor) + pós-regra de Roma. Antes: v21 = 252,34 = v20 (id `20260928-131704-v20_cf`, 301,73 na simulação; v18 com a base usando também as colunas `ctx_*` via `--base-ctx`) + pós-regra de Roma. Antes: v19 = 253,95 = v18 (id `20260928-113219-v18_cf`, 303,82 na simulação; v16 + `--plano13`: METAR, rotação no stand, consistência NM e companhia no corretor) + pós-regra de Roma. Antes: v17 = 256,86 = v16 (id `20260927-223230-v16_cf`, 306,65 na simulação; base `--reg-corte 7200`, corretor `--conjunto --externos`) + pós-regra de Roma aplicada ao arquivo. Antes: v13 = 264,35; v12 (id `20260927-160433-v12_cf`, 309,78 na simulação, 264,74 oficial) = v11 com `--conjunto` (média de 3 corretores). A v11 (id `20260927-145005-v11_cf`, 311,09 na simulação, 266,81 oficial) = v9 + colunas `ctx_*` no corretor (`src/contexto.py`: taxi-in das chegadas e vizinhos de `MVT − AOBT_3`, plano 8). A v9 era `stack_cf` com janela do LOBT (id
+Melhor nota oficial: **v28 = 249,16** = v26 + `--stand-prefixo` (coluna `stand_p`) + `--corretor-rounds 500` (id `20260929-093849-v28_cf`, campeã em `champion.json`, 299,41 na simulação) + pós-regra de Roma. Antes: v27 = 251,10 = v26 (id `20260928-195148-v26_cf`, 300,64 na simulação; v20 + `--dist-plano` no corretor) + pós-regra de Roma. Antes: v21 = 252,34 = v20 (id `20260928-131704-v20_cf`, 301,73 na simulação; v18 com a base usando também as colunas `ctx_*` via `--base-ctx`) + pós-regra de Roma. Antes: v19 = 253,95 = v18 (id `20260928-113219-v18_cf`, 303,82 na simulação; v16 + `--plano13`: METAR, rotação no stand, consistência NM e companhia no corretor) + pós-regra de Roma. Antes: v17 = 256,86 = v16 (id `20260927-223230-v16_cf`, 306,65 na simulação; base `--reg-corte 7200`, corretor `--conjunto --externos`) + pós-regra de Roma aplicada ao arquivo. Antes: v13 = 264,35; v12 (id `20260927-160433-v12_cf`, 309,78 na simulação, 264,74 oficial) = v11 com `--conjunto` (média de 3 corretores). A v11 (id `20260927-145005-v11_cf`, 311,09 na simulação, 266,81 oficial) = v9 + colunas `ctx_*` no corretor (`src/contexto.py`: taxi-in das chegadas e vizinhos de `MVT − AOBT_3`, plano 8). A v9 era `stack_cf` com janela do LOBT (id
 `20260927-133718-v9_cf`, 317,23 na simulação, 275,90 oficial). A base é
 `two_stage_nm` (`--nm-min-ms 21600 --janela-lobt`, features `adsb_*`) com corretor
 treinado fora do bloco por meses (`src/crossfit.py`, `stack.py --crossfit`); toda previsão é
@@ -177,7 +177,7 @@ fora do cache de features. `train.py submit N` precisa do `events.parquet` no SS
 | v9 | 27/09 | v7 (corretor com cross-fitting por mês) + janela do LOBT (projeção em `MVT − LOBT ± 3606`, `p` zerado fora dela) | 317,23 / 254,24 | **275,90** (−38,9 s sobre a v6; relação 0,870) |
 | v11 | 27/09 | v9 + taxi-in das ARR e vizinhos de `MVT − AOBT_3` no corretor (plano 8) | 311,09 / 245,81 | **266,81** (−9,1 s sobre a v9; relação 0,858) |
 | v12 | 27/09 | v11 com a média de 3 corretores (`--conjunto`, plano 9) | 309,78 / 243,96 | **264,74** (−2,1 s sobre a v11) |
-| v28 | 29/09 | v26 + `--stand-prefixo` (coluna `stand_p` do bloco fila) + `--corretor-rounds 500` (laço fiel 2; id `20260929-093849-v28_cf`) + regra de Roma | 299,41 / 231,53 | enviada 29/09 ~10h40 UTC; nota pendente (esperado ~249,9) |
+| v28 | 29/09 | v26 + `--stand-prefixo` (coluna `stand_p` do bloco fila) + `--corretor-rounds 500` (laço fiel 2; id `20260929-093849-v28_cf`) + regra de Roma | 299,41 / 231,53 | **249,16** (−1,94 s sobre a v27; simulação previa −1,2) |
 | v27 | 29/09 | v26 (v20 + `--dist-plano`: distância da previsão a cada horário planejado no corretor; laço fiel) + regra de Roma | 300,64 / 232,84 | **251,10** (−1,24 s sobre a v21) |
 | v21 | 28/09 | v20 (base com `ctx_*`: `--base-ctx`; corretor da v18) + regra de Roma | 301,73 / 233,04 | **252,34** (−1,61 s sobre a v19) |
 | v19 | 28/09 | v18 (plano 13: METAR, rotação no stand, consistência NM, companhia no corretor) + regra de Roma | 303,82 / 235,25 | **253,95** (−2,91 s sobre a v17) |
@@ -551,6 +551,7 @@ bin/run src/adsb_events.py                        # eventos por voo → <SSD>/ev
 bin/run src/stack.py <nome> [--base <id>] [--sem-adsb] [--crossfit [--seeds N] [--conjunto] [--externos] [--plano13] [--dist-plano] [--superficie] [--corretor-xgb] [--reusar-oof <id>]] [--sem-feature COLUNA]   # corretor fora do fold (teste barato) ou fora do bloco no ano (enviável; ~25 min, rodar via systemd-run --user); --conjunto = média de global, por aeroporto e CatBoost; --externos = colunas ext_*; --plano13 = METAR, rotação no stand, consistência NM e a companhia; --superficie = colunas sup_* (aviões no solo no push estimado MVT − pred, src/superficie.py); --reusar-oof = lê o oof daquela corrida em vez de recalcular a base fora do bloco (só com base e base_config idênticas; ~7 min)
 bin/run src/externos.py baixar                    # séries diárias da EUROCONTROL e flight lists do OPDI → data/externo/ (pula o que já existe)
 bin/run src/plano13.py baixar                     # METAR dos 10 aeroportos → data/externo/metar/ (pula o que já existe)
+bin/run src/mapa.py                               # apt.dat do X-Plane Gateway (GPL) → data/mapa/distancias.parquet (map_dist/map_dmin/map_extra); usado por stack.py --mapa e experiment.py --base-mapa (medidos 29/09, desligados)
 .venv/bin/python ferramentas/projecao.py          # placar do dia + docs/projecao.md
 .venv/bin/python ferramentas/auditoria.py         # docs/auditoria/AAAA-MM-DD.md
 .venv/bin/python -m pytest -q
@@ -629,7 +630,7 @@ prc-taxiout-2026/
 ## Leaderboard
 
 <https://prc-challenge-2026.vercel.app/>. Em 27/09/2026: 186 equipes, 1º 224,50, 3º
-228,59, 10º 242,81, 50º 278,39. Nós: **251,10 s** (v27, 29/09; antes 252,34, 253,95, 256,86, 264,35, 264,74, 266,81, 275,90, 314,76, 331,0,
+228,59, 10º 242,81, 50º 278,39. Nós: **249,16 s** (v28, 29/09, 25º de 164; antes 251,10, 252,34, 253,95, 256,86, 264,35, 264,74, 266,81, 275,90, 314,76, 331,0,
 338,7 e 384,7). Fotos diárias em `placar/`.
 
 ## Referências

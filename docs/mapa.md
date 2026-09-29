@@ -1,4 +1,4 @@
-# Mapa do projeto (atualizado em 29/09, 02h UTC)
+# Mapa do projeto (atualizado em 29/09, 15h UTC)
 
 Resumo para se localizar. Detalhes: `README.md` (modelo, roadmap, envios) e `CONTEXTO.md` (linha do tempo).
 
@@ -31,10 +31,11 @@ aeroporto); estudo da cauda; plano 11 (regressor limpo).
 
 | Item | Situação |
 |---|---|
-| Nota oficial | **251,10 s** (v27) |
-| Posição | 25º de ~167 |
-| 3º colocado | 224,50 (faltam 26,6 s) |
-| 10º colocado | 236,98 (faltam 14,1 s) |
+| Nota oficial | **249,16 s** (v28) |
+| Posição | 25º de 164 |
+| 1º colocado | 220,40 (faltam 28,8 s) |
+| 3º colocado | 224,50 (faltam 24,7 s) |
+| 10º colocado | 236,98 (faltam 12,2 s) |
 | Prazo | 11/10, 23:59 (horário da Europa) |
 | Envios | 5 por dia UTC (zera às 21h de Brasília) |
 | Repositório | privado; abrir entre 08 e 10/10 (condição do prêmio) |
@@ -55,6 +56,7 @@ flowchart LR
     J2 --> K["v19 253,95<br/>METAR, rotação no stand,<br/>consistência NM, companhia"]
     K --> L["v21 252,34<br/>base com contexto (ctx_*)"]
     L --> M["v27 251,10<br/>distância aos horários planejados"]
+    M --> N["v28 249,16<br/>pátio do stand + 500 rodadas"]
 ```
 
 ## Como o modelo funciona
@@ -87,26 +89,23 @@ tirar lat/lon do ADS-B, alvo residual, calibração de p, mistura multiclasse.
 
 ## Para onde vamos (a partir de 29/09)
 
-Feito em 28/09: v19 253,95 → v21 252,34 → v27 251,10. Descartados contra a campeã: base com plano 13,
-`--fila`, base com mais rodadas, hedge de Roma, cobertura ADS-B 2026, tirar ctx do corretor, pátio do stand,
-pesos, p(cópia), só LGB/só CatBoost, 500 rodadas, XGBoost na base e como 4º corretor, LightGBM na GPU.
+Feito em 28–29/09: v19 253,95 → v21 252,34 → v27 251,10 → v28 249,16. Descartados contra a campeã: base
+com plano 13, `--fila` completo, base com mais rodadas, hedge de Roma, cobertura ADS-B 2026, tirar ctx do
+corretor, pesos, p(cópia), só LGB/só CatBoost, XGBoost na base e como 4º corretor, LightGBM na GPU,
+superfície (ATD2), **mapa do aeroporto** (X-Plane apt.dat; na base e no corretor +0,3–0,4 s, reprovado
+sem top 10; código pronto e desligado), **caçador de regras 2** (sequência de pousos no stand, mesmo
+voo em outro mês: nada; `docs/research/2026-09-29-cacador-de-regras-2.md`).
 
 ```mermaid
 flowchart TD
-    A["Laço fiel 2 (superfície etc.):<br/>docs/research/2026-09-29-laco-fiel-2"] --> B{"passou o portão?"}
-    B -->|sim| E["submit + regra de Roma,<br/>mostrar, enviar com ok"]
-    B -->|não| M
-    E --> M["Mapa do aeroporto (X-Plane apt.dat, GPL / OSM, ODbL):<br/>cobertura dos stands → distância stand→pista"]
-    M --> O["OpenSky (IST, FCO jul)<br/>só se o organizador liberar"]
-    O --> R["Caçador de regras exatas 2"]
-    R --> FIM["08–10/10: README em inglês,<br/>repositório público GPLv3"]
+    O["OpenSky (IST, FCO jul)<br/>só se o organizador liberar (Discord)"] --> B["Base mais forte nos aeroportos<br/>sem ADS-B (LTFM, LFPG, LEMD, EGLL)"]
+    B --> FIM["08–10/10: README em inglês,<br/>repositório público GPLv3"]
 ```
 
 | Etapa | Ganho esperado (oficial) | Quando |
 |---|---|---|
-| Laço fiel 2 | 0 a −1 s | 29/09 manhã |
-| Mapa do aeroporto | incerto; é informação nova que o 3º usa | 29–30/09 |
-| OpenSky / regras exatas | incerto | se liberado / 30/09+ |
+| OpenSky | incerto | se liberado |
+| Base mais forte sem ADS-B | incerto; é onde está a distância para o topo | 30/09+ |
 | Meta | top 10 (~237); top 3 pede ~220 | até 11/10 |
 
 Lições de 28/09: a simulação acerta o oficial (−2,8→−2,91; −2,1→−1,61; −1,1→−1,24); o corretor
