@@ -539,7 +539,7 @@ cp .env.example .env                              # chaves e TEAM_NAME
 .venv/bin/python src/s3.py download               # dados em data/
 bin/run src/cache.py                              # features em cache (uma vez, sozinho)
 bin/run src/experiment.py <nome> --model two_stage [--seed N] [--seeds N]
-bin/run src/experiment.py <nome> --model two_stage_nm [--nm-split-ms] [--nm-min-ms 21600] [--janela-lobt] [--reg-corte 7200] [--reg-sem-lirf-nm] [--seed N] [--seeds N] [--sem-feature COLUNA]
+bin/run src/experiment.py <nome> --model two_stage_nm [--nm-split-ms] [--nm-min-ms 21600] [--janela-lobt] [--reg-corte 7200] [--reg-sem-lirf-nm] [--base-ctx] [--base-p13] [--cat-max 256] [--motor lgb|xgb] [--seed N] [--seeds N] [--sem-feature COLUNA]
 bin/run src/compare.py <id> --promover            # decide contra o campeão (FRÁGIL não promove)
 bin/run src/compare.py <id> --promover --aceitar-fragil   # só após teto.py e ok do usuário
 bin/run src/teto.py <base.parquet> <novo.parquet> --oficial-base <RMSE> [--min-ms 21600] [--salvar submissions/<TEAM>_vN.parquet]
@@ -547,13 +547,25 @@ bin/run src/train.py submit N [--forcar] [--corrida <id>]   # gera a vN (não en
 .venv/bin/python src/s3.py submit submissions/<TEAM>_vN.parquet   # só após aprovação
 bin/run src/adsb.py baixar [--dias 2025-01,2025-07] [--dia AAAA-MM-DD] [--procs 5]   # recortes adsb.lol no SSD
 bin/run src/adsb_events.py                        # eventos por voo → <SSD>/events.parquet
-bin/run src/stack.py <nome> [--base <id>] [--sem-adsb] [--crossfit [--seeds N] [--conjunto] [--externos] [--plano13] [--reusar-oof <id>]] [--sem-feature COLUNA]   # corretor fora do fold (teste barato) ou fora do bloco no ano (enviável; ~25 min, rodar via systemd-run --user); --conjunto = média de global, por aeroporto e CatBoost; --externos = colunas ext_*; --plano13 = METAR, rotação no stand, consistência NM e a companhia; --reusar-oof = lê o oof daquela corrida em vez de recalcular a base fora do bloco (só com base e base_config idênticas; ~7 min)
+bin/run src/stack.py <nome> [--base <id>] [--sem-adsb] [--crossfit [--seeds N] [--conjunto] [--externos] [--plano13] [--dist-plano] [--corretor-xgb] [--reusar-oof <id>]] [--sem-feature COLUNA]   # corretor fora do fold (teste barato) ou fora do bloco no ano (enviável; ~25 min, rodar via systemd-run --user); --conjunto = média de global, por aeroporto e CatBoost; --externos = colunas ext_*; --plano13 = METAR, rotação no stand, consistência NM e a companhia; --reusar-oof = lê o oof daquela corrida em vez de recalcular a base fora do bloco (só com base e base_config idênticas; ~7 min)
 bin/run src/externos.py baixar                    # séries diárias da EUROCONTROL e flight lists do OPDI → data/externo/ (pula o que já existe)
 bin/run src/plano13.py baixar                     # METAR dos 10 aeroportos → data/externo/metar/ (pula o que já existe)
 .venv/bin/python ferramentas/projecao.py          # placar do dia + docs/projecao.md
 .venv/bin/python ferramentas/auditoria.py         # docs/auditoria/AAAA-MM-DD.md
 .venv/bin/python -m pytest -q
 ```
+
+GPU (medido em 28/09 no nosso dado; pesquisa em `../docs/pesquisa/2026-09-28-gpu-em-ml.md`):
+
+- `PRC_DEVICE=gpu` (`src/dispositivo.py`) põe o LightGBM na GPU via OpenCL do driver, sem
+  instalar nada. Exige `--cat-max 256` na base (a GPU aceita até 256 bins por feature; STAND,
+  ADES, operador e tipo passam disso). Base `base_ctx`: 310,84 na GPU contra 311,18 na CPU (mesmo
+  erro), mas só 15 % mais rápida (o treino continua preso na CPU). **Padrão: CPU** (determinística).
+- `--motor xgb` (experiment.py) troca os dois estágios da base por XGBoost na GPU (CUDA do wheel
+  do PyPI): 318,70, pior que o LightGBM; média 0,8·LGB + 0,2·XGB = 311,11 (empate). Usa 1 núcleo
+  e 82 % da GPU, então pode rodar em paralelo com um job de CPU.
+- `--corretor-xgb` (stack.py, com `--conjunto`) soma um 4º corretor XGBoost: v28 300,85 contra
+  300,64 da v26 (empate, −0,2 s). Nenhuma das três vira padrão.
 
 Todo comando pesado passa pelo `bin/run`, que limita a 6 núcleos físicos e
 prioridade baixa. Limite do placar: 5 envios por dia UTC (zera às 00:00 UTC, 21h em Brasília), 1 GB por bucket. Conta
