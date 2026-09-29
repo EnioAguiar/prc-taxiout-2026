@@ -318,3 +318,72 @@ def test_reg_sem_lirf_nm_tira_so_as_linhas_de_roma_sem_nm(monkeypatch):
     # sai a LIRF sem NM (x=2); ficam LIRF com NM (3) e EDDF sem NM (4) e com NM (5)
     assert reg_x["x"].tolist() == [3.0, 4.0, 5.0]
     assert reg_y.tolist() == [9000.0, 30_000.0, 600.0]
+
+
+class _Const:
+    """Regressor falso que devolve sempre o mesmo valor, para checar o roteamento."""
+
+    def __init__(self, valor: float) -> None:
+        self.valor = valor
+
+    def predict(self, x) -> np.ndarray:
+        return np.full(len(x), self.valor)
+
+
+def _dois_estagios_por_apt(regs_apt: dict) -> models.TwoStage:
+    m = models.TwoStage({"base_por_apt": True})
+    m.cols = ["x"]
+    m.cls = _Const(0.0)  # nenhuma cópia: a previsão é só a do regressor
+    m.reg = _Const(1000.0)
+    m.regs_apt = regs_apt
+    return m
+
+
+def _frame_apt() -> pd.DataFrame:
+    import features as F
+
+    return pd.DataFrame({
+        "x": [1.0, 2.0, 3.0],
+        models.SCHED_GAP: [np.nan, np.nan, np.nan],  # sem SCHED: a mistura é só o regressor
+        F.AIRPORT: pd.Categorical(["LTFM", "EDDF", "LTFM"]),
+    })
+
+
+def test_por_apt_mistura_o_global_com_o_do_aeroporto_so_onde_ele_existe():
+    m = _dois_estagios_por_apt({"LTFM": _Const(2000.0)})
+
+    pred = m.predict(_frame_apt())
+
+    assert pred.tolist() == [1500.0, 1000.0, 1500.0]  # EDDF sem modelo próprio fica no global
+
+
+def test_sem_regressores_por_aeroporto_a_previsao_e_a_do_global():
+    m = _dois_estagios_por_apt({})
+
+    assert m.predict(_frame_apt()).tolist() == [1000.0, 1000.0, 1000.0]
+
+
+def test_por_apt_so_treina_aeroporto_com_linhas_bastantes(monkeypatch):
+    import features as F
+
+    n = models.MIN_LINHAS_APT
+    t = pd.Timestamp("2025-07-01 10:00", tz="UTC")
+    df = pd.DataFrame({
+        "x": np.arange(n + 5, dtype=float),
+        "SCHED_TIME_UTC_mvt": [t] * (n + 5),
+        "BLOCK_TIME_UTC_mvt": [t + pd.Timedelta(seconds=900)] * (n + 5),
+        F.AIRPORT: pd.Categorical(["LTFM"] * n + ["EDDF"] * 5),
+        "nm_missing": [0] * (n + 5),
+        F.TARGET: np.full(n + 5, 600.0),
+    })
+    vistos = []
+
+    def falso(params, dataset, rounds, callbacks=None):
+        vistos.append(len(dataset.data))
+        return object()
+
+    monkeypatch.setattr(models.lgb, "train", falso)
+    modelo = models.TwoStage({"base_por_apt": True}).fit(df, ["x"])
+
+    assert list(modelo.regs_apt) == ["LTFM"]  # EDDF tem 5 linhas, fica só com o global
+    assert vistos == [n + 5, n + 5, n]  # classificador, regressor global, regressor do LTFM

@@ -94,18 +94,38 @@ com plano 13, `--fila` completo, base com mais rodadas, hedge de Roma, cobertura
 corretor, pesos, p(cópia), só LGB/só CatBoost, XGBoost na base e como 4º corretor, LightGBM na GPU,
 superfície (ATD2), **mapa do aeroporto** (X-Plane apt.dat; na base e no corretor +0,3–0,4 s, reprovado
 sem top 10; código pronto e desligado), **caçador de regras 2** (sequência de pousos no stand, mesmo
-voo em outro mês: nada; `docs/research/2026-09-29-cacador-de-regras-2.md`).
+voo em outro mês: nada; `docs/research/2026-09-29-cacador-de-regras-2.md`), **voos normais sem ADS-B**
+(item 4e, `docs/research/2026-09-29-base-sem-adsb.md`: as duas hipóteses ganham na fatia-alvo mas
+param em +0,2 s no completo; código pronto e desligado).
+
+### Item 4e: voos normais sem ADS-B (29/09)
+
+Diagnóstico sobre o oof da v28: nenhum agrupamento novo sobrou (stand, companhia, tipo, destino:
+R² leave-one-out ≈ 0), fila de pushback pelo AOBT_3 e configuração de pista não correlacionam com o
+resíduo (|r| ≤ 0,03), o OPDI não vê o solo nesses aeroportos (casa 0–3 % dos voos) e a previsão já está
+calibrada (inclinação 0,97–1,03). Sobra um estado de aeroporto por bloco de 30 min (desvio 58–92 s,
+vale −3 a −14 s por aeroporto) que **não é observável** no ranking.
+
+| | completo | normais NM | os 4 sem ADS-B |
+|---|---|---|---|
+| v28 | 299,41 | 193,45 | 212,92 |
+| `--corretor-ref` (célula aeroporto × stand × pista) | 299,23 | 192,85 | 212,08 |
+| `--base-por-apt` (regressor por aeroporto na base) | 299,23 | 191,90 | 211,78 |
+
+A base com regressor por aeroporto sozinha é o maior ganho de base desde `--base-ctx`
+(311,18 → 308,75, +2,4 s, IC +1,8 a +3,3, passa o portão); o corretor da v28 absorve quase tudo.
+Nenhuma passa o portão no `completo` (IC baixo < −0,5, sem top 10 < 0, julho < 0).
 
 ```mermaid
 flowchart TD
-    O["OpenSky (IST, FCO jul)<br/>só se o organizador liberar (Discord)"] --> B["Base mais forte nos aeroportos<br/>sem ADS-B (LTFM, LFPG, LEMD, EGLL)"]
-    B --> FIM["08–10/10: README em inglês,<br/>repositório público GPLv3"]
+    B["Voos normais sem ADS-B (item 4e)<br/>medido 29/09: ~1-2 s na fatia, 0,2 s no completo"] --> C["H1 + H2 juntas<br/>(--base-por-apt + --corretor-ref)"]
+    C --> FIM["08–10/10: README em inglês,<br/>repositório público GPLv3"]
 ```
 
 | Etapa | Ganho esperado (oficial) | Quando |
 |---|---|---|
-| OpenSky | incerto | se liberado |
-| Base mais forte sem ADS-B | incerto; é onde está a distância para o topo | 30/09+ |
+| Base mais forte sem ADS-B | medido: 0,2 s no completo, 1,5 s nos normais | feito 29/09 |
+| H1 + H2 juntas | ~0,3–0,5 s [inferência] | 30/09 |
 | Meta | top 10 (~237); top 3 pede ~220 | até 11/10 |
 
 Lições de 28/09: a simulação acerta o oficial (−2,8→−2,91; −2,1→−1,61; −1,1→−1,24); o corretor

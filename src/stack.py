@@ -71,7 +71,7 @@ import contexto
 import features as F
 from adsb_events import FEATURES as ADSB
 from cache import TRUTH, load_split
-from crossfit import oof_base
+from crossfit import month_blocks, oof_base
 from externos import colunas_ext, copia_cia_2025
 from experiment import RUNS, metrics, rmse
 from models import janela_lobt, limitar_janela
@@ -80,6 +80,7 @@ from plano13 import colunas_p13, vocabulario
 from runlog import REGISTRY, ROOT, Run
 from superficie import contagens as contagens_superficie
 import mapa as mapa_aeroporto
+import refcel
 
 FOLDS = 5
 ROUNDS = 300
@@ -137,7 +138,7 @@ def corrector_frame(df: pd.DataFrame, pred: np.ndarray, adsb: bool = True,
                     externos: dict | None = None,
                     plano13: pd.DataFrame | None = None, dist_plano: bool = False,
                     sem_ctx: bool = False, superficie: bool = False,
-                    mapa: bool = False) -> pd.DataFrame:
+                    mapa: bool = False, ref_cel: pd.DataFrame | None = None) -> pd.DataFrame:
     """Entradas do corretor: a previsão da base, o contexto do voo e o rastro ADS-B.
 
     `sem` tira as colunas com esses nomes (nome que não está no quadro é ignorado: a
@@ -160,6 +161,10 @@ def corrector_frame(df: pd.DataFrame, pred: np.ndarray, adsb: bool = True,
 
     `mapa` (`src/mapa.py`, `--mapa`) soma `map_*`: distância de táxi do stand à cabeceira
     pelo grafo de taxiways do `apt.dat` do X-Plane.
+
+    `ref_cel` (`src/refcel.py`, `--corretor-ref`) são as colunas `cel_*` prontas: mediana,
+    P90, desvio e tamanho da célula (aeroporto, stand, pista), ajustadas fora do bloco de
+    meses. Entram com a distância da previsão à mediana da célula.
     """
     cols = [F.AIRPORT, "nm_missing", "hour", *[c for c in df if c.startswith("to_takeoff_from_")],
             *([] if sem_ctx else [c for c in contexto.COLS if c in df])]
@@ -187,6 +192,10 @@ def corrector_frame(df: pd.DataFrame, pred: np.ndarray, adsb: bool = True,
     if mapa:
         for nome, valores in mapa_aeroporto.colunas(df).items():
             X[nome] = valores
+    if ref_cel is not None:
+        for nome in refcel.COLS:
+            X[nome] = np.asarray(ref_cel[nome], float)
+        X["cel_pred_menos_p50"] = X["pred"].to_numpy(float) - X["cel_p50"].to_numpy(float)
     return X.drop(columns=[c for c in sem if c in X.columns])
 
 
@@ -305,10 +314,10 @@ def previsao_corrigida(model: lgb.Booster | Conjunto, df: pd.DataFrame, base: np
                        externos: dict | None = None,
                        plano13: pd.DataFrame | None = None, dist_plano: bool = False,
                        sem_ctx: bool = False, superficie: bool = False,
-                       mapa: bool = False) -> np.ndarray:
+                       mapa: bool = False, ref_cel: pd.DataFrame | None = None) -> np.ndarray:
     """Previsão dos voos de `df` corrigida: com `janela`, dentro da janela do LOBT."""
     X = corrector_frame(df, base, adsb, janela, sem, externos, plano13, dist_plano, sem_ctx,
-                        superficie, mapa)
+                        superficie, mapa, ref_cel)
     return apply_corrector(model, X, base, df if janela else None)
 
 
@@ -348,12 +357,34 @@ def simulacao_folds(
     return hold, base, pred
 
 
+def tabelas_celula(train: pd.DataFrame, run: Run | None = None):
+    """Tabelas de célula do `refcel`: por bloco de meses (fora dele) e do treino inteiro.
+
+    O corretor aprende nas cegas com a previsão de uma base que não viu o mês delas; as
+    estatísticas de célula seguem a mesma regra, com os mesmos blocos de dois meses do
+    `crossfit.oof_base`. Holdout e ranking usam o treino inteiro, que não os contém.
+    """
+    mes = train["MVT_TIME_UTC_mvt"].dt.month
+    bloco_do_mes = month_blocks(mes)
+    meses_por_bloco: dict[int, list[int]] = {}
+    for m, k in bloco_do_mes.items():
+        meses_por_bloco.setdefault(k, []).append(m)
+    tabs_bloco = {}
+    for k, meses in sorted(meses_por_bloco.items()):
+        fora = ~mes.isin(meses)
+        tabs_bloco[k] = refcel.ajustar(train[fora], train.loc[fora, F.TARGET])
+    if run:
+        run.log(f"células: {len(tabs_bloco)} blocos · "
+                f"{len(tabs_bloco[0][0]):,} (aeroporto, stand, pista) no bloco 1")
+    return tabs_bloco, refcel.ajustar(train, train[F.TARGET]), bloco_do_mes
+
+
 def simulacao_crossfit(
     run: Run, base_id: str, cfg_base: dict, adsb: bool, conjunto: bool = False,
     sem: Iterable[str] = (), externos: bool = False, plano13: bool = False,
     fila: bool | str = False, dist_plano: bool = False, sem_ctx: bool = False,
     reusar_oof: str | None = None, corretor_xgb: bool = False, superficie: bool = False,
-    rounds: int = ROUNDS, mapa: bool = False,
+    rounds: int = ROUNDS, mapa: bool = False, ref_cel: bool = False,
 ) -> tuple[pd.DataFrame, pd.DataFrame, np.ndarray]:
     """Corretor treinado no ano fora do bloco; devolve (holdout, base, previsão).
 
@@ -368,6 +399,7 @@ def simulacao_crossfit(
         train, blind = load_split("train2025"), load_split("blind2025")
         rk = None if caminho_pronto else load_split("ranking2026")
         cias = vocabulario(train) if plano13 else None  # vocabulário fixo do treino
+        tabs_bloco, tabs_todos, bloco_do_mes = tabelas_celula(train, run) if ref_cel else (None, None, None)
         run.log(f"treino {len(train):,} · cegas {len(blind):,} · holdout {len(hold):,}")
     with run.phase("base fora do bloco", 0.7):
         if caminho_pronto:
@@ -398,8 +430,15 @@ def simulacao_crossfit(
             p13_cegas, p13_hold = (colunas_p13(d, cias, com_fila=fila) for d in (cegas, hold))
             run.log(f"plano 13: {len(cias)} companhias no vocabulário · rotação em "
                     f"{p13_cegas['rot_idade'].notna().mean():.1%} das cegas")
+        cel_cegas = cel_hold = None
+        if ref_cel:
+            bloco = pd.Series(oof["mes"].to_numpy()).map(bloco_do_mes).to_numpy()
+            cel_cegas = refcel.aplicar_por_bloco(cegas, bloco, tabs_bloco)
+            cel_hold = refcel.aplicar(hold, tabs_todos)
+            run.log(f"células: {cel_cegas['cel_p50'].notna().mean():.1%} das cegas · "
+                    f"nível 0 em {(cel_hold['cel_nivel'] == 0).mean():.1%} do holdout")
         X_oof = corrector_frame(cegas, pred_oof, adsb, janela, sem, ext_cegas, p13_cegas,
-                                dist_plano, sem_ctx, superficie, mapa)
+                                dist_plano, sem_ctx, superficie, mapa, cel_cegas)
         del cegas
         if adsb:
             run.log(f"adsb no treino do corretor: {X_oof['adsb_taxi'].notna().mean():.1%}")
@@ -408,7 +447,7 @@ def simulacao_crossfit(
         del X_oof
         pred_base = base["pred"].to_numpy(float)
         pred = previsao_corrigida(model, hold, pred_base, adsb, janela, sem, ext_hold, p13_hold,
-                                  dist_plano, sem_ctx, superficie, mapa)
+                                  dist_plano, sem_ctx, superficie, mapa, cel_hold)
     return hold, base, pred
 
 
@@ -447,6 +486,9 @@ def parser() -> argparse.ArgumentParser:
                     help="--crossfit: usa o oof já gravado por essa corrida (mesma base)")
     ap.add_argument("--corretor-xgb", action="store_true",
                     help="--conjunto: soma um 4º corretor, XGBoost na GPU")
+    ap.add_argument("--corretor-ref", action="store_true",
+                    help="--crossfit: soma as colunas cel_* (mediana, P90, desvio e tamanho da "
+                         "célula aeroporto × stand × pista, src/refcel.py)")
     ap.add_argument("--nota", default="")
     return ap
 
@@ -491,6 +533,8 @@ def config_da_corrida(a: argparse.Namespace, base_id: str) -> dict:
         cfg["corretor_sem_ctx"] = True
     if a.corretor_xgb:
         cfg["corretor_xgb"] = True
+    if a.corretor_ref:
+        cfg["ref_cel"] = True
     if a.reusar_oof:
         cfg["reusar_oof"] = a.reusar_oof
     if sem:
@@ -527,6 +571,8 @@ def main() -> None:
         ap.error("--plano13 só vale com --crossfit (os folds não têm vocabulário de treino)")
     if a.reusar_oof and not a.crossfit:
         ap.error("--reusar-oof só vale com --crossfit (só ele calcula a base fora do bloco)")
+    if a.corretor_ref and not a.crossfit:
+        ap.error("--corretor-ref só vale com --crossfit (os folds não têm meses de treino separados)")
     base_id = a.base or json.loads((ROOT / "champion.json").read_text())["id"]
     adsb = not a.sem_adsb
     cfg = config_da_corrida(a, base_id)
@@ -539,7 +585,7 @@ def main() -> None:
                                                   a.conjunto, sem, a.externos, a.plano13,
                                                   cfg.get("fila", False), a.dist_plano, a.corretor_sem_ctx,
                                                   a.reusar_oof, a.corretor_xgb, a.superficie,
-                                                  a.corretor_rounds, a.mapa)
+                                                  a.corretor_rounds, a.mapa, a.corretor_ref)
         else:
             hold, base, pred = simulacao_folds(run, base_id, adsb, sem)
         with run.phase("métricas", 0.1):

@@ -41,7 +41,9 @@ from externos import MESES_2025, CopiaCia, colunas_ext, copia_cia_2025
 from models import build_model, leaky_columns, prepare
 from plano13 import colunas_p13, vocabulario
 from runlog import REGISTRY, ROOT, Run
-from stack import ROUNDS as ROUNDS_CORRETOR, corrector_frame, fit_corrector, previsao_corrigida
+import refcel
+from stack import (ROUNDS as ROUNDS_CORRETOR, corrector_frame, fit_corrector,
+                   previsao_corrigida, tabelas_celula)
 
 OUT = ROOT / "submissions"
 ROUNDS_SCALE = 1.2  # full2025 tem 2,085 M linhas contra 1,741 M do train2025
@@ -115,12 +117,13 @@ def corretor_final(cfg_bloco: dict, adsb: bool, full: pd.DataFrame, rk: pd.DataF
                    copia: CopiaCia | None = None, cias: list[str] | None = None,
                    fila: bool | str = False, dist_plano: bool = False, sem_ctx: bool = False,
                    xgb: bool = False, superficie: bool = False, rounds: int = ROUNDS_CORRETOR,
-                   mapa: bool = False):
+                   mapa: bool = False, cel: tuple | None = None):
     """Corretor treinado nas cegas com a previsão de uma base que não viu o mês delas.
 
     Com `copia` (config `externos`), as cegas ganham as colunas `ext_*`: a taxa de cópia
     vem dos 12 meses de 2025, sempre sem o mês da própria linha. Com `cias` (config
-    `plano13`), ganham também as colunas do plano 13.
+    `plano13`), ganham também as colunas do plano 13. Com `cel` (config `ref_cel`), as
+    estatísticas de célula do bloco de meses de cada linha (`(tabelas, mês → bloco)`).
     """
     blind = load_split("blind2025")
     run.log(f"cegas {len(blind):,}")
@@ -132,8 +135,13 @@ def corretor_final(cfg_bloco: dict, adsb: bool, full: pd.DataFrame, rk: pd.DataF
     del blind
     ext = colunas_ext(cegas, copia, MESES_2025) if copia else None
     p13 = colunas_p13(cegas, cias, com_fila=fila) if cias is not None else None
+    cel_cegas = None
+    if cel is not None:
+        tabs_bloco, bloco_do_mes = cel
+        bloco = pd.Series(oof["mes"].to_numpy()).map(bloco_do_mes).to_numpy()
+        cel_cegas = refcel.aplicar_por_bloco(cegas, bloco, tabs_bloco)
     X = corrector_frame(cegas, pred_oof, adsb, bool(cfg_bloco.get("janela_lobt")), sem, ext, p13,
-                        dist_plano, sem_ctx, superficie, mapa)
+                        dist_plano, sem_ctx, superficie, mapa, cel_cegas)
     del cegas
     if adsb:
         run.log(f"adsb no treino do corretor: {X['adsb_taxi'].notna().mean():.1%}")
@@ -145,12 +153,14 @@ def corrigir_ranking(corretor, cfg_bloco: dict, adsb: bool, rk: pd.DataFrame,
                      copia: CopiaCia | None = None,
                      cias: list[str] | None = None, fila: bool | str = False,
                      dist_plano: bool = False, sem_ctx: bool = False,
-                     superficie: bool = False, mapa: bool = False) -> np.ndarray:
+                     superficie: bool = False, mapa: bool = False,
+                     tabs_cel: list | None = None) -> np.ndarray:
     """Previsão final do ranking: na janela do LOBT quando os blocos da base usam."""
     ext = colunas_ext(rk, copia, MESES_2025) if copia else None
     p13 = colunas_p13(rk, cias, com_fila=fila) if cias is not None else None
+    cel = refcel.aplicar(rk, tabs_cel) if tabs_cel is not None else None
     return previsao_corrigida(corretor, rk, pred, adsb, bool(cfg_bloco.get("janela_lobt")),
-                              sem, ext, p13, dist_plano, sem_ctx, superficie, mapa)
+                              sem, ext, p13, dist_plano, sem_ctx, superficie, mapa, cel)
 
 
 def corrida_registrada(corrida_id: str) -> dict:
@@ -182,6 +192,10 @@ def submit(version: int, forcar: bool = False, corrida: str | None = None) -> No
                 cias = vocabulario(full) if champ["config"].get("plano13") else None
                 if cias is not None:
                     run.log(f"plano 13: {len(cias)} companhias no vocabulário do full2025")
+                cel = tabs_cel = None
+                if champ["config"].get("ref_cel"):
+                    tabs_bloco, tabs_cel, bloco_do_mes = tabelas_celula(full, run)
+                    cel = (tabs_bloco, bloco_do_mes)
                 corretor = corretor_final(
                     champ["config"]["base_config"], champ["config"]["adsb"], full, rk,
                     OUT / f"{team}_v{version}_oof.parquet", run,
@@ -193,7 +207,7 @@ def submit(version: int, forcar: bool = False, corrida: str | None = None) -> No
                     bool(champ["config"].get("corretor_xgb")),
                     bool(champ["config"].get("superficie")),
                     champ["config"].get("rounds", ROUNDS_CORRETOR),
-                    bool(champ["config"].get("mapa")),
+                    bool(champ["config"].get("mapa")), cel,
                 )
             with run.phase("base final", 0.30):
                 pred = base_final(cfg["base_config"], full, rk, run)
@@ -204,7 +218,7 @@ def submit(version: int, forcar: bool = False, corrida: str | None = None) -> No
                     bool(champ["config"].get("dist_plano")),
                     bool(champ["config"].get("corretor_sem_ctx")),
                     bool(champ["config"].get("superficie")),
-                    bool(champ["config"].get("mapa")),
+                    bool(champ["config"].get("mapa")), tabs_cel,
                 )
         else:
             with run.phase("treino", 0.85):

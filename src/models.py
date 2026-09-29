@@ -226,6 +226,9 @@ class _Xgb:
         return self.booster.inplace_predict(x)
 
 
+MIN_LINHAS_APT = 20000  # menos que isto, o aeroporto fica só com o regressor global
+
+
 class TwoStage:
     """Classificador 'BLOCK copiado do SCHED' + regressor L2 nos voos normais.
 
@@ -242,6 +245,7 @@ class TwoStage:
         self.params = params_for(cfg)
         self.motor = cfg.get("motor", "lgb")
         self.xgb_params = {**XGB_PARAMS, "seed": int(cfg.get("seed", 0))}
+        self.por_apt = bool(cfg.get("base_por_apt", False))
 
     def fit(self, train, cols, run=None, valid=None) -> "TwoStage":
         if self.motor == "xgb":
@@ -268,7 +272,26 @@ class TwoStage:
             self.params, lgb.Dataset(normal[cols], alvo), self.reg_rounds,
             callbacks=cb(self.reg_rounds, "regressor", 0.5),
         )
+        if self.por_apt:
+            self.regs_apt = self._regressores_por_apt(normal, alvo, cols)
         return self
+
+    def _regressores_por_apt(self, normal: pd.DataFrame, alvo, cols) -> dict:
+        """Um regressor por aeroporto (`--base-por-apt`), ao lado do global.
+
+        Os aeroportos não dividem stand nem pista: no modelo global toda árvore gasta os
+        primeiros cortes separando aeroporto antes de chegar ao stand. Aeroporto com menos
+        de `MIN_LINHAS_APT` linhas normais continua só com o global.
+        """
+        apt = normal[F.AIRPORT].astype(str).to_numpy()
+        regs = {}
+        for nome in np.unique(apt):
+            sel = apt == nome
+            if sel.sum() < MIN_LINHAS_APT:
+                continue
+            regs[nome] = lgb.train(self.params, lgb.Dataset(normal[sel][cols], alvo[sel]),
+                                   self.reg_rounds)
+        return regs
 
     def _normais(self, train: pd.DataFrame, copied: pd.Series) -> tuple[pd.DataFrame, pd.Series]:
         normal = train[~copied]
@@ -291,6 +314,19 @@ class TwoStage:
                         "regressor", 0.5)
         return self
 
+    def _regressao(self, df: pd.DataFrame, x: pd.DataFrame) -> np.ndarray:
+        """Regressor normal: o global, ou a média dele com o do aeroporto (`--base-por-apt`)."""
+        glob = np.asarray(self.reg.predict(x), float)
+        if not getattr(self, "regs_apt", None):
+            return glob
+        apt = df[F.AIRPORT].astype(str).to_numpy()
+        out = glob.copy()
+        for nome, modelo in self.regs_apt.items():
+            sel = apt == nome
+            if sel.any():  # média simples: o global sozinho já é bom, o do aeroporto afina
+                out[sel] = 0.5 * (glob[sel] + np.asarray(modelo.predict(x[sel]), float))
+        return out
+
     def predict(self, df: pd.DataFrame) -> np.ndarray:
         x = df[self.cols]
         ms = df[SCHED_GAP].to_numpy(float)
@@ -298,7 +334,7 @@ class TwoStage:
         if self.janela:  # SCHED fora da janela: copiá-lo daria um BLOCK impossível
             lo, hi = janela_lobt(df)
             p = np.where((ms < lo) | (ms > hi), 0.0, p)  # sem LOBT a comparação é falsa
-        return combine(p, ms, self.reg.predict(x))
+        return combine(p, ms, self._regressao(df, x))
 
 
 NM_MIN_ROWS = 50  # grupos menores usam a reta global
