@@ -127,3 +127,23 @@ regressor. Código removido; o corretor não foi rodado por cima.
   ADS-B, e 366 não batem com nada: táxi ADS-B mediano 280 s contra y mediano 2.717 s, BLOCK com
   segundos quebrados (só 7 % no segundo 0). É off-block real seguido de ~40 min parado no stand
   antes de andar [inferência]; nenhum horário ou sinal do quadro separa esses voos.
+
+### OPDI `icao24`: cobertura no holdout (passo 1 do "próximo ocupante do stand")
+
+Casando cada DEP com a flight list do OPDI como `externos.opdi` faz (callsign ±600 s; sem
+callsign, só aeroporto ±90 s), guardando o `icao24`:
+
+| Recorte | voos | erro² sem loteria | casado por callsign | só por hora |
+|---|---|---|---|---|
+| todos | 344.419 | 100 % | 81 % | 10 % |
+| sem NM | 5.366 | 24,1 % | 0 % | 90 % |
+| y > 1 h (sem loteria) | 970 | 20,4 % | 76 % | 23 % |
+| LIRF | 26.528 | 35,1 % | 95 % | 2 % |
+| LIRF sem NM | 397 | 17,3 % | 0 % | 99 % |
+| LTFM | 46.539 | 15,2 % | 51 % | 22 % |
+
+O "0–3 %" do item 4e era dos eventos de solo do OPDI, não da flight list: a aeronave é
+identificável em quase toda a cauda. Voos sem NM só casam por hora (±90 s); a taxa de erro
+desse casamento não foi medida. Próximo passo: ligar cada DEP à chegada da mesma aeronave
+(`icao24`) e ao próximo ocupante do stand, e refazer o oráculo de 299,38 → 289,27 só com o que
+é observável no ranking.
