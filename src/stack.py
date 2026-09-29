@@ -75,6 +75,7 @@ from crossfit import oof_base
 from externos import colunas_ext, copia_cia_2025
 from experiment import RUNS, metrics, rmse
 from models import janela_lobt, limitar_janela
+from dispositivo import lgb_params
 from plano13 import colunas_p13, vocabulario
 from runlog import REGISTRY, ROOT, Run
 
@@ -245,14 +246,14 @@ def fit_corrector(X: pd.DataFrame, y: np.ndarray, base: np.ndarray,
     Com `conjunto`, devolve a média de três corretores sobre as mesmas entradas.
     """
     alvo = np.asarray(y, float) - np.asarray(base, float)
-    global_ = lgb.train(PARAMS, lgb.Dataset(X, alvo), ROUNDS)
+    global_ = lgb.train(lgb_params(PARAMS), lgb.Dataset(X, alvo), ROUNDS)
     if not conjunto:
         return global_
     aeroportos = {}
     aero = X[F.AIRPORT].astype(str).to_numpy()
     for nome in np.unique(aero):
         sel = aero == nome
-        aeroportos[nome] = lgb.train(PARAMS_AEROPORTO, lgb.Dataset(X[sel], alvo[sel]), ROUNDS)
+        aeroportos[nome] = lgb.train(lgb_params(PARAMS_AEROPORTO), lgb.Dataset(X[sel], alvo[sel]), ROUNDS)
     return Conjunto(global_, aeroportos, fit_catboost(X, alvo))
 
 

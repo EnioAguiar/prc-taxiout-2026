@@ -25,6 +25,8 @@ from pathlib import Path
 
 import psutil
 
+from dispositivo import DEVICE
+
 ROOT = Path(__file__).resolve().parent.parent
 REGISTRY = ROOT / "experiments.jsonl"
 LOGS = ROOT / "logs"
@@ -73,6 +75,7 @@ class Run:
         self.rec: dict = {
             "id": self.id, "nome": name, "data": time.strftime("%Y-%m-%dT%H:%M:%S"),
             "git_commit": git_commit(), "src_hash": src_hash(), "config": config,
+            "dispositivo": DEVICE,
             "fases": {}, "metricas": {},
         }
         self._registry = registry
@@ -115,7 +118,8 @@ class Run:
 
     def __enter__(self) -> "Run":
         threading.Thread(target=self._watch, daemon=True).start()
-        self.log(f"== {self.id} (código {self.rec['src_hash']}, commit {self.rec['git_commit']})")
+        self.log(f"== {self.id} (código {self.rec['src_hash']}, commit {self.rec['git_commit']}, "
+                 f"LightGBM na {DEVICE.upper()})")
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:

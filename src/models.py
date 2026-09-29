@@ -20,6 +20,7 @@ import pandas as pd
 
 import features as F
 from cache import TRUTH
+from dispositivo import lgb_params
 from plano13 import colunas_p13, vocabulario
 
 PARAMS = dict(
@@ -41,7 +42,7 @@ PARAMS = dict(
 
 
 def params_for(cfg: dict) -> dict:
-    return {**PARAMS, "seed": int(cfg.get("seed", 0))}
+    return lgb_params({**PARAMS, "seed": int(cfg.get("seed", 0))})
 
 
 def prepare(train: pd.DataFrame, others: list[pd.DataFrame],
