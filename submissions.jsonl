@@ -15,3 +15,4 @@
 {"versao": 21, "enviado_utc": "2026-09-28T19:17", "oficial": 252.3376, "simulacao": 301.73, "mudanca": "v20 (base com ctx_*: --base-ctx) + regra de Roma"}
 {"versao": 27, "enviado_utc": "2026-09-29T00:56", "oficial": 251.0962, "simulacao": 300.64, "mudanca": "v26 (v20 + --dist-plano no corretor, laço fiel) + regra de Roma"}
 {"versao": 28, "enviado_utc": "2026-09-29T13:38", "oficial": 249.1586, "simulacao": 299.41, "mudanca": "v26 + --stand-prefixo + --corretor-rounds 500 (laço fiel 2) + regra de Roma"}
+{"versao": 29, "enviado_utc": "2026-09-29T18:37", "oficial": 247.8308, "simulacao": 299.10, "mudanca": "v28 + --base-por-apt + --corretor-ref (id 20260929-135844-h1h2_por_apt_ref) + regra de Roma"}

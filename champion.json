@@ -1,8 +1,8 @@
 {
-  "id": "20260929-093849-v28_cf",
+  "id": "20260929-135844-h1h2_por_apt_ref",
   "config": {
     "model": "stack_cf",
-    "base": "20260928-131214-base_ctx",
+    "base": "20260929-125421-base_ctx_por_apt",
     "base_config": {
       "model": "two_stage_nm",
       "cls_rounds": 400,
@@ -12,7 +12,8 @@
       "nm_min_ms": 21600.0,
       "janela_lobt": true,
       "reg_corte": 7200.0,
-      "base_ctx": true
+      "base_ctx": true,
+      "base_por_apt": true
     },
     "adsb": true,
     "rounds": 500,
@@ -22,10 +23,11 @@
     "plano13": true,
     "fila": "stand",
     "dist_plano": true,
-    "reusar_oof": "20260928-131704-v20_cf"
+    "ref_cel": true,
+    "reusar_oof": "20260929-130343-v31_por_apt"
   },
   "best_iter": null,
-  "rmse_simulacao": 299.41,
-  "src_hash": "4c5685f9ba67",
-  "git_commit": "82bcd79"
+  "rmse_simulacao": 299.1,
+  "src_hash": "60cc0b5a6b04",
+  "git_commit": "2fd2a39"
 }

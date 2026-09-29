@@ -260,3 +260,14 @@ Próximo passo recomendado: **H1 + H2 juntas** (`--base-por-apt` na base e `--co
 corretor). Elas atacam aeroportos diferentes — H1 é LFPG (−1,76) e LEMD (−1,18), H2 é LEMD
 (−2,36), LTFM (−1,29) e EGLL (−1,20) — então a soma na fatia pode chegar a −2 s e empurrar o
 `completo` acima do ruído. Custo: ~50 min (a base muda, não dá para reaproveitar o oof).
+
+### H1 + H2 juntas (29/09)
+
+`20260929-135844-h1h2_por_apt_ref` (9m11s, pico 6,79 GB; base `20260929-125421-base_ctx_por_apt`,
+corretor da v28 + `--corretor-ref`, `--reusar-oof 20260929-130343-v31_por_apt`) contra a v28:
+simulação 299,41 → 299,10, ganho 0,3 s (IC −0,7 a 1,3), sem os 10 maiores −0,0, janeiro +0,5, julho +0,1;
+`normais_nm` 193,45 → 191,48 (+2,0 s, IC 1,7 a 2,3), sem loteria +1,2 s (IC 0,7 a 1,8).
+**Portão: reprovado** (IC baixo −0,7, sem top 10 = 0). Os ganhos somam na fatia, mas o `completo`
+continua dentro do ruído. Enviada mesmo assim com o ok do usuário, pelo ganho sem loteria:
+**v29 = 247,83 oficial (−1,33 s sobre a v28)**; promovida a campeã à mão. As duas flags agora fazem
+parte da campeã.

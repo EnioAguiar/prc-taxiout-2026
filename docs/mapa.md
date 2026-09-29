@@ -1,4 +1,4 @@
-# Mapa do projeto (atualizado em 29/09, 15h UTC)
+# Mapa do projeto (atualizado em 29/09, 19h UTC)
 
 Resumo para se localizar. Detalhes: `README.md` (modelo, roadmap, envios) e `CONTEXTO.md` (linha do tempo).
 
@@ -31,11 +31,11 @@ aeroporto); estudo da cauda; plano 11 (regressor limpo).
 
 | Item | Situação |
 |---|---|
-| Nota oficial | **249,16 s** (v28) |
-| Posição | 25º de 164 |
-| 1º colocado | 220,40 (faltam 28,8 s) |
-| 3º colocado | 224,50 (faltam 24,7 s) |
-| 10º colocado | 236,98 (faltam 12,2 s) |
+| Nota oficial | **247,83 s** (v29) |
+| Posição | 24º de 162 |
+| 1º colocado | 220,40 (faltam 27,4 s) |
+| 3º colocado | 224,50 (faltam 23,3 s) |
+| 10º colocado | 236,98 (faltam 10,9 s) |
 | Prazo | 11/10, 23:59 (horário da Europa) |
 | Envios | 5 por dia UTC (zera às 21h de Brasília) |
 | Repositório | privado; abrir entre 08 e 10/10 (condição do prêmio) |
@@ -57,6 +57,7 @@ flowchart LR
     K --> L["v21 252,34<br/>base com contexto (ctx_*)"]
     L --> M["v27 251,10<br/>distância aos horários planejados"]
     M --> N["v28 249,16<br/>pátio do stand + 500 rodadas"]
+    N --> O["v29 247,83<br/>regressor por aeroporto<br/>+ célula stand × pista"]
 ```
 
 ## Como o modelo funciona
@@ -125,12 +126,15 @@ flowchart TD
 | Etapa | Ganho esperado (oficial) | Quando |
 |---|---|---|
 | Base mais forte sem ADS-B | medido: 0,2 s no completo, 1,5 s nos normais | feito 29/09 |
-| H1 + H2 juntas | ~0,3–0,5 s [inferência] | 30/09 |
+| H1 + H2 juntas (v29) | simulação 299,10 (+0,3 s, IC −0,7 a 1,3; sem loteria +1,2, IC 0,7 a 1,8); **oficial 247,83 (−1,33 s)** | enviada 29/09 |
 | Meta | top 10 (~237); top 3 pede ~220 | até 11/10 |
 
 Lições de 28/09: a simulação acerta o oficial (−2,8→−2,91; −2,1→−1,61; −1,1→−1,24); o corretor
 barato de 1 LightGBM não prevê o corretor real (usar `--reusar-oof` / laço fiel); GPU não é a
 alavanca (limite é informação, não cálculo).
+
+Lição de 29/09 (v29): com o `completo` preso no ruído das loterias, o ganho `sem_loteria` com IC
+todo positivo previu o oficial melhor que o portão (+1,2 s simulado sem loteria → −1,33 s oficial).
 
 ## Regras
 
