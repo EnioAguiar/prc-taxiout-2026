@@ -249,17 +249,19 @@ def fila(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def colunas_p13(df: pd.DataFrame, cias: list[str], raiz: Path = RAIZ,
-                dados: Path = DATA, com_fila: bool = False) -> pd.DataFrame:
+                dados: Path = DATA, com_fila: bool | str = False) -> pd.DataFrame:
     """Todas as colunas do plano 13 das linhas de `df`, para o `corrector_frame`.
 
     Números como float e `cia` categórica, sempre na ordem das linhas de `df`. Com
-    `com_fila`, soma o bloco `fila`.
+    `com_fila`, soma o bloco `fila`; com `com_fila="stand"`, só a coluna `stand_p` dele.
     """
     partes = [metar(df, raiz), rotacao(df, dados), consistencia(df)]
     out = pd.concat([p.reset_index(drop=True).astype(float) for p in partes], axis=1)
     out["cia"] = coluna_cia(df, cias)
     if com_fila:
         extra = fila(df)
+        if com_fila == "stand":
+            extra = extra[["stand_p"]]
         for c in extra.columns:
             out[c] = extra[c].array
     return out

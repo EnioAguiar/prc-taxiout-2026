@@ -113,6 +113,8 @@ def config(a: argparse.Namespace) -> dict:
         cfg["base_ctx"] = True
     if a.base_p13:  # idem
         cfg["base_p13"] = True
+    if a.base_mapa:  # idem
+        cfg["base_mapa"] = True
     if a.cat_max:  # idem
         cfg["cat_max"] = a.cat_max
     if a.motor != "lgb":  # idem
@@ -146,6 +148,8 @@ def main() -> None:
                     help="a base também usa as colunas ctx_* (contexto de chegadas, stand, vizinhos)")
     ap.add_argument("--base-p13", action="store_true",
                     help="a base também usa as colunas do plano 13 (METAR, rotação, consistência NM, cia)")
+    ap.add_argument("--base-mapa", action="store_true",
+                    help="a base também usa as colunas map_* (distância stand → cabeceira, src/mapa.py)")
     ap.add_argument("--cat-max", type=int, default=0, metavar="N",
                     help="limita cada categórica às N−1 mais frequentes (GPU exige N ≤ 256)")
     ap.add_argument("--motor", choices=["lgb", "xgb"], default="lgb",
@@ -165,7 +169,7 @@ def main() -> None:
             rk = load_split("ranking2026")
             cols = prepare(train, [hold], cfg.get("sem_features", ()),
                    cfg.get("base_ctx", False), cfg.get("base_p13", False),
-                   int(cfg.get("cat_max", 0)))
+                   int(cfg.get("cat_max", 0)), cfg.get("base_mapa", False))
             drop = leaky_columns(train, rk, cols)
             cols = [c for c in cols if c not in drop]
             del rk

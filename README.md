@@ -177,6 +177,7 @@ fora do cache de features. `train.py submit N` precisa do `events.parquet` no SS
 | v9 | 27/09 | v7 (corretor com cross-fitting por mês) + janela do LOBT (projeção em `MVT − LOBT ± 3606`, `p` zerado fora dela) | 317,23 / 254,24 | **275,90** (−38,9 s sobre a v6; relação 0,870) |
 | v11 | 27/09 | v9 + taxi-in das ARR e vizinhos de `MVT − AOBT_3` no corretor (plano 8) | 311,09 / 245,81 | **266,81** (−9,1 s sobre a v9; relação 0,858) |
 | v12 | 27/09 | v11 com a média de 3 corretores (`--conjunto`, plano 9) | 309,78 / 243,96 | **264,74** (−2,1 s sobre a v11) |
+| v28 | 29/09 | v26 + `--stand-prefixo` (coluna `stand_p` do bloco fila) + `--corretor-rounds 500` (laço fiel 2; id `20260929-093849-v28_cf`) + regra de Roma | 299,41 / 231,53 | enviada 29/09 ~10h40 UTC; nota pendente (esperado ~249,9) |
 | v27 | 29/09 | v26 (v20 + `--dist-plano`: distância da previsão a cada horário planejado no corretor; laço fiel) + regra de Roma | 300,64 / 232,84 | **251,10** (−1,24 s sobre a v21) |
 | v21 | 28/09 | v20 (base com `ctx_*`: `--base-ctx`; corretor da v18) + regra de Roma | 301,73 / 233,04 | **252,34** (−1,61 s sobre a v19) |
 | v19 | 28/09 | v18 (plano 13: METAR, rotação no stand, consistência NM, companhia no corretor) + regra de Roma | 303,82 / 235,25 | **253,95** (−2,91 s sobre a v17) |

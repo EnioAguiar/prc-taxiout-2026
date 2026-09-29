@@ -23,6 +23,7 @@ import features as F
 from cache import TRUTH
 from dispositivo import DEVICE, lgb_params
 from plano13 import colunas_p13, vocabulario
+import mapa as mapa_aeroporto
 
 PARAMS = dict(
     objective="regression",  # L2 no alvo bruto, alinhado ao RMSE
@@ -48,7 +49,7 @@ def params_for(cfg: dict) -> dict:
 
 def prepare(train: pd.DataFrame, others: list[pd.DataFrame],
             sem: Iterable[str] = (), ctx: bool = False, p13: bool = False,
-            cat_max: int = 0) -> list[str]:
+            cat_max: int = 0, mapa: bool = False) -> list[str]:
     """Referência P10 (só do treino) e o mesmo vocabulário de categorias em todos.
 
     `sem` tira nomes da lista de colunas (nome que não é candidato é erro). `ctx` (config
@@ -58,6 +59,8 @@ def prepare(train: pd.DataFrame, others: list[pd.DataFrame],
     `cat_max` (config `cat_max`) limita cada categórica às `cat_max − 1` categorias mais
     frequentes do treino (o resto vira ausente): a GPU do LightGBM não aceita feature com
     mais de 256 bins (STAND, ADES, operador e tipo de aeronave passam disso).
+    `mapa` (config `base_mapa`) soma as colunas `map_*` de `src/mapa.py` (distância de táxi
+    do stand à cabeceira pelo grafo do `apt.dat` do X-Plane).
     """
     ref = F.fit_reference(train)
     for df in (train, *others):
@@ -78,6 +81,11 @@ def prepare(train: pd.DataFrame, others: list[pd.DataFrame],
             for c in extra.columns:
                 df[c] = extra[c].array
         cols += list(extra.columns)
+    if mapa:
+        for df in (train, *others):
+            for c, v in mapa_aeroporto.colunas(df).items():
+                df[c] = v
+        cols += mapa_aeroporto.COLS
     return sem_colunas(cols, sem)
 
 

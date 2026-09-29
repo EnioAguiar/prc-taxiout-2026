@@ -41,7 +41,7 @@ from externos import MESES_2025, CopiaCia, colunas_ext, copia_cia_2025
 from models import build_model, leaky_columns, prepare
 from plano13 import colunas_p13, vocabulario
 from runlog import REGISTRY, ROOT, Run
-from stack import corrector_frame, fit_corrector, previsao_corrigida
+from stack import ROUNDS as ROUNDS_CORRETOR, corrector_frame, fit_corrector, previsao_corrigida
 
 OUT = ROOT / "submissions"
 ROUNDS_SCALE = 1.2  # full2025 tem 2,085 M linhas contra 1,741 M do train2025
@@ -103,7 +103,7 @@ def base_final(cfg: dict, full: pd.DataFrame, rk: pd.DataFrame, run: Run) -> np.
     """Base treinada no ano inteiro (muta `full` e `rk`), prevendo o ranking."""
     cols = prepare(full, [rk], cfg.get("sem_features", ()),
                    cfg.get("base_ctx", False), cfg.get("base_p13", False),
-                   int(cfg.get("cat_max", 0)))
+                   int(cfg.get("cat_max", 0)), cfg.get("base_mapa", False))
     drop = leaky_columns(full, rk, cols)
     cols = [c for c in cols if c not in drop]
     run.log(f"treino {len(full):,} · ranking {len(rk):,} · ignoradas: {drop or 'nenhuma'}")
@@ -113,8 +113,9 @@ def base_final(cfg: dict, full: pd.DataFrame, rk: pd.DataFrame, run: Run) -> np.
 def corretor_final(cfg_bloco: dict, adsb: bool, full: pd.DataFrame, rk: pd.DataFrame,
                    caminho_oof, run: Run, conjunto: bool = False, sem: Iterable[str] = (),
                    copia: CopiaCia | None = None, cias: list[str] | None = None,
-                   fila: bool = False, dist_plano: bool = False, sem_ctx: bool = False,
-                   xgb: bool = False, superficie: bool = False):
+                   fila: bool | str = False, dist_plano: bool = False, sem_ctx: bool = False,
+                   xgb: bool = False, superficie: bool = False, rounds: int = ROUNDS_CORRETOR,
+                   mapa: bool = False):
     """Corretor treinado nas cegas com a previsão de uma base que não viu o mês delas.
 
     Com `copia` (config `externos`), as cegas ganham as colunas `ext_*`: a taxa de cópia
@@ -132,24 +133,24 @@ def corretor_final(cfg_bloco: dict, adsb: bool, full: pd.DataFrame, rk: pd.DataF
     ext = colunas_ext(cegas, copia, MESES_2025) if copia else None
     p13 = colunas_p13(cegas, cias, com_fila=fila) if cias is not None else None
     X = corrector_frame(cegas, pred_oof, adsb, bool(cfg_bloco.get("janela_lobt")), sem, ext, p13,
-                        dist_plano, sem_ctx, superficie)
+                        dist_plano, sem_ctx, superficie, mapa)
     del cegas
     if adsb:
         run.log(f"adsb no treino do corretor: {X['adsb_taxi'].notna().mean():.1%}")
-    return fit_corrector(X, oof[TRUTH].to_numpy(float), pred_oof, conjunto, xgb)
+    return fit_corrector(X, oof[TRUTH].to_numpy(float), pred_oof, conjunto, xgb, rounds)
 
 
 def corrigir_ranking(corretor, cfg_bloco: dict, adsb: bool, rk: pd.DataFrame,
                      pred: np.ndarray, sem: Iterable[str] = (),
                      copia: CopiaCia | None = None,
-                     cias: list[str] | None = None, fila: bool = False,
+                     cias: list[str] | None = None, fila: bool | str = False,
                      dist_plano: bool = False, sem_ctx: bool = False,
-                     superficie: bool = False) -> np.ndarray:
+                     superficie: bool = False, mapa: bool = False) -> np.ndarray:
     """Previsão final do ranking: na janela do LOBT quando os blocos da base usam."""
     ext = colunas_ext(rk, copia, MESES_2025) if copia else None
     p13 = colunas_p13(rk, cias, com_fila=fila) if cias is not None else None
     return previsao_corrigida(corretor, rk, pred, adsb, bool(cfg_bloco.get("janela_lobt")),
-                              sem, ext, p13, dist_plano, sem_ctx, superficie)
+                              sem, ext, p13, dist_plano, sem_ctx, superficie, mapa)
 
 
 def corrida_registrada(corrida_id: str) -> dict:
@@ -186,21 +187,24 @@ def submit(version: int, forcar: bool = False, corrida: str | None = None) -> No
                     OUT / f"{team}_v{version}_oof.parquet", run,
                     champ["config"].get("corretor") == "conjunto",
                     champ["config"].get("sem_features", ()), copia, cias,
-                    bool(champ["config"].get("fila")),
+                    champ["config"].get("fila", False),
                     bool(champ["config"].get("dist_plano")),
                     bool(champ["config"].get("corretor_sem_ctx")),
                     bool(champ["config"].get("corretor_xgb")),
                     bool(champ["config"].get("superficie")),
+                    champ["config"].get("rounds", ROUNDS_CORRETOR),
+                    bool(champ["config"].get("mapa")),
                 )
             with run.phase("base final", 0.30):
                 pred = base_final(cfg["base_config"], full, rk, run)
                 pred = corrigir_ranking(
                     corretor, champ["config"]["base_config"], champ["config"]["adsb"], rk, pred,
                     champ["config"].get("sem_features", ()), copia, cias,
-                    bool(champ["config"].get("fila")),
+                    champ["config"].get("fila", False),
                     bool(champ["config"].get("dist_plano")),
                     bool(champ["config"].get("corretor_sem_ctx")),
                     bool(champ["config"].get("superficie")),
+                    bool(champ["config"].get("mapa")),
                 )
         else:
             with run.phase("treino", 0.85):
