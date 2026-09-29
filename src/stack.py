@@ -78,6 +78,7 @@ from models import janela_lobt, limitar_janela
 from dispositivo import lgb_params
 from plano13 import colunas_p13, vocabulario
 from runlog import REGISTRY, ROOT, Run
+from superficie import contagens as contagens_superficie
 
 FOLDS = 5
 ROUNDS = 300
@@ -134,7 +135,7 @@ def corrector_frame(df: pd.DataFrame, pred: np.ndarray, adsb: bool = True,
                     janela: bool = False, sem: Iterable[str] = (),
                     externos: dict | None = None,
                     plano13: pd.DataFrame | None = None, dist_plano: bool = False,
-                    sem_ctx: bool = False) -> pd.DataFrame:
+                    sem_ctx: bool = False, superficie: bool = False) -> pd.DataFrame:
     """Entradas do corretor: a previsão da base, o contexto do voo e o rastro ADS-B.
 
     `sem` tira as colunas com esses nomes (nome que não está no quadro é ignorado: a
@@ -150,6 +151,10 @@ def corrector_frame(df: pd.DataFrame, pred: np.ndarray, adsb: bool = True,
     planejado (`dist_*`, `dist_min`, `n_planos`, `n_planos_longos`): o sinal do hedge entre
     "taxi normal" e "cópia do planejado" (laço de 28/09). `sem_ctx` (`--corretor-sem-ctx`)
     tira as colunas `ctx_*` do corretor, para bases que já as usam (`base_ctx`).
+
+    `superficie` (`src/superficie.py`, `--superficie`) soma as colunas `sup_*`: quantos
+    aviões estão no solo no push estimado (`MVT − pred`) e quantos decolam ou pousam
+    durante o táxi estimado, sem nunca ler o off-block de outra decolagem.
     """
     cols = [F.AIRPORT, "nm_missing", "hour", *[c for c in df if c.startswith("to_takeoff_from_")],
             *([] if sem_ctx else [c for c in contexto.COLS if c in df])]
@@ -171,6 +176,9 @@ def corrector_frame(df: pd.DataFrame, pred: np.ndarray, adsb: bool = True,
     if dist_plano:
         for nome, valores in distancias_plano(df, X["pred"].to_numpy(float)).items():
             X[nome] = valores
+    if superficie:
+        for nome, valores in contagens_superficie(df, X["pred"].to_numpy(float)).items():
+            X[nome] = np.asarray(valores, float)
     return X.drop(columns=[c for c in sem if c in X.columns])
 
 
@@ -287,9 +295,10 @@ def previsao_corrigida(model: lgb.Booster | Conjunto, df: pd.DataFrame, base: np
                        adsb: bool, janela: bool, sem: Iterable[str] = (),
                        externos: dict | None = None,
                        plano13: pd.DataFrame | None = None, dist_plano: bool = False,
-                       sem_ctx: bool = False) -> np.ndarray:
+                       sem_ctx: bool = False, superficie: bool = False) -> np.ndarray:
     """Previsão dos voos de `df` corrigida: com `janela`, dentro da janela do LOBT."""
-    X = corrector_frame(df, base, adsb, janela, sem, externos, plano13, dist_plano, sem_ctx)
+    X = corrector_frame(df, base, adsb, janela, sem, externos, plano13, dist_plano, sem_ctx,
+                        superficie)
     return apply_corrector(model, X, base, df if janela else None)
 
 
@@ -333,7 +342,7 @@ def simulacao_crossfit(
     run: Run, base_id: str, cfg_base: dict, adsb: bool, conjunto: bool = False,
     sem: Iterable[str] = (), externos: bool = False, plano13: bool = False,
     fila: bool = False, dist_plano: bool = False, sem_ctx: bool = False,
-    reusar_oof: str | None = None, corretor_xgb: bool = False,
+    reusar_oof: str | None = None, corretor_xgb: bool = False, superficie: bool = False,
 ) -> tuple[pd.DataFrame, pd.DataFrame, np.ndarray]:
     """Corretor treinado no ano fora do bloco; devolve (holdout, base, previsão).
 
@@ -379,7 +388,7 @@ def simulacao_crossfit(
             run.log(f"plano 13: {len(cias)} companhias no vocabulário · rotação em "
                     f"{p13_cegas['rot_idade'].notna().mean():.1%} das cegas")
         X_oof = corrector_frame(cegas, pred_oof, adsb, janela, sem, ext_cegas, p13_cegas,
-                                dist_plano, sem_ctx)
+                                dist_plano, sem_ctx, superficie)
         del cegas
         if adsb:
             run.log(f"adsb no treino do corretor: {X_oof['adsb_taxi'].notna().mean():.1%}")
@@ -387,7 +396,7 @@ def simulacao_crossfit(
         del X_oof
         pred_base = base["pred"].to_numpy(float)
         pred = previsao_corrigida(model, hold, pred_base, adsb, janela, sem, ext_hold, p13_hold,
-                                  dist_plano, sem_ctx)
+                                  dist_plano, sem_ctx, superficie)
     return hold, base, pred
 
 
@@ -412,6 +421,8 @@ def parser() -> argparse.ArgumentParser:
                     help="--plano13: soma contagens de fila, pista e pátio do stand (diagnóstico de Roma)")
     ap.add_argument("--dist-plano", action="store_true",
                     help="--crossfit: soma a distância da previsão a cada horário planejado")
+    ap.add_argument("--superficie", action="store_true",
+                    help="--crossfit: soma as colunas sup_* (aviões no solo no push estimado)")
     ap.add_argument("--corretor-sem-ctx", action="store_true",
                     help="--crossfit: tira ctx_* do corretor (a base já usa, --base-ctx)")
     ap.add_argument("--reusar-oof", metavar="ID",
@@ -452,6 +463,8 @@ def config_da_corrida(a: argparse.Namespace, base_id: str) -> dict:
         cfg["fila"] = True
     if a.dist_plano:
         cfg["dist_plano"] = True
+    if a.superficie:
+        cfg["superficie"] = True
     if a.corretor_sem_ctx:
         cfg["corretor_sem_ctx"] = True
     if a.corretor_xgb:
@@ -480,6 +493,8 @@ def main() -> None:
         ap.error("--fila só vale com --plano13")
     if (a.dist_plano or a.corretor_sem_ctx) and not a.crossfit:
         ap.error("--dist-plano e --corretor-sem-ctx só valem com --crossfit")
+    if a.superficie and not a.crossfit:
+        ap.error("--superficie só vale com --crossfit (os folds não têm as cegas do ano)")
     if a.plano13 and not a.crossfit:
         ap.error("--plano13 só vale com --crossfit (os folds não têm vocabulário de treino)")
     if a.reusar_oof and not a.crossfit:
@@ -495,7 +510,7 @@ def main() -> None:
             hold, base, pred = simulacao_crossfit(run, base_id, cfg["base_config"], adsb,
                                                   a.conjunto, sem, a.externos, a.plano13,
                                                   a.fila, a.dist_plano, a.corretor_sem_ctx,
-                                                  a.reusar_oof, a.corretor_xgb)
+                                                  a.reusar_oof, a.corretor_xgb, a.superficie)
         else:
             hold, base, pred = simulacao_folds(run, base_id, adsb, sem)
         with run.phase("métricas", 0.1):
