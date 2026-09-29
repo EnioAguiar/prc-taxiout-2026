@@ -91,3 +91,11 @@ são ruído**, mesmo com IC "positivo".
 Nenhum candidato barato move o `sem_loteria` acima do ruído. `superficie` e `fila` ganham só nos
 normais (+0,6 a +0,9) e perdem nos maiores voos. Confirma a retrospectiva: o corretor está
 esgotado; o próximo passo é a base (regressor sem LIRF inteiro e sem y > 80.000) e a cauda.
+
+### Regressor global sem LIRF (kind-mango v51) — descartado
+
+`--reg-sem-lirf` (global sem LIRF; LIRF só com o regressor próprio do `--base-por-apt`). Base
+`20260929-182302-base_ctx_por_apt_semlirf`: 308,75 → 309,08 (−0,3; sem loteria −0,4, IC −0,7 a
+−0,0). Com o corretor da v30 (`20260929-183120-v31_sem_lirf_cf`): 298,05 → 299,05 (−1,0, IC −1,9
+a −0,3; sem loteria −0,8, IC −1,6 a −0,1; julho −1,8). O −5,99 s deles não se repete aqui: o
+regressor por aeroporto e o corte do alvo em 2 h já separam Roma [inferência]. Flag removida.
