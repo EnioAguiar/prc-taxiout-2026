@@ -147,3 +147,21 @@ identificável em quase toda a cauda. Voos sem NM só casam por hora (±90 s); a
 desse casamento não foi medida. Próximo passo: ligar cada DEP à chegada da mesma aeronave
 (`icao24`) e ao próximo ocupante do stand, e refazer o oráculo de 299,38 → 289,27 só com o que
 é observável no ranking.
+
+### Próximo ocupante do stand pelo `icao24` — descartado
+
+Script descartável `/tmp/ocupante.py` (v30, holdout). DEP casadas com o OPDI: 91 %; pousos
+(ARR, por `ades` + `last_seen` ≈ pouso): 69 %. Para cada DEP, o último pouso no mesmo stand
+nas 24 h antes do MVT; se o `icao24` difere, seria o próximo ocupante (piso y ≥ MVT − in-block).
+
+| Último pouso no stand | voos | viola a regra |
+|---|---|---|
+| outro `icao24` | 81.522 | 50.699 (y < piso) |
+| o próprio `icao24` | 214.508 | 96 (y > teto) |
+
+Violação do piso por distância do pouso ao MVT: ≤ 5 min 0 %, 5–15 min 1 %, 15–30 min 5 %,
+30–60 min 73 %, > 1 h 99–100 %. Só pousos recentes identificam o próximo ocupante, e aí o piso
+quase não prende: com gap ≤ 10/15/20/30 min ele mexe em 36/104/186/372 voos e dá 298,06 /
+298,11 / 298,17 / 298,80 contra 298,05. O teto do próprio avião mexe em 70 voos e piora (386).
+O oráculo de −10 s vinha dos gaps longos, onde "outro `icao24`" não é o próximo ocupante
+(reboque, stand compartilhado ou casamento errado) [inferência]. Frente fechada.
