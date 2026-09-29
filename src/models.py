@@ -12,6 +12,7 @@ prende a previsão final na janela do LOBT (`JanelaLOBT`) e zera `p` onde a cóp
 
 from __future__ import annotations
 
+import time
 from collections.abc import Iterable
 
 import lightgbm as lgb
@@ -179,8 +180,49 @@ def limitar_janela(pred, df: pd.DataFrame) -> np.ndarray:
 ROMA = "LIRF"  # o aeroporto das esperas longas sem registro no NM
 
 
+# XGBoost (config `motor: "xgb"`): mesmos estágios, árvores por folha como no LightGBM,
+# na GPU (CUDA do driver; o wheel do PyPI já traz). Categóricas nativas, sem limite de bins.
+XGB_PARAMS = dict(
+    tree_method="hist", device="cuda", grow_policy="lossguide", max_leaves=255, max_depth=0,
+    learning_rate=0.05, min_child_weight=100, subsample=0.8, colsample_bytree=0.8,
+    max_bin=256, max_cat_to_onehot=8, objective="reg:squarederror",
+)
+
+
+class _Xgb:
+    """Um booster do XGBoost com a interface que o TwoStage usa (`predict(x)`)."""
+
+    def __init__(self, params: dict, x: pd.DataFrame, y, rounds: int, run, label: str,
+                 start: float) -> None:
+        import xgboost as xgb
+
+        self._xgb = xgb
+        cb = []
+        if run:
+            t0 = time.perf_counter()
+
+            class _Progresso(xgb.callback.TrainingCallback):
+                def after_iteration(self, model, epoch, evals_log):
+                    i = epoch + 1
+                    if i % 50 == 0 or i == rounds:
+                        el = time.perf_counter() - t0
+                        run.progress(start + 0.5 * i / rounds,
+                                     f"{label} {i}/{rounds} · {1000 * el / i:.0f} ms/r (xgb)")
+                    return False
+
+            cb = [_Progresso()]
+        d = xgb.QuantileDMatrix(x, y, enable_categorical=True, max_bin=params["max_bin"])
+        self.booster = xgb.train(params, d, rounds, callbacks=cb)
+
+    def predict(self, x: pd.DataFrame) -> np.ndarray:
+        return self.booster.inplace_predict(x)
+
+
 class TwoStage:
-    """Classificador 'BLOCK copiado do SCHED' + regressor L2 nos voos normais."""
+    """Classificador 'BLOCK copiado do SCHED' + regressor L2 nos voos normais.
+
+    `motor: "xgb"` troca os dois LightGBM por XGBoost na GPU (mesmos alvos e linhas).
+    """
 
     def __init__(self, cfg: dict) -> None:
         self.cls_rounds = int(cfg.get("cls_rounds", 400))
@@ -190,8 +232,12 @@ class TwoStage:
         self.reg_corte = float(cfg["reg_corte"]) if cfg.get("reg_corte") else None
         self.reg_sem_lirf_nm = bool(cfg.get("reg_sem_lirf_nm", False))
         self.params = params_for(cfg)
+        self.motor = cfg.get("motor", "lgb")
+        self.xgb_params = {**XGB_PARAMS, "seed": int(cfg.get("seed", 0))}
 
     def fit(self, train, cols, run=None, valid=None) -> "TwoStage":
+        if self.motor == "xgb":
+            return self._fit_xgb(train, cols, run)
         self.cols = cols
         copied = copied_from_sched(train)
         cls_params = {**self.params, "objective": "binary", "metric": "binary_logloss"}
@@ -214,6 +260,27 @@ class TwoStage:
             self.params, lgb.Dataset(normal[cols], alvo), self.reg_rounds,
             callbacks=cb(self.reg_rounds, "regressor", 0.5),
         )
+        return self
+
+    def _normais(self, train: pd.DataFrame, copied: pd.Series) -> tuple[pd.DataFrame, pd.Series]:
+        normal = train[~copied]
+        if self.reg_sem_lirf_nm:
+            roma = (normal[F.AIRPORT].astype(str) == ROMA) & (normal["nm_missing"] == 1)
+            normal = normal[~roma]
+        alvo = normal[F.TARGET]
+        if self.reg_corte is not None:
+            alvo = alvo.clip(upper=self.reg_corte)
+        return normal, alvo
+
+    def _fit_xgb(self, train, cols, run) -> "TwoStage":
+        self.cols = cols
+        copied = copied_from_sched(train)
+        cls = {**self.xgb_params, "objective": "binary:logistic"}
+        self.cls = _Xgb(cls, train[cols], copied.astype("int8"), self.cls_rounds, run,
+                        "classificador", 0.0)
+        normal, alvo = self._normais(train, copied)
+        self.reg = _Xgb(self.xgb_params, normal[cols], alvo, self.reg_rounds, run,
+                        "regressor", 0.5)
         return self
 
     def predict(self, df: pd.DataFrame) -> np.ndarray:

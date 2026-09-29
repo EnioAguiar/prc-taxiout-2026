@@ -115,6 +115,8 @@ def config(a: argparse.Namespace) -> dict:
         cfg["base_p13"] = True
     if a.cat_max:  # idem
         cfg["cat_max"] = a.cat_max
+    if a.motor != "lgb":  # idem
+        cfg["motor"] = a.motor
     return cfg
 
 
@@ -146,6 +148,8 @@ def main() -> None:
                     help="a base também usa as colunas do plano 13 (METAR, rotação, consistência NM, cia)")
     ap.add_argument("--cat-max", type=int, default=0, metavar="N",
                     help="limita cada categórica às N−1 mais frequentes (GPU exige N ≤ 256)")
+    ap.add_argument("--motor", choices=["lgb", "xgb"], default="lgb",
+                    help="two_stage*: LightGBM (padrão) ou XGBoost na GPU")
     ap.add_argument("--nota", default="")
     a = ap.parse_args()
     if a.model != "two_stage_nm" and (a.nm_split_ms or a.nm_min_ms):

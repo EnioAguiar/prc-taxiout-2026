@@ -7,3 +7,4 @@ minio>=7.2
 python-dotenv>=1.0
 psutil>=6.0
 pytest>=8.0
+xgboost>=3.0
