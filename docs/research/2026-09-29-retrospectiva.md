@@ -99,3 +99,19 @@ esgotado; o próximo passo é a base (regressor sem LIRF inteiro e sem y > 80.00
 −0,0). Com o corretor da v30 (`20260929-183120-v31_sem_lirf_cf`): 298,05 → 299,05 (−1,0, IC −1,9
 a −0,3; sem loteria −0,8, IC −1,6 a −0,1; julho −1,8). O −5,99 s deles não se repete aqui: o
 regressor por aeroporto e o corte do alvo em 2 h já separam Roma [inferência]. Flag removida.
+
+### Mistura multiclasse sem a classe "24 h + táxi" — descartada
+
+`--copia-multi`: classificador de 5 classes (normal, SCHED, LOBT, EOBT_1, AOBT_3; treino 2025:
+1.167.077 · 169.206 · 38.871 · 60.663 · 304.811), previsão `Σ p_k·(MVT − horário_k) + p_0·reg`,
+massa de horário nulo ou fora da janela do LOBT de volta ao normal. Só a base, contra 308,75:
+
+| Variante | completo | sem loteria | normais NM | alarmes falsos |
+|---|---|---|---|---|
+| regressor só na classe 0 (`..._multi`) | 309,41 (−0,7) | −0,9 | −1,9 (IC −2,3 a −1,6) | 7,4 → 6,7 % |
+| regressor nas linhas de antes (`..._multi_r`) | 309,89 (−1,1) | −1,4 (IC −2,4 a −0,4) | −2,4 (IC −2,7 a −2,1) | 6,6 % |
+
+O corte de alarmes falsos se repete, mas a mistura piora os normais: nos voos em que o AOBT_3
+fica perto do BLOCK sem bater, `p_AOBT_3·(MVT − AOBT_3)` troca a previsão do regressor por um
+valor exato e errado [inferência]. A segunda variante mostra que não é falta de linhas no
+regressor. Código removido; o corretor não foi rodado por cima.
