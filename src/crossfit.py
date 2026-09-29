@@ -43,7 +43,8 @@ def oof_base(
         tr = train[~train_mes.isin(meses)].copy()  # prepare muta os frames: cópias por bloco
         te = blind[blind_mes.isin(meses) & blind[TRUTH].notna()].copy()
         cols = prepare(tr, [te], cfg.get("sem_features", ()),
-                   cfg.get("base_ctx", False), cfg.get("base_p13", False))
+                   cfg.get("base_ctx", False), cfg.get("base_p13", False),
+                   int(cfg.get("cat_max", 0)))
         drop = leaky_columns(tr, ranking_cols_ref, cols)
         cols = [c for c in cols if c not in drop]
         model = build_model(cfg).fit(tr, cols, run=run)

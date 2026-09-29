@@ -61,7 +61,7 @@ def _args(**kw) -> argparse.Namespace:
     padrao = dict(model="two_stage_nm", rounds=400, cls_rounds=400, reg_rounds=400,
                   nm_split_ms=False, nm_min_ms=21600.0, seed=0, seeds=1, janela_lobt=False,
                   sem_feature=[], reg_corte=0.0, reg_sem_lirf_nm=False, base_ctx=False,
-                  base_p13=False)
+                  base_p13=False, cat_max=0)
     return argparse.Namespace(**{**padrao, **kw})
 
 

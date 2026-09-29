@@ -20,7 +20,7 @@ import pandas as pd
 
 import features as F
 from cache import TRUTH
-from dispositivo import lgb_params
+from dispositivo import DEVICE, lgb_params
 from plano13 import colunas_p13, vocabulario
 
 PARAMS = dict(
@@ -46,18 +46,26 @@ def params_for(cfg: dict) -> dict:
 
 
 def prepare(train: pd.DataFrame, others: list[pd.DataFrame],
-            sem: Iterable[str] = (), ctx: bool = False, p13: bool = False) -> list[str]:
+            sem: Iterable[str] = (), ctx: bool = False, p13: bool = False,
+            cat_max: int = 0) -> list[str]:
     """Referência P10 (só do treino) e o mesmo vocabulário de categorias em todos.
 
     `sem` tira nomes da lista de colunas (nome que não é candidato é erro). `ctx` (config
     `base_ctx`) soma as colunas `ctx_*` de `src/contexto.py`, que antes só o corretor via.
     `p13` (config `base_p13`) grava em todos os frames as colunas de `src/plano13.py`
     (METAR, rotação no stand, consistência NM e `cia` com o vocabulário do treino).
+    `cat_max` (config `cat_max`) limita cada categórica às `cat_max − 1` categorias mais
+    frequentes do treino (o resto vira ausente): a GPU do LightGBM não aceita feature com
+    mais de 256 bins (STAND, ADES, operador e tipo de aeronave passam disso).
     """
     ref = F.fit_reference(train)
     for df in (train, *others):
         df["ref_p10"] = F.apply_reference(df, ref)
     F.as_categories([train, *others])
+    if DEVICE == "gpu" and not 0 < cat_max <= 256:
+        raise SystemExit("LightGBM na GPU só aceita até 256 bins por feature: use --cat-max 256")
+    if cat_max:
+        limitar_categorias([train, *others], cat_max)
     # adsb_* entram por load_split (fora do cache de features: mudar os eventos não refaz o cache)
     cols = F.feature_columns(train) + [c for c in train.columns if c.startswith("adsb_")]
     if ctx:
@@ -70,6 +78,17 @@ def prepare(train: pd.DataFrame, others: list[pd.DataFrame],
                 df[c] = extra[c].array
         cols += list(extra.columns)
     return sem_colunas(cols, sem)
+
+
+def limitar_categorias(frames: list[pd.DataFrame], cat_max: int) -> None:
+    """Cada categórica com mais de `cat_max` categorias fica com as `cat_max − 1` mais
+    frequentes no primeiro frame (o treino); as outras viram ausentes em todos os frames."""
+    for col in F.CATEGORICAL:
+        if frames[0][col].cat.categories.size <= cat_max:
+            continue
+        manter = frames[0][col].value_counts().index[:cat_max - 1]
+        for df in frames:
+            df[col] = df[col].cat.set_categories(manter)
 
 
 def sem_colunas(cols: list[str], sem: Iterable[str]) -> list[str]:
