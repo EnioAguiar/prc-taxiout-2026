@@ -1,4 +1,4 @@
-# Mapa do projeto (atualizado em 28/09, 19h UTC)
+# Mapa do projeto (atualizado em 29/09, 02h UTC)
 
 Resumo para se localizar. Detalhes: `README.md` (modelo, roadmap, envios) e `CONTEXTO.md` (linha do tempo).
 
@@ -32,9 +32,9 @@ aeroporto); estudo da cauda; plano 11 (regressor limpo).
 | Item | Situação |
 |---|---|
 | Nota oficial | **251,10 s** (v27) |
-| Posição | ~26º de 166 |
-| 3º colocado | 224,50 (faltam 28 s) |
-| 10º colocado | 237,05 (faltam 15 s) |
+| Posição | 25º de ~167 |
+| 3º colocado | 224,50 (faltam 26,6 s) |
+| 10º colocado | 236,98 (faltam 14,1 s) |
 | Prazo | 11/10, 23:59 (horário da Europa) |
 | Envios | 5 por dia UTC (zera às 21h de Brasília) |
 | Repositório | privado; abrir entre 08 e 10/10 (condição do prêmio) |
@@ -87,28 +87,31 @@ tirar lat/lon do ADS-B, alvo residual, calibração de p, mistura multiclasse.
 
 ## Para onde vamos (a partir de 29/09)
 
-Feito em 28/09: plano 13 no corretor (v19 253,95) e base com `ctx_*` (v21 252,34). Testado e
-descartado contra a v20: base com plano 13 (v22), bloco `--fila` no corretor (v23), base com mais
-rodadas (v24), mexer no hedge de Roma (diagnóstico), simular a cobertura ADS-B de 2026.
+Feito em 28/09: v19 253,95 → v21 252,34 → v27 251,10. Descartados contra a campeã: base com plano 13,
+`--fila`, base com mais rodadas, hedge de Roma, cobertura ADS-B 2026, tirar ctx do corretor, pátio do stand,
+pesos, p(cópia), só LGB/só CatBoost, 500 rodadas, XGBoost na base e como 4º corretor, LightGBM na GPU.
 
 ```mermaid
 flowchart TD
-    A["Laço noturno de busca<br/>(docs/research/2026-09-28-analise-de-erros-aplicacao.md):<br/>candidatos em dados, corretor barato,<br/>portão por fatia, guarda jan↔jul"] --> B["Validação jan→jul e jul→jan<br/>(dica do GREKI)"]
-    B --> C["Base mais forte: o que ainda falta<br/>na base (externos, 2º modelo na base,<br/>árvore de erro sobre o resíduo)"]
-    C --> D["Plano 14: especialista no resíduo<br/>do LOBT, calibração fora da amostra"]
-    D --> FIM["08–10/10: README em inglês,<br/>repositório público GPLv3"]
+    A["Laço fiel 2 (superfície etc.):<br/>docs/research/2026-09-29-laco-fiel-2"] --> B{"passou o portão?"}
+    B -->|sim| E["submit + regra de Roma,<br/>mostrar, enviar com ok"]
+    B -->|não| M
+    E --> M["Mapa do aeroporto (X-Plane apt.dat, GPL / OSM, ODbL):<br/>cobertura dos stands → distância stand→pista"]
+    M --> O["OpenSky (IST, FCO jul)<br/>só se o organizador liberar"]
+    O --> R["Caçador de regras exatas 2"]
+    R --> FIM["08–10/10: README em inglês,<br/>repositório público GPLv3"]
 ```
 
 | Etapa | Ganho esperado (oficial) | Quando |
 |---|---|---|
-| Laço noturno + árvore de erro | acha candidatos; −1 a −3 s | 29–30/09 |
-| Validação jan↔jul | melhora as decisões | 30/09 |
-| Base mais forte / plano 14 | −2 a −5 s | até 03/10 |
-| Meta | ~245 (top 10–15); top 3 pede ~224 | até 11/10 |
+| Laço fiel 2 | 0 a −1 s | 29/09 manhã |
+| Mapa do aeroporto | incerto; é informação nova que o 3º usa | 29–30/09 |
+| OpenSky / regras exatas | incerto | se liberado / 30/09+ |
+| Meta | top 10 (~237); top 3 pede ~220 | até 11/10 |
 
-Lições de 28/09: juntar vários sinais pequenos no corretor rende mais no oficial que na
-simulação (v17: −3,1 s simulado, −7,5 s oficial); a simulação acertou a v19 (−2,8 → −2,91) e
-a v21 (−2,1 → −1,61). Sinais que o corretor já vê não rendem de novo na base.
+Lições de 28/09: a simulação acerta o oficial (−2,8→−2,91; −2,1→−1,61; −1,1→−1,24); o corretor
+barato de 1 LightGBM não prevê o corretor real (usar `--reusar-oof` / laço fiel); GPU não é a
+alavanca (limite é informação, não cálculo).
 
 ## Regras
 

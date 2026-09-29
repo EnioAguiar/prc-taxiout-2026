@@ -1,5 +1,5 @@
 {
- "updated": "2026-09-28T19:04:56Z",
+ "updated": "2026-09-28T21:26:50Z",
  "totalSubmissions": 3000,
  "teams": [
   {
@@ -154,9 +154,9 @@
   },
   {
    "team": "outgoing-boat",
-   "best": 253.9499,
-   "n": 14,
-   "lastAt": "2026-09-28T15:33:41.626153Z"
+   "best": 252.3376,
+   "n": 15,
+   "lastAt": "2026-09-28T19:18:25.43806Z"
   },
   {
    "team": "gentle-ladder",
@@ -185,7 +185,7 @@
   {
    "team": "kind-mango",
    "best": 264.3365,
-   "n": 68,
+   "n": 65,
    "lastAt": "2026-09-28T17:03:03.128845Z"
   },
   {
@@ -203,7 +203,7 @@
   {
    "team": "kind-earthquake",
    "best": 268.5216,
-   "n": 14,
+   "n": 13,
    "lastAt": "2026-09-17T00:05:45.779117Z"
   },
   {
@@ -351,6 +351,12 @@
    "lastAt": "2026-09-18T16:36:06.704845Z"
   },
   {
+   "team": "amazing-marshmallow",
+   "best": 281.9819,
+   "n": 22,
+   "lastAt": "2026-09-28T21:22:15.582262Z"
+  },
+  {
    "team": "witty-feather",
    "best": 281.9853,
    "n": 37,
@@ -367,12 +373,6 @@
    "best": 282.98,
    "n": 30,
    "lastAt": "2026-09-28T13:41:14.495935Z"
-  },
-  {
-   "team": "amazing-marshmallow",
-   "best": 283.4061,
-   "n": 21,
-   "lastAt": "2026-09-28T06:03:08.192097Z"
   },
   {
    "team": "victorious-quartz",
@@ -941,8 +941,8 @@
   {
    "team": "zesty-sailboat",
    "best": 527.1303,
-   "n": 18,
-   "lastAt": "2026-09-28T13:57:51.312757Z"
+   "n": 19,
+   "lastAt": "2026-09-28T20:20:20.217575Z"
   },
   {
    "team": "outspoken-kiwi",
@@ -979,6 +979,12 @@
    "best": 546.4428,
    "n": 1,
    "lastAt": "2026-09-28T17:49:09.260589Z"
+  },
+  {
+   "team": "zany-xylophone",
+   "best": 552.4413,
+   "n": 1,
+   "lastAt": "2026-09-28T20:36:05.942112Z"
   },
   {
    "team": "kindhearted-goblin",
