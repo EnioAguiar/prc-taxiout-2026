@@ -162,7 +162,10 @@ fora do cache de features. `train.py submit N` precisa do `events.parquet` no SS
   (ou as rodadas configuradas, se não houver) × 1,2 (full2025 tem 2,085 M
   linhas contra 1,741 M do treino) e só gera o arquivo; o envio é um comando
   à parte. Aborta se o código mudou desde a promoção do campeão; `--forcar`
-  ignora a checagem.
+  ignora a checagem. A previsão da base fora do bloco (~50 min com `--base-por-apt`)
+  fica em `data/cache/oof_base/<chave>.parquet`, com a chave feita da config da base,
+  do código que ela usa (`crossfit.py` e seus imports) e dos arquivos de dados; envio
+  que só muda o corretor a reaproveita e cai de ~70 para ~21 min (medido 29/09).
 
 ## Submissões
 

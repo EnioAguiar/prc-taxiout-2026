@@ -9,7 +9,11 @@ Aborta se o código mudou desde a corrida escolhida (src_hash); --forcar ignora.
 Envio separado, só depois de aprovado: .venv/bin/python src/s3.py submit <arquivo>
 
 Campeã `stack_cf`: o corretor treina nas cegas com a previsão da base fora do bloco
-(guardada em submissions/<TEAM>_vN_oof.parquet) e corrige a base final do ranking.
+e corrige a base final do ranking. A previsão fora do bloco (~50 min) fica guardada em
+`data/cache/oof_base/<chave>.parquet`; a chave junta a config da base, o código de que
+ela depende (`crossfit.py` e o que ele importa de `src/`) e os arquivos de dados. Envio
+que só muda o corretor reaproveita o arquivo: a base é determinística (mesma chave,
+mesma previsão, conferido v29 × v30).
 
 Com `externos: true` na config, as cegas e o ranking ganham as colunas `ext_*` de
 `src/externos.py`: a taxa de cópia do SCHED por companhia vem dos 12 meses de 2025,
@@ -23,10 +27,13 @@ de companhias sai do `full2025` e é o mesmo nos dois quadros.
 from __future__ import annotations
 
 import argparse
+import ast
+import hashlib
 import json
 import os
 import sys
 from collections.abc import Iterable
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -34,7 +41,8 @@ from dotenv import load_dotenv
 
 import features as F
 import runlog
-from cache import DATA, TRUTH, load_split
+from cache import CACHE, DATA, TRUTH, load_split
+from adsb_events import RAIZ as ADSB_RAIZ
 from compare import CHAMPION
 from crossfit import oof_base
 from externos import MESES_2025, CopiaCia, colunas_ext, copia_cia_2025
@@ -46,7 +54,40 @@ from stack import (ROUNDS as ROUNDS_CORRETOR, corrector_frame, fit_corrector,
                    previsao_corrigida, tabelas_celula)
 
 OUT = ROOT / "submissions"
+OOF_CACHE = CACHE / "oof_base"
 ROUNDS_SCALE = 1.2  # full2025 tem 2,085 M linhas contra 1,741 M do train2025
+
+
+def modulos_da_base(inicio: str = "crossfit") -> list[Path]:
+    """Arquivos de `src/` que a previsão fora do bloco usa: `crossfit.py` e seus imports locais."""
+    src = ROOT / "src"
+    vistos: set[str] = set()
+    fila = [inicio]
+    while fila:
+        nome = fila.pop()
+        path = src / f"{nome}.py"
+        if nome in vistos or not path.exists():
+            continue
+        vistos.add(nome)
+        for no in ast.walk(ast.parse(path.read_text())):
+            if isinstance(no, ast.Import):
+                fila += [a.name.split(".")[0] for a in no.names]
+            elif isinstance(no, ast.ImportFrom) and no.module and not no.level:
+                fila.append(no.module.split(".")[0])
+    return [src / f"{m}.py" for m in sorted(vistos)]
+
+
+def chave_oof(cfg_base: dict) -> str:
+    """Identidade da previsão fora do bloco: config da base, código dela e dados de entrada."""
+    h = hashlib.sha256(json.dumps(cfg_base, sort_keys=True).encode())
+    for p in modulos_da_base():
+        h.update(p.name.encode() + p.read_bytes())
+    dados = [*sorted(DATA.glob("*.parquet")), *sorted((DATA / "mapa").glob("*.parquet")),
+             ADSB_RAIZ / "events.parquet"]
+    for p in dados:
+        st = p.stat() if p.exists() else None
+        h.update(f"{p}:{st.st_size}:{st.st_mtime_ns}".encode() if st else f"{p}:-".encode())
+    return h.hexdigest()[:16]
 
 
 def check_code(champ: dict, forcar: bool) -> str:
@@ -120,6 +161,9 @@ def corretor_final(cfg_bloco: dict, adsb: bool, full: pd.DataFrame, rk: pd.DataF
                    mapa: bool = False, cel: tuple | None = None):
     """Corretor treinado nas cegas com a previsão de uma base que não viu o mês delas.
 
+    A previsão fora do bloco sai de `caminho_oof` quando ele já existe (ver `chave_oof`);
+    senão é calculada e gravada lá.
+
     Com `copia` (config `externos`), as cegas ganham as colunas `ext_*`: a taxa de cópia
     vem dos 12 meses de 2025, sempre sem o mês da própria linha. Com `cias` (config
     `plano13`), ganham também as colunas do plano 13. Com `cel` (config `ref_cel`), as
@@ -127,9 +171,14 @@ def corretor_final(cfg_bloco: dict, adsb: bool, full: pd.DataFrame, rk: pd.DataF
     """
     blind = load_split("blind2025")
     run.log(f"cegas {len(blind):,}")
-    oof = oof_base(cfg_bloco, full, blind, rk, run)
-    oof.to_parquet(caminho_oof, index=False)
-    run.log(f"fora do bloco: {len(oof):,} previsões em {caminho_oof.name}")
+    if caminho_oof.exists():
+        oof = pd.read_parquet(caminho_oof)
+        run.log(f"fora do bloco: {len(oof):,} previsões reaproveitadas de {caminho_oof.name}")
+    else:
+        oof = oof_base(cfg_bloco, full, blind, rk, run)
+        caminho_oof.parent.mkdir(parents=True, exist_ok=True)
+        oof.to_parquet(caminho_oof, index=False)
+        run.log(f"fora do bloco: {len(oof):,} previsões em {caminho_oof.name}")
     pred_oof = oof["pred"].to_numpy(float)
     cegas = blind.set_index(F.ID).loc[oof[F.ID]].reset_index()  # mesma ordem do oof
     del blind
@@ -198,7 +247,7 @@ def submit(version: int, forcar: bool = False, corrida: str | None = None) -> No
                     cel = (tabs_bloco, bloco_do_mes)
                 corretor = corretor_final(
                     champ["config"]["base_config"], champ["config"]["adsb"], full, rk,
-                    OUT / f"{team}_v{version}_oof.parquet", run,
+                    OOF_CACHE / f"{chave_oof(champ['config']['base_config'])}.parquet", run,
                     champ["config"].get("corretor") == "conjunto",
                     champ["config"].get("sem_features", ()), copia, cias,
                     champ["config"].get("fila", False),
