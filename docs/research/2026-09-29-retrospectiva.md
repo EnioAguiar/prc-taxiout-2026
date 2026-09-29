@@ -115,3 +115,15 @@ O corte de alarmes falsos se repete, mas a mistura piora os normais: nos voos em
 fica perto do BLOCK sem bater, `p_AOBT_3·(MVT − AOBT_3)` troca a previsão do regressor por um
 valor exato e errado [inferência]. A segunda variante mostra que não é falta de linhas no
 regressor. Código removido; o corretor não foi rodado por cima.
+
+### Coortes da árvore de erro, revistas na v30 — sem regra nova
+
+- A folha "558 voos, 42 % do erro²" (`dist_lo ≤ 1e-35`) não é a previsão presa no piso da
+  janela: na v30 só 11 voos ficam no piso (0,0 % do erro²). O corte pega `dist_lo` nulo, isto é,
+  voos sem LOBT (sem NM), onde estão as loterias e Roma sem NM: fatia já estudada.
+- A folha "ADS-B vê táxi bem menor que a previsão" (`pred − adsb_taxi > 2218`, sem loteria):
+  616 voos, 14,6 % do erro² sem loteria. 150 deles são LIRF sem NM (12,4 %: a moeda viciada do
+  diagnóstico de Roma). Dos 616, 237 têm y = cópia de horário (198 do SCHED), 13 têm y ≈ táxi do
+  ADS-B, e 366 não batem com nada: táxi ADS-B mediano 280 s contra y mediano 2.717 s, BLOCK com
+  segundos quebrados (só 7 % no segundo 0). É off-block real seguido de ~40 min parado no stand
+  antes de andar [inferência]; nenhum horário ou sinal do quadro separa esses voos.
