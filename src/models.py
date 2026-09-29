@@ -86,7 +86,7 @@ def limitar_categorias(frames: list[pd.DataFrame], cat_max: int) -> None:
     for col in F.CATEGORICAL:
         if frames[0][col].cat.categories.size <= cat_max:
             continue
-        manter = frames[0][col].value_counts().index[:cat_max - 1]
+        manter = frames[0][col].value_counts().index[:cat_max - 1].astype(str).tolist()
         for df in frames:
             df[col] = df[col].cat.set_categories(manter)
 
