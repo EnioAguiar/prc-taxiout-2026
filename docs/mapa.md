@@ -31,7 +31,7 @@ aeroporto); estudo da cauda; plano 11 (regressor limpo).
 
 | Item | Situação |
 |---|---|
-| Nota oficial | **247,83 s** (v29) |
+| Nota oficial | **247,76 s** (v30) |
 | Posição | 24º de 162 |
 | 1º colocado | 220,40 (faltam 27,4 s) |
 | 3º colocado | 224,50 (faltam 23,3 s) |
@@ -127,6 +127,7 @@ flowchart TD
 |---|---|---|
 | Base mais forte sem ADS-B | medido: 0,2 s no completo, 1,5 s nos normais | feito 29/09 |
 | H1 + H2 juntas (v29) | simulação 299,10 (+0,3 s, IC −0,7 a 1,3; sem loteria +1,2, IC 0,7 a 1,8); **oficial 247,83 (−1,33 s)** | enviada 29/09 |
+| v29 + `--mapa` no corretor (v30, `20260929-154118-v29_mapa_cf`) | simulação 298,05 (+1,1 s, IC 0,5 a 1,7; sem top 10 +0,5; jan +0,6, jul +1,5; sem loteria +0,7, IC 0,1 a 1,3); **oficial 247,76 (−0,07 s)** | enviada 29/09 |
 | Meta | top 10 (~237); top 3 pede ~220 | até 11/10 |
 
 Lições de 28/09: a simulação acerta o oficial (−2,8→−2,91; −2,1→−1,61; −1,1→−1,24); o corretor

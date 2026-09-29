@@ -1,5 +1,5 @@
 {
-  "id": "20260929-135844-h1h2_por_apt_ref",
+  "id": "20260929-154118-v29_mapa_cf",
   "config": {
     "model": "stack_cf",
     "base": "20260929-125421-base_ctx_por_apt",
@@ -23,11 +23,12 @@
     "plano13": true,
     "fila": "stand",
     "dist_plano": true,
+    "mapa": true,
     "ref_cel": true,
-    "reusar_oof": "20260929-130343-v31_por_apt"
+    "reusar_oof": "20260929-135844-h1h2_por_apt_ref"
   },
   "best_iter": null,
-  "rmse_simulacao": 299.1,
+  "rmse_simulacao": 298.05,
   "src_hash": "60cc0b5a6b04",
-  "git_commit": "2fd2a39"
+  "git_commit": "3c6da0f"
 }
