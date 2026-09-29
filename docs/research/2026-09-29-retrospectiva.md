@@ -72,3 +72,22 @@ pelas loterias e não serve de aval.
 2. Teto antes de treinar: ideia nova só treina se a conta com dados prontos der ≥ 3 s, ou se o
    custo for de um laço fiel (~10 min).
 3. Envio só muda o corretor → ~21 min (cache da base, 29/09).
+
+## Resultado dos baratos (29/09 à noite, `.superpowers/noite2/`)
+
+Laço fiel sobre a v30 (base, oof e receita da v30; ~10 min cada). A primeira linha é a própria
+v30 rodada de novo: o CatBoost na GPU não repete o número, então **ganhos abaixo de ~0,3–0,5 s
+são ruído**, mesmo com IC "positivo".
+
+| Candidato | completo | sem top 10 | sem loteria | normais NM | Leitura |
+|---|---|---|---|---|---|
+| v30 repetida | −0,3 (IC −0,5 a −0,1) | −0,4 | −0,2 | 0,0 | ruído |
+| `superficie` | −0,6 (IC −1,9 a 0,8) | −1,4 | +0,2 | **+0,9** (IC 0,6 a 1,2) | só normais |
+| `fila` no lugar de `stand-prefixo` | −0,3 | −0,7 | +0,1 | +0,6 (IC 0,4 a 0,7) | só normais |
+| `--peso-loteria 0.3` | −1,0 (IC −2,8 a 0,2) | −1,5 | 0,0 | 0,0 | descartado; flag removida |
+| 700 rodadas | −0,2 | −0,3 | −0,1 | +0,2 | ruído |
+| teto por aeroporto fora de LIRF (pós, sem treino) | 300,5 a 313 contra 298,05 | | 235,6 a 250,8 contra 233,3 | | descartado |
+
+Nenhum candidato barato move o `sem_loteria` acima do ruído. `superficie` e `fila` ganham só nos
+normais (+0,6 a +0,9) e perdem nos maiores voos. Confirma a retrospectiva: o corretor está
+esgotado; o próximo passo é a base (regressor sem LIRF inteiro e sem y > 80.000) e a cauda.
