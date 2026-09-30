@@ -68,7 +68,7 @@ CLI (mesmo arquivo): `esteira add --tipo corretor --receita '<json>' [--priorida
 
 Laço: se pausado, dorme; senão pega o candidato de maior prioridade (e mais antigo) em `fila`,
 marca `rodando`, executa, avalia, grava, repete. Antes de cada processo pesado confere
-`MemAvailable ≥ 10 GB` (lê `/proc/meminfo`); se não houver, espera. Ao reiniciar, candidatos em
+`MemAvailable ≥ 8 GB` (era 10; ajustado na estreia de 30/09: com o desktop aberto sobram ~9,3 GB) (lê `/proc/meminfo`); se não houver, espera. Ao reiniciar, candidatos em
 `rodando` voltam para `fila` (a execução é idempotente: `stack.py` grava corridas novas).
 
 Execução por tipo, sempre como subprocesso (`bin/run`, que já limita CPU):

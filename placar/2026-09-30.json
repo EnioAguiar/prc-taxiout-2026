@@ -1,5 +1,5 @@
 {
- "updated": "2026-09-30T02:24:25Z",
+ "updated": "2026-09-30T03:38:46Z",
  "totalSubmissions": 3000,
  "teams": [
   {
@@ -77,8 +77,8 @@
   {
    "team": "enthusiastic-daisy",
    "best": 239.8332,
-   "n": 113,
-   "lastAt": "2026-09-30T02:00:12.700549Z"
+   "n": 114,
+   "lastAt": "2026-09-30T03:07:25.861235Z"
   },
   {
    "team": "versatile-watermelon",
@@ -117,10 +117,22 @@
    "lastAt": "2026-09-30T00:16:16.828402Z"
   },
   {
+   "team": "strong-moose",
+   "best": 245.4817,
+   "n": 77,
+   "lastAt": "2026-09-30T03:37:19.406745Z"
+  },
+  {
    "team": "loyal-anchor",
    "best": 246.1871,
    "n": 30,
    "lastAt": "2026-09-30T00:21:56.246335Z"
+  },
+  {
+   "team": "outgoing-boat",
+   "best": 247.1069,
+   "n": 19,
+   "lastAt": "2026-09-30T02:24:06.260932Z"
   },
   {
    "team": "noble-tractor",
@@ -141,12 +153,6 @@
    "lastAt": "2026-09-28T05:22:35.431996Z"
   },
   {
-   "team": "outgoing-boat",
-   "best": 247.7565,
-   "n": 18,
-   "lastAt": "2026-09-29T20:02:22.341122Z"
-  },
-  {
    "team": "humble-rocket",
    "best": 247.9811,
    "n": 19,
@@ -160,9 +166,9 @@
   },
   {
    "team": "gentle-ladder",
-   "best": 255.0452,
-   "n": 66,
-   "lastAt": "2026-09-29T20:53:04.369133Z"
+   "best": 254.9092,
+   "n": 68,
+   "lastAt": "2026-09-30T03:30:21.136478Z"
   },
   {
    "team": "upbeat-goblin",
@@ -187,12 +193,6 @@
    "best": 260.6605,
    "n": 53,
    "lastAt": "2026-09-28T10:50:13.148142Z"
-  },
-  {
-   "team": "strong-moose",
-   "best": 264.2392,
-   "n": 74,
-   "lastAt": "2026-09-29T17:41:29.541805Z"
   },
   {
    "team": "organized-marshmallow",
@@ -233,7 +233,7 @@
   {
    "team": "smart-jigsaw",
    "best": 270.2107,
-   "n": 18,
+   "n": 15,
    "lastAt": "2026-09-28T21:45:49.934335Z"
   },
   {
@@ -245,8 +245,8 @@
   {
    "team": "resilient-hedgehog",
    "best": 272.0002,
-   "n": 18,
-   "lastAt": "2026-09-29T23:09:34.130759Z"
+   "n": 19,
+   "lastAt": "2026-09-30T02:44:34.281665Z"
   },
   {
    "team": "vigorous-telephone",
@@ -485,7 +485,7 @@
   {
    "team": "motivated-forest",
    "best": 291.2731,
-   "n": 40,
+   "n": 38,
    "lastAt": "2026-09-20T10:24:01.157597Z"
   },
   {
@@ -611,7 +611,7 @@
   {
    "team": "joyful-lemon",
    "best": 298.8601,
-   "n": 16,
+   "n": 13,
    "lastAt": "2026-09-23T00:03:51.760573Z"
   },
   {

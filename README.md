@@ -622,7 +622,7 @@ conjunto completo precisa ser ≥ **−0,5 s**. B nunca escolhe, só confirma �
 desgaste de testar muita coisa. Propostas por candidato: trocar um membro, somar ao conjunto
 ou sozinho (só `sozinho` quando a base é outra).
 
-Guardas do trabalhador: ≥ 10 GB de RAM livre para começar um candidato, uma corrida por vez
+Guardas do trabalhador: ≥ 8 GB de RAM livre (ajustado na estreia, 30/09) para começar um candidato, uma corrida por vez
 e `data/esteira.pausa` para parar sem matar o serviço.
 
 Relatório: `docs/esteira.md` (campeã, fila, últimos vereditos, consultas à metade B e as

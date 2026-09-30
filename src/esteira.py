@@ -23,7 +23,7 @@ DB = ROOT / "data" / "esteira.db"
 PAUSA = ROOT / "data" / "esteira.pausa"
 RELATORIO = ROOT / "docs" / "esteira.md"
 
-MEMORIA_MIN_GB = 10.0
+MEMORIA_MIN_GB = 8.0  # pico do corretor 7,8 GB; o envio (9,5 GB) usa o swap, como em 29/09
 ROUNDS = (300, 500, 700)
 PARAMS_GRADE = {"learning_rate": (0.03, 0.05), "num_leaves": (63, 127, 255),
                 "lambda_l2": (0, 10, 50), "min_data_in_leaf": (100, 200)}
