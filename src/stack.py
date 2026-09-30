@@ -573,7 +573,7 @@ def main() -> None:
         ap.error("--reusar-oof só vale com --crossfit (só ele calcula a base fora do bloco)")
     if a.corretor_ref and not a.crossfit:
         ap.error("--corretor-ref só vale com --crossfit (os folds não têm meses de treino separados)")
-    base_id = a.base or json.loads((ROOT / "champion.json").read_text())["id"]
+    base_id = a.base or json.loads((ROOT / "champion.json").read_text())["base"]
     adsb = not a.sem_adsb
     cfg = config_da_corrida(a, base_id)
 

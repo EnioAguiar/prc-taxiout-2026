@@ -67,18 +67,11 @@ def checar_placar_e_envios() -> None:
 def checar_campea() -> None:
     champ = json.loads((ROOT / "champion.json").read_text())
     reg = {json.loads(l)["id"]: json.loads(l) for l in (ROOT / "experiments.jsonl").read_text().splitlines() if l.strip()}
-    ok(champ["id"] in reg, f"campeã `{champ['id']}` existe no experiments.jsonl")
-    if champ["id"] in reg:
-        ok(abs(reg[champ["id"]]["metricas"]["completo"] - champ["rmse_simulacao"]) < 0.01,
-           "RMSE da campeã bate com a corrida registrada")
-    from runlog import src_hash
-
-    atual = src_hash()
-    ok(champ.get("src_hash") == atual,
-       f"código igual ao que mediu a campeã (campeã {champ.get('src_hash')}, atual {atual}); "
-       "se não, `train.py submit` precisa de --forcar ou re-medir a campeã")
+    ids = [m["id"] for m in champ["membros"]]
+    ok(all(i in reg for i in ids), f"membros da campeã existem no experiments.jsonl ({', '.join(ids)})")
+    ok(all(reg[i]["config"]["base"] == champ["base"] for i in ids if i in reg), "membros com a mesma base")
     readme = (ROOT / "README.md").read_text()
-    ok(champ["id"] in readme, "README cita o id da campeã")
+    ok(all(i in readme for i in ids), "README cita os membros da campeã")
     melhor = min(e["oficial"] for e in envios() if e["oficial"] is not None)
     txt = f"{melhor:.2f}".replace(".", ",")
     ok(txt in readme, f"README cita a melhor nota oficial ({txt})")

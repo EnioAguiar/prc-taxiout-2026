@@ -30,12 +30,12 @@ def test_novo_claramente_melhor_vence_com_ganho_positivo():
     assert not is_better(paired_bootstrap(y, new, base, days))
 
 
-def test_so_promove_contra_o_campeao():
-    champ = {"id": "A", "config": {"model": "single", "rounds": 400}}
-    assert may_promote({"id": "A", "config": champ["config"]}, champ)
-    assert may_promote({"id": "A2", "config": champ["config"]}, champ)  # repetição do campeão
-    assert not may_promote({"id": "B", "config": {"model": "single", "rounds": 200}}, champ)
-    assert may_promote({"id": "B", "config": {"model": "single", "rounds": 200}}, None)
+def test_so_promove_comparando_com_a_campea():
+    champ = {"membros": [{"id": "A", "config": {}}]}
+    assert may_promote(None, champ)        # sem <id_base>: comparou com a média da campeã
+    assert may_promote("A", champ)         # base = o único membro
+    assert not may_promote("B", champ)
+    assert may_promote("B", None)
 
 
 def _jan_jul(n=20_000, seed=3):
