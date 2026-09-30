@@ -1,6 +1,6 @@
 # Esteira de experimentos
 
-Atualizado em 2026-09-30 01:06. Spec: `docs/superpowers/specs/2026-09-30-esteira-design.md`.
+Atualizado em 2026-09-30 02:36. Spec: `docs/superpowers/specs/2026-09-30-esteira-design.md`.
 
 ## Campeã
 
@@ -11,12 +11,21 @@ Atualizado em 2026-09-30 01:06. Spec: `docs/superpowers/specs/2026-09-30-esteira
 
 ## Vazão
 
-- Fila: 36 · rodando: 0 · feitos nas últimas 24 h: 1 · consultas à metade B: 0
+- Fila: 27 · rodando: 0 · feitos nas últimas 24 h: 10 · consultas à metade B: 0
 
 ## Últimos candidatos
 
 | id | origem | receita | decisão | A sem lot. | B sem lot. | min |
 |---|---|---|---|---|---|---|
+| 9 | gerador | `{"--conjunto": true, "--corretor-ref": true, "--corretor-rounds": 700, "--dist-plano": true, "--externos": true, "--mapa": true, "--plano13": true, "--stand-prefixo": true}` | A: não seleciona | +0.08 | — | 10.8 |
+| 8 | gerador | `{"--conjunto": true, "--corretor-ref": true, "--corretor-rounds": 300, "--dist-plano": true, "--externos": true, "--mapa": true, "--plano13": true, "--stand-prefixo": true}` | A: não seleciona | -0.29 | — | 8.8 |
+| 7 | gerador | `{"--conjunto": true, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--mapa": true, "--plano13": true}` | A: não seleciona | -0.06 | — | 9.6 |
+| 6 | gerador | `{"--conjunto": true, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--fila": true, "--mapa": true, "--plano13": true}` | A: não seleciona | -0.14 | — | 11.3 |
+| 5 | gerador | `{"--conjunto": true, "--corretor-ref": true, "--corretor-rounds": 500, "--corretor-sem-ctx": true, "--dist-plano": true, "--externos": true, "--mapa": true, "--plano13": true, "--stand-prefixo": true}` | A: não seleciona | -0.26 | — | 9.1 |
+| 4 | gerador | `{"--conjunto": true, "--corretor-ref": true, "--corretor-rounds": 500, "--externos": true, "--mapa": true, "--plano13": true, "--stand-prefixo": true}` | A: não seleciona | -0.74 | — | 10.1 |
+| 3 | gerador | `{"--conjunto": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--mapa": true, "--plano13": true, "--stand-prefixo": true}` | A: não seleciona | -0.13 | — | 9.1 |
+| 2 | gerador | `{"--conjunto": true, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--plano13": true, "--stand-prefixo": true}` | A: não seleciona | -0.19 | — | 9.6 |
+| 1 | gerador | `{"--conjunto": true, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--mapa": true, "--plano13": true, "--stand-prefixo": true, "--superficie": true}` | A: não seleciona | +0.19 | — | 11.0 |
 | 37 | agente | `{"--conjunto": true, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--mapa": true, "--plano13": true, "--stand-prefixo": true}` | A: não seleciona | -0.13 | — | 9.8 |
 
 ## Revisões
