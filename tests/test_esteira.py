@@ -60,6 +60,9 @@ def test_passo_promove_e_registra(tmp_path, monkeypatch):
     monkeypatch.setattr(esteira, "salvar_campea", lambda membros: salvo.setdefault("m", membros))
     monkeypatch.setattr(esteira, "memoria_livre_gb", lambda: 12.0)
     monkeypatch.setattr(esteira, "executar", lambda c, ch, rodar=None: "RUN1")
+    ordem = []
+    monkeypatch.setattr(esteira, "commitar_promocao",
+                        lambda membros: ordem.append((tmp_path / "esteira.md").exists()))
     monkeypatch.setattr(esteira, "RELATORIO", tmp_path / "esteira.md")
     monkeypatch.setattr(esteira, "PAUSA", tmp_path / "pausa")
     f.add("corretor", {"--fila": True}, "usuario", 0, "m")
@@ -68,6 +71,38 @@ def test_passo_promove_e_registra(tmp_path, monkeypatch):
         "b": {"ganho": 0.5}, "completo": 0.3, "motivo": "aprovado", "avaliadas": 3})
     assert ok and salvo["m"] == ["m", "RUN1"]
     assert f.ultimos(1)[0]["estado"] == "feito"
+    assert ordem == [True]  # o commit vê o relatório já reescrito
+
+
+def test_passo_marca_falhou_quando_executar_ou_avaliar_estoura(tmp_path, monkeypatch):
+    champ = {"base": "B", "oof": "O", "membros": [{"id": "m", "config": {"rounds": 500}}],
+             "pos_regras": ["roma"], "sem_loteria": 233.0, "enviada": None}
+    monkeypatch.setattr(esteira, "carregar_campea", lambda: champ)
+    monkeypatch.setattr(esteira, "memoria_livre_gb", lambda: 12.0)
+    monkeypatch.setattr(esteira, "RELATORIO", tmp_path / "esteira.md")
+    monkeypatch.setattr(esteira, "PAUSA", tmp_path / "pausa")
+
+    def estoura(c, ch, rodar=None):
+        raise SystemExit("nenhuma corrida com nome e1")
+
+    f = esteira.Fila(tmp_path / "a.db")
+    f.add("corretor", {"--fila": True}, "usuario", 0, "m")
+    monkeypatch.setattr(esteira, "executar", estoura)
+    assert esteira.passo(f) is True
+    c = f.ultimos(1)[0]
+    assert c["estado"] == "falhou" and "SystemExit" in c["motivo"] and c["fim"]
+    assert f.proximo() is None  # não volta ao topo da fila
+
+    g = esteira.Fila(tmp_path / "b.db")
+    g.add("corretor", {"--fila": True}, "usuario", 0, "m")
+    monkeypatch.setattr(esteira, "executar", lambda c, ch, rodar=None: "RUN1")
+
+    def avaliar_ruim(membros, novo, semente=0):
+        raise ValueError("holdouts diferentes")
+
+    assert esteira.passo(g, avaliar=avaliar_ruim) is True
+    c = g.ultimos(1)[0]
+    assert c["estado"] == "falhou" and c["motivo"].startswith("ValueError:")
 
 
 def test_passo_respeita_pausa(tmp_path, monkeypatch):

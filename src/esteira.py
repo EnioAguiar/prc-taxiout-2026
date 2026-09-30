@@ -163,6 +163,10 @@ def salvar_campea(membros: list[str]) -> None:
     atual = campeao.carregar()
     nova = campeao.nova([campeao.registro(i) for i in membros], atual["pos_regras"], atual["enviada"])
     campeao.salvar(nova)
+
+
+def commitar_promocao(membros: list[str]) -> None:
+    """Commit da campeã nova junto com o relatório já reescrito."""
     subprocess.run(["git", "commit", "-qm", f"esteira: promove {' + '.join(membros)}",
                     "champion.json", "docs/esteira.md"], cwd=ROOT, check=False)
 
@@ -236,11 +240,15 @@ def passo(fila: Fila, rodar=subprocess.run, avaliar=regua.avaliar) -> bool:
     fila.marcar(c["id"], "rodando", inicio=time.time())
     try:
         run_id = executar(c, champ, rodar)
+        membros = [m["id"] for m in champ["membros"]]
+        r = avaliar(membros, run_id, semente=int(fila.meta("semente") or 0))
     except subprocess.CalledProcessError as e:
         fila.marcar(c["id"], "falhou", fim=time.time(), motivo=f"código {e.returncode}")
         return True
-    membros = [m["id"] for m in champ["membros"]]
-    r = avaliar(membros, run_id, semente=int(fila.meta("semente") or 0))
+    except (SystemExit, Exception) as e:  # noqa: B014 — SystemExit não é Exception
+        fila.marcar(c["id"], "falhou", fim=time.time(),
+                    motivo=f"{type(e).__name__}: {e}"[:200])
+        return True
     if r.get("b") is not None:
         fila.meta("consultas_b", str(int(fila.meta("consultas_b") or 0) + 1))
     fila.marcar(c["id"], "feito" if r["aprovado"] else "pulado", fim=time.time(), run_id=run_id,
@@ -250,6 +258,8 @@ def passo(fila: Fila, rodar=subprocess.run, avaliar=regua.avaliar) -> bool:
         salvar_campea(r["membros"])
         talvez_enviar(fila, carregar_campea(), rodar)
     RELATORIO.write_text(relatorio(fila, carregar_campea()))
+    if r["aprovado"]:
+        commitar_promocao(r["membros"])
     return True
 
 
