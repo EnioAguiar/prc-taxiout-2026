@@ -129,6 +129,8 @@ class Fila:
 def relatorio(fila: Fila, champ: dict) -> str:
     agora = time.time()
     feitos24 = [c for c in fila.ultimos(1000) if c["fim"] and agora - c["fim"] < 86400]
+    erros = [f"- Último erro de {nome}: {fila.meta(f'erro_{nome}')}"
+             for nome in ("envio", "commit") if fila.meta(f"erro_{nome}")]
     linhas = [
         "# Esteira de experimentos", "",
         f"Atualizado em {time.strftime('%Y-%m-%d %H:%M')}. Spec: "
@@ -137,7 +139,9 @@ def relatorio(fila: Fila, champ: dict) -> str:
         f"- Membros: {', '.join(m['id'] for m in champ['membros'])}",
         f"- Simulação: completo {champ.get('rmse_simulacao')} · sem loteria {champ.get('sem_loteria')}",
         f"- Última enviada: {json.dumps(champ.get('enviada'))}",
-        f"- Arquivo pronto esperando ok: {fila.meta('pronto') or 'nenhum'}", "",
+        f"- Arquivo pronto esperando ok: {fila.meta('pronto') or 'nenhum'}",
+        *erros,
+        "",
         "## Vazão", "",
         f"- Fila: {fila.contar('fila')} · rodando: {fila.contar('rodando')} · "
         f"feitos nas últimas 24 h: {len(feitos24)} · consultas à metade B: {fila.meta('consultas_b') or 0}", "",
@@ -295,6 +299,7 @@ def talvez_enviar(fila: Fila, champ: dict, rodar=subprocess.run) -> str | None:
                      for l in (ROOT / "submissions.jsonl").read_text().splitlines() if l.strip())
     while memoria_livre_gb() < MEMORIA_MIN_GB:
         time.sleep(60)
+    fila.meta("ultimo_arquivo_em", str(time.time()))  # a trava de 6 h vale também para a falha
     try:
         rodar(["bin/run", "src/train.py", "submit", str(versao)], cwd=ROOT, check=True)
     except subprocess.CalledProcessError as e:
@@ -303,9 +308,7 @@ def talvez_enviar(fila: Fila, champ: dict, rodar=subprocess.run) -> str | None:
     except (SystemExit, Exception) as e:  # noqa: B014 — SystemExit não é Exception
         fila.meta("erro_envio", f"submit v{versao}: {type(e).__name__}: {e}"[:200])
         return None
-    fila.meta("ultimo_arquivo_em", str(time.time()))
     fila.meta("pronto_sem_loteria", str(champ["sem_loteria"]))
-    fila.meta("pronto_membros", id_campea(champ))
     return fila.meta("pronto", f"submissions/outgoing-boat_v{versao}.parquet "
                                f"(campeã {', '.join(m['id'] for m in champ['membros'])})")
 

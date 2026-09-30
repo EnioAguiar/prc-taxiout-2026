@@ -219,7 +219,7 @@ def test_enviado_grava_o_sem_loteria_do_momento_da_geracao(tmp_path, monkeypatch
     f = esteira.Fila(tmp_path / "e.db")
     champ = _pronta(tmp_path, monkeypatch, f)
     assert esteira.talvez_enviar(f, champ, lambda argv, **kw: None)
-    assert f.meta("pronto_sem_loteria") == "232.5" and f.meta("pronto_membros") == "m"
+    assert f.meta("pronto_sem_loteria") == "232.5"
 
     outra = _champ(["m", "n"], sem_loteria=231.0, enviada=champ["enviada"])
     monkeypatch.setattr(esteira, "Fila", lambda *a, **k: f)
@@ -229,3 +229,30 @@ def test_enviado_grava_o_sem_loteria_do_momento_da_geracao(tmp_path, monkeypatch
     esteira.main(["enviado", "33"])
     assert salvo["enviada"] == {"versao": 33, "sem_loteria": 232.5}
     assert not f.meta("pronto") and not f.meta("pronto_sem_loteria")
+
+
+def test_falha_no_submit_respeita_a_trava_de_seis_horas(tmp_path, monkeypatch):
+    import subprocess
+
+    f = esteira.Fila(tmp_path / "e.db")
+    champ = _pronta(tmp_path, monkeypatch, f)
+    chamadas = []
+
+    def rodar(argv, **kw):
+        chamadas.append(argv)
+        raise subprocess.CalledProcessError(1, argv)
+
+    assert esteira.talvez_enviar(f, champ, rodar) is None
+    assert esteira.talvez_enviar(f, champ, rodar) is None
+    assert len(chamadas) == 1  # a segunda tentativa cai na trava, sem refazer o submit pesado
+
+
+def test_relatorio_mostra_os_erros_de_envio_e_commit(tmp_path):
+    f = esteira.Fila(tmp_path / "e.db")
+    champ = _champ()
+    assert "erro de envio" not in esteira.relatorio(f, champ)
+    f.meta("erro_envio", "submit v33: código 1")
+    f.meta("erro_commit", "git falhou (código 128)")
+    texto = esteira.relatorio(f, champ)
+    assert "- Último erro de envio: submit v33: código 1" in texto
+    assert "- Último erro de commit: git falhou (código 128)" in texto
