@@ -79,21 +79,23 @@ def test_a_escolhe_entre_as_que_passam_e_nao_a_de_maior_ganho(monkeypatch):
     assert r["a"]["ganho"] >= regua.GANHO_A and r["a"]["ic_baixo"] > 0
 
 
-def test_avaliar_conjunto_aprova_a_base_nova_inteira(monkeypatch):
+def test_avaliar_conjunto_aprova_a_base_nova_inteira_mesmo_em_outra_ordem(monkeypatch):
     import pandas as pd
 
     import campeao
     from cache import TRUTH
+    from features import ID
 
     y, base, novo, dias = _cenario(0.05, 0.05)
     n = len(y)
-    preds = {("m1", "m2"): base, ("n1", "n2"): novo}
-
-    def previsao(ids):
-        return pd.DataFrame({TRUTH: y, "dia": dias, "pred": preds[tuple(ids)]})
-
-    monkeypatch.setattr(campeao, "previsao", previsao)
-    monkeypatch.setattr(campeao, "registro", lambda i: {"config": {"base": "B"}})
+    ids_voo = np.arange(n, dtype=float)
+    ordem = np.random.default_rng(1).permutation(n)  # a base nova grava o holdout em outra ordem
+    tabelas = {
+        ("m1", "m2"): pd.DataFrame({ID: ids_voo, TRUTH: y, "dia": dias, "pred": base}),
+        ("n1", "n2"): pd.DataFrame({ID: ids_voo[ordem], TRUTH: y[ordem], "dia": dias[ordem],
+                                    "pred": novo[ordem]}),
+    }
+    monkeypatch.setattr(campeao, "previsao", lambda ids: tabelas[tuple(ids)])
     monkeypatch.setattr(regua, "slice_masks", lambda ref: {"sem loteria": np.ones(n, bool)})
 
     r = regua.avaliar_conjunto(["m1", "m2"], ["n1", "n2"])
