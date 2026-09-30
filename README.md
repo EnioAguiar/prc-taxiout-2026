@@ -633,21 +633,19 @@ Relatório: `docs/esteira.md` (campeã, fila, últimos vereditos, consultas à m
 `prc-esteira`). Auditoria diária: `ferramentas/auditoria.py` checa vazão, falhas, consultas
 à metade B e pausa.
 
-**Estreia supervisionada — em curso (serviço iniciado em 30/09 ~00h57 -03):**
+**Estreia supervisionada — concluída (30/09 00h57–02h40 -03), serviço habilitado no boot:**
 
-1. [x] Sonda de ruído na frente da fila: repetição da receita do membro 1 da v32
-   (`add --tipo corretor --receita '<receita do membro 1>' --prioridade 9`). Primeiro veredito
-   (candidato 37): **"A: não seleciona"**, ganho sem loteria −0,13 s em 9,8 min — como esperado.
+1. [x] Sonda de ruído (repetição da receita do membro 1 da v32, prioridade 9): "A: não seleciona",
+   −0,13 s sem loteria em 9,8 min; conferida contra `compare.py` (sozinha −1,1 s sem loteria).
 2. [x] `esteira.py gerar` e `systemctl --user start prc-esteira` (fila com 36 candidatos).
-3. [ ] Nos 10 primeiros: conferir o veredito contra `bin/run src/compare.py <run>` e contra o
-   bootstrap manual nas metades; conferir o tempo (~10 min) e a RAM (`journalctl`).
-4. [ ] Registrar a decisão (nada a mudar / ajuste / código) com `esteira.py revisao "<texto>"`.
-5. [ ] Só então `systemctl --user enable prc-esteira` (ainda **não** habilitado no boot).
+3. [x] 10 primeiros: 0 falhas, 8,8–11,3 min cada, pico de RAM ~7,3 GB; todos reprovados em A
+   (melhor: `--superficie` somado, +0,19 s).
+4. [x] Revisão registrada em `docs/esteira.md`: régua mantida — nenhum candidato chegou a 0,3 s em
+   A, então o IC não foi o gargalo (a conferência com o membro da v32, +1,07 s e IC baixo −0,10,
+   segue como ponto a observar se aparecerem candidatos com ganho e IC no limite).
+5. [x] `systemctl --user enable prc-esteira`.
 
-A calibrar na estreia: na conferência real, a régua **reprovou** o membro da v32 pela
-metade A (ganho +1,07 s, IC baixo −0,10) — o limiar de A (`GANHO_A = 0,3`, IC baixo > 0) pode
-estar apertado para o ruído de ~0,3 s entre execuções; decidir com os 10 primeiros vereditos se
-afrouxa ou se aumenta o número de repetições. Envio: sempre com ok do usuário.
+Envio: sempre com ok do usuário.
 
 ## Estrutura
 
