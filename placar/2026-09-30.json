@@ -1,5 +1,5 @@
 {
- "updated": "2026-09-30T03:38:46Z",
+ "updated": "2026-09-30T04:08:15Z",
  "totalSubmissions": 3000,
  "teams": [
   {
@@ -76,9 +76,9 @@
   },
   {
    "team": "enthusiastic-daisy",
-   "best": 239.8332,
-   "n": 114,
-   "lastAt": "2026-09-30T03:07:25.861235Z"
+   "best": 238.3938,
+   "n": 116,
+   "lastAt": "2026-09-30T03:50:56.282543Z"
   },
   {
    "team": "versatile-watermelon",
@@ -101,7 +101,7 @@
   {
    "team": "understanding-accordion",
    "best": 244.2213,
-   "n": 24,
+   "n": 23,
    "lastAt": "2026-09-28T16:42:24.304952Z"
   },
   {
@@ -411,6 +411,12 @@
    "lastAt": "2026-09-09T08:07:22.439643Z"
   },
   {
+   "team": "eager-castle",
+   "best": 286.1099,
+   "n": 2,
+   "lastAt": "2026-09-30T03:51:59.271061Z"
+  },
+  {
    "team": "sincere-insect",
    "best": 286.2746,
    "n": 12,
@@ -465,12 +471,6 @@
    "lastAt": "2026-09-25T00:23:12.466889Z"
   },
   {
-   "team": "eager-castle",
-   "best": 290.676,
-   "n": 1,
-   "lastAt": "2026-09-30T00:39:02.593092Z"
-  },
-  {
    "team": "zestful-eagle",
    "best": 290.7241,
    "n": 6,
@@ -485,7 +485,7 @@
   {
    "team": "motivated-forest",
    "best": 291.2731,
-   "n": 38,
+   "n": 37,
    "lastAt": "2026-09-20T10:24:01.157597Z"
   },
   {
@@ -503,7 +503,7 @@
   {
    "team": "inspiring-kitten",
    "best": 291.4584,
-   "n": 62,
+   "n": 61,
    "lastAt": "2026-09-30T00:02:51.333861Z"
   },
   {
@@ -899,8 +899,8 @@
   {
    "team": "merry-iguana",
    "best": 434.8325,
-   "n": 7,
-   "lastAt": "2026-09-29T16:52:25.819339Z"
+   "n": 8,
+   "lastAt": "2026-09-30T04:07:14.574375Z"
   },
   {
    "team": "imaginative-ocean",
@@ -935,7 +935,7 @@
   {
    "team": "unbelievable-quilt",
    "best": 490.7364,
-   "n": 3,
+   "n": 2,
    "lastAt": "2026-09-10T00:09:00.581917Z"
   },
   {

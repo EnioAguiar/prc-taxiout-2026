@@ -1,6 +1,6 @@
 {
  "_como_usar": "Fila de saltos candidatos. ganho_s = ganho OFICIAL estimado (s) se funcionar; prob = chance de funcionar; dias = dias de trabalho. Atualizar a cada experimento: status feito/descartado + ganho_real_s. Estimativas marcadas como inferência até medidas.",
- "atualizado": "2026-09-28",
+ "atualizado": "2026-09-30",
  "saltos": [
   {
    "id": "v7_stack",
@@ -38,8 +38,9 @@
    "ganho_s": 3,
    "prob": 0.5,
    "dias": 1,
-   "status": "pendente",
-   "evidencia": "alligator e kind-mango usam; kind-mango: 5 colunas METAR no EOBT +0,33 s (pior); IEM tem LTFM com vento por pista"
+   "status": "feito",
+   "ganho_real_s": 0.73,
+   "evidencia": "entrou no plano 13 (`--plano13`, src/plano13.py: METAR do IEM): v18_cf 303,82 contra 306,65 da v16 (+2,8 s na simulação); oficial v19 253,95, −2,91 s sobre a v17. Os −2,91 s são das 4 features do plano 13 juntas; o ganho por feature não foi medido [inferência: 2,91/4]"
   },
   {
    "id": "seeds",
@@ -174,8 +175,9 @@
    "ganho_s": 2,
    "prob": 0.5,
    "dias": 0.5,
-   "status": "pendente",
-   "evidencia": "zestful: carrier + day-of-month −3,9 s local (misturado); nosso teste só no corretor: completo −3 s mas via loterias"
+   "status": "feito",
+   "ganho_real_s": 0.73,
+   "evidencia": "entrou no plano 13 (`--plano13`, companhia categórica); v18_cf 303,82 contra 306,65; oficial v19 253,95 (−2,91 s das 4 features juntas) [inferência: 2,91/4]"
   },
   {
    "id": "rotacao_stand",
@@ -183,8 +185,9 @@
    "ganho_s": 2,
    "prob": 0.5,
    "dias": 0.5,
-   "status": "pendente",
-   "evidencia": "zestful arrival_features.py:29-30,64-68, parte do −2,62 s oficial"
+   "status": "feito",
+   "ganho_real_s": 0.73,
+   "evidencia": "entrou no plano 13 (`--plano13`, colunas `rot_*`); oficial v19 253,95 (−2,91 s das 4 features juntas) [inferência: 2,91/4]. Ir além (próximo ocupante do stand pelo `icao24`) foi descartado em 29/09: docs/research/2026-09-29-retrospectiva.md"
   },
   {
    "id": "consistencia_nm",
@@ -192,8 +195,9 @@
    "ganho_s": 1.5,
    "prob": 0.5,
    "dias": 0.5,
-   "status": "pendente",
-   "evidencia": "zestful duration_contest.py −1,42 s oficial; kind-mango plan_nm_taxi −1,22"
+   "status": "feito",
+   "ganho_real_s": 0.73,
+   "evidencia": "entrou no plano 13 (`--plano13`, consistência NM); oficial v19 253,95 (−2,91 s das 4 features juntas) [inferência: 2,91/4]"
   },
   {
    "id": "validacao_janjul",
@@ -201,8 +205,9 @@
    "ganho_s": 0,
    "prob": 1.0,
    "dias": 0.5,
-   "status": "pendente",
-   "evidencia": "GREKI (Discord 27/09): CV de 12 meses e por dia enganou"
+   "status": "descartado",
+   "ganho_real_s": 0,
+   "evidencia": "retrospectiva 29/09: a guarda jan↔jul dá +8 a +11 s para qualquer peso ou pós-processamento — é dominada pelas loterias e não serve de aval. A régua em uso é `sem_loteria` (seleção em A, confirmação cega em B, src/regua.py)"
   },
   {
    "id": "especialista_lobt",
@@ -211,7 +216,7 @@
    "prob": 0.4,
    "dias": 1,
    "status": "pendente",
-   "evidencia": "alligator: −1,97 e −0,52 s oficiais"
+   "evidencia": "alligator: −1,97 e −0,52 s oficiais. Candidato barato para a esteira (src/esteira.py)"
   },
   {
    "id": "teto_aeroporto",
@@ -220,7 +225,35 @@
    "prob": 0.4,
    "dias": 0.2,
    "status": "pendente",
-   "evidencia": "kind-mango v48: −2,33 s oficial em 5 linhas"
+   "evidencia": "kind-mango v48: −2,33 s oficial em 5 linhas. Retrospectiva 29/09: nunca foi ao laço fiel; candidato barato para a esteira (nossos pisos/tetos do ocupante do stand pioraram, mas o teto por aeroporto não foi testado)"
+  },
+  {
+   "id": "media_corretores",
+   "nome": "média simples de corretores com colunas diferentes sobre a mesma base (campeã v2 com membros)",
+   "ganho_s": 1,
+   "prob": 0.8,
+   "dias": 0.5,
+   "status": "feito",
+   "ganho_real_s": 0.65,
+   "evidencia": "29/09 à noite: v30 + `e2_fila_sup` (`--fila --superficie`) sem loteria +0,95 (IC baixo +0,21), completo +0,38; oficial v32 = 247,11 (−0,65 s sobre a v30). Em código desde 30/09: champion.json v2 + src/campeao.py + src/pos_regras.py"
+  },
+  {
+   "id": "esteira",
+   "nome": "esteira 24/7 de experimentos: fila SQLite, corretor real e régua com confirmação cega (A seleciona, B confirma)",
+   "ganho_s": 3,
+   "prob": 0.5,
+   "dias": 1,
+   "status": "em curso",
+   "evidencia": "serviço prc-esteira no ar desde 30/09 00h57 (-03), estreia supervisionada; spec docs/superpowers/specs/2026-09-30-esteira-design.md. Primeiro veredito (repetição da campeã): 'A: não seleciona', −0,13 s sem loteria — sonda de ruído como esperado"
+  },
+  {
+   "id": "regressor_sem_lirf",
+   "nome": "regressor da base sem LIRF inteiro e sem y > 80.000 s (kind-mango v51)",
+   "ganho_s": 3,
+   "prob": 0.3,
+   "dias": 0.5,
+   "status": "pendente",
+   "evidencia": "kind-mango: −5,99 s oficiais. Nós só tiramos LIRF sem NM (+2,0 s na base, nunca levado ao corretor); listado como 'deixado para trás por custo' na retrospectiva de 29/09"
   }
  ]
 }

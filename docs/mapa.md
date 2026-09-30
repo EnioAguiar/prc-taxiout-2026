@@ -1,4 +1,4 @@
-# Mapa do projeto (atualizado em 29/09, 19h UTC)
+# Mapa do projeto (atualizado em 30/09, 04h UTC)
 
 Resumo para se localizar. Detalhes: `README.md` (modelo, roadmap, envios) e `CONTEXTO.md` (linha do tempo).
 
@@ -24,18 +24,18 @@ Princípios:
 Estudo da cauda (28/09, `docs/research/2026-09-28-estudo-cauda.md`): loterias são um piso comum
 a todos os times; a distância para o topo está na parte previsível (normais e cópias).
 
-Frentes abertas: fontes de dados (OPDI, OpenSky, regulações ATFM, meteorologia, layout de
-aeroporto); estudo da cauda; plano 11 (regressor limpo).
+Frentes abertas (30/09): esteira 24/7 varrendo o corretor; fonte de dado nova que cubra os
+aeroportos sem ADS-B (OPDI e meteorologia já dentro; OpenSky/Trino proibido); a cauda e as loterias.
 
 ## Onde estamos
 
 | Item | Situação |
 |---|---|
-| Nota oficial | **247,11 s** (v32) |
-| Posição | 24º de 162 |
-| 1º colocado | 220,40 (faltam 27,4 s) |
-| 3º colocado | 224,50 (faltam 23,3 s) |
-| 10º colocado | 236,98 (faltam 10,9 s) |
+| Nota oficial | **247,11 s** (v32, 30/09 02h23 UTC) |
+| Posição | 22º de 159 |
+| 1º colocado | 220,40 (faltam 26,7 s) |
+| 3º colocado | 224,50 (faltam 22,6 s) |
+| 10º colocado | 236,71 (faltam 10,4 s) |
 | Prazo | 11/10, 23:59 (horário da Europa) |
 | Envios | 5 por dia UTC (zera às 21h de Brasília) |
 | Repositório | privado; abrir entre 08 e 10/10 (condição do prêmio) |
@@ -58,6 +58,8 @@ flowchart LR
     L --> M["v27 251,10<br/>distância aos horários planejados"]
     M --> N["v28 249,16<br/>pátio do stand + 500 rodadas"]
     N --> O["v29 247,83<br/>regressor por aeroporto<br/>+ célula stand × pista"]
+    O --> P["v30 247,76<br/>mapa do aeroporto"]
+    P --> Q["v32 247,11<br/>média de 2 corretores<br/>sobre a mesma base"]
 ```
 
 ## Como o modelo funciona
@@ -97,16 +99,32 @@ o conjunto, e só aprova com confirmação cega na metade B dos dias.
 Seeds, detector de pushback, fila vista pelo ADS-B, CatBoost sozinho, média mensal oficial,
 tirar lat/lon do ADS-B, alvo residual, calibração de p, mistura multiclasse.
 
-## Para onde vamos (a partir de 29/09)
+## Para onde vamos (a partir de 30/09)
 
-Feito em 28–29/09: v19 253,95 → v21 252,34 → v27 251,10 → v28 249,16. Descartados contra a campeã: base
-com plano 13, `--fila` completo, base com mais rodadas, hedge de Roma, cobertura ADS-B 2026, tirar ctx do
-corretor, pesos, p(cópia), só LGB/só CatBoost, XGBoost na base e como 4º corretor, LightGBM na GPU,
-superfície (ATD2), **mapa do aeroporto** (X-Plane apt.dat; na base e no corretor +0,3–0,4 s, reprovado
-sem top 10; código pronto e desligado), **caçador de regras 2** (sequência de pousos no stand, mesmo
-voo em outro mês: nada; `docs/research/2026-09-29-cacador-de-regras-2.md`), **voos normais sem ADS-B**
-(item 4e, `docs/research/2026-09-29-base-sem-adsb.md`: as duas hipóteses ganham na fatia-alvo mas
-param em +0,2 s no completo; código pronto e desligado).
+Feito em 28–30/09: v19 253,95 → v21 252,34 → v27 251,10 → v28 249,16 → v29 247,83 → v30 247,76 →
+**v32 247,11** (média de dois corretores sobre a mesma base). A retrospectiva de 29/09
+(`docs/research/2026-09-29-retrospectiva.md`) fechou a busca dentro das colunas que temos: janelas por
+grupo, deslocamentos exatos e o detetive do resíduo não acham nada (o detetive otimista com todas as
+colunas *piora*: 233,31 → 234,07 sem loteria). **Ganho novo exige informação nova ou a cauda.**
+
+Três frentes:
+
+1. **Esteira de experimentos no ar** (`src/esteira.py` + `src/regua.py`, serviço `prc-esteira` desde
+   30/09 ~00h57 -03, estreia supervisionada): a fila roda os candidatos baratos do corretor sozinha,
+   com seleção na metade A e confirmação cega na B. Dever do agente: auditar os 10 primeiros
+   vereditos e calibrar a régua (hoje `GANHO_A = 0,3` com IC baixo > 0 reprovou a própria campeã),
+   registrando em `docs/esteira.md` ("Revisões"). Relatório e comandos: README, "Esteira de experimentos".
+2. **Informação nova de fora** (LTFM sem ADS-B nem em 2026; Trino do OpenSky proibido, Discord 29/09).
+3. **Loterias** (38 % do erro²) e os itens "grandes" da retrospectiva (folha `dist_lo ≤ 0`,
+   registro × sensor, loterias do LFPG sem NM).
+
+Descartados contra a campeã: base com plano 13, `--fila` completo, base com mais rodadas, hedge de
+Roma, cobertura ADS-B 2026, tirar ctx do corretor, pesos, p(cópia), só LGB/só CatBoost, XGBoost na base
+e como 4º corretor, LightGBM na GPU, superfície sozinha (ATD2), **mapa do aeroporto na base**
+(o `--mapa` no corretor entrou na v30), **caçador de regras 2** (sequência de pousos no stand, mesmo
+voo em outro mês; `docs/research/2026-09-29-cacador-de-regras-2.md`), **próximo ocupante do stand pelo
+`icao24`** (retrospectiva: o oráculo de −10 s vinha de casamentos errados), **simulação repesada para a
+mistura de 2026** (não explica o oficial melhor que `sem_loteria`).
 
 ### Item 4e: voos normais sem ADS-B (29/09)
 
@@ -128,8 +146,9 @@ Nenhuma passa o portão no `completo` (IC baixo < −0,5, sem top 10 < 0, julho 
 
 ```mermaid
 flowchart TD
-    B["Voos normais sem ADS-B (item 4e)<br/>medido 29/09: ~1-2 s na fatia, 0,2 s no completo"] --> C["H1 + H2 juntas<br/>(--base-por-apt + --corretor-ref)"]
-    C --> FIM["08–10/10: README em inglês,<br/>repositório público GPLv3"]
+    B["Voos normais sem ADS-B (item 4e)<br/>medido 29/09: ~1-2 s na fatia, 0,2 s no completo"] --> C["H1 + H2 juntas (v29)<br/>+ mapa (v30) + média de 2 corretores (v32)"]
+    C --> D["Esteira 24/7 procura o próximo membro<br/>(prc-esteira, estreia supervisionada)"]
+    D --> FIM["08–10/10: README em inglês,<br/>repositório público GPLv3"]
 ```
 
 | Etapa | Ganho esperado (oficial) | Quando |
@@ -137,6 +156,8 @@ flowchart TD
 | Base mais forte sem ADS-B | medido: 0,2 s no completo, 1,5 s nos normais | feito 29/09 |
 | H1 + H2 juntas (v29) | simulação 299,10 (+0,3 s, IC −0,7 a 1,3; sem loteria +1,2, IC 0,7 a 1,8); **oficial 247,83 (−1,33 s)** | enviada 29/09 |
 | v29 + `--mapa` no corretor (v30, `20260929-154118-v29_mapa_cf`) | simulação 298,05 (+1,1 s, IC 0,5 a 1,7; sem top 10 +0,5; jan +0,6, jul +1,5; sem loteria +0,7, IC 0,1 a 1,3); **oficial 247,76 (−0,07 s)** | enviada 29/09 |
+| v32 = v30 + membro `--fila --superficie` (`20260929-220513-e2_fila_sup`) | simulação: sem loteria +0,95 (IC baixo +0,21), completo +0,38; **oficial 247,11 (−0,65 s)** | enviada 30/09 |
+| Próximo membro pela esteira | a decidir pela régua (A seleciona, B confirma) | em curso |
 | Meta | top 10 (~237); top 3 pede ~220 | até 11/10 |
 
 Lições de 28/09: a simulação acerta o oficial (−2,8→−2,91; −2,1→−1,61; −1,1→−1,24); o corretor

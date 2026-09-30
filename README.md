@@ -76,12 +76,12 @@ deixa a validação otimista e o modelo cego para eles (erro da v1).
 
 ## Modelo atual (`src/`)
 
-Melhor nota oficial: **v32 = 247,11** = média simples de dois corretores sobre a mesma base (`20260929-125421-base_ctx_por_apt`): o da v30 e o `--fila --superficie` (id `20260929-220513-e2_fila_sup`, 298,42 na simulação), + pós-regra de Roma; a média é feita fora do código (arquivos da v30 e da v93) e `champion.json` segue na v30. Antes: v30 = 247,76 = v29 + `--mapa` no corretor (colunas `map_*`, `src/mapa.py`) (id `20260929-154118-v29_mapa_cf`, 298,05 na simulação) + pós-regra de Roma. Antes: v29 = 247,83 = v28 + `--base-por-apt` (regressor por aeroporto na base) + `--corretor-ref` (colunas `cel_*` da célula aeroporto × stand × pista no corretor) (id `20260929-135844-h1h2_por_apt_ref`, 299,10 na simulação) + pós-regra de Roma; promovida à mão com o ok do usuário depois do oficial (veredito "não comprovado": +0,3 s no completo, mas +1,2 s sem loteria com IC 0,7 a 1,8). Antes: v28 = 249,16 = v26 + `--stand-prefixo` (coluna `stand_p`) + `--corretor-rounds 500` (id `20260929-093849-v28_cf`, 299,41 na simulação) + pós-regra de Roma. Antes: v27 = 251,10 = v26 (id `20260928-195148-v26_cf`, 300,64 na simulação; v20 + `--dist-plano` no corretor) + pós-regra de Roma. Antes: v21 = 252,34 = v20 (id `20260928-131704-v20_cf`, 301,73 na simulação; v18 com a base usando também as colunas `ctx_*` via `--base-ctx`) + pós-regra de Roma. Antes: v19 = 253,95 = v18 (id `20260928-113219-v18_cf`, 303,82 na simulação; v16 + `--plano13`: METAR, rotação no stand, consistência NM e companhia no corretor) + pós-regra de Roma. Antes: v17 = 256,86 = v16 (id `20260927-223230-v16_cf`, 306,65 na simulação; base `--reg-corte 7200`, corretor `--conjunto --externos`) + pós-regra de Roma aplicada ao arquivo. Antes: v13 = 264,35; v12 (id `20260927-160433-v12_cf`, 309,78 na simulação, 264,74 oficial) = v11 com `--conjunto` (média de 3 corretores). A v11 (id `20260927-145005-v11_cf`, 311,09 na simulação, 266,81 oficial) = v9 + colunas `ctx_*` no corretor (`src/contexto.py`: taxi-in das chegadas e vizinhos de `MVT − AOBT_3`, plano 8). A v9 era `stack_cf` com janela do LOBT (id
+Melhor nota oficial: **v32 = 247,11** (30/09 02h23 UTC) = média simples de dois corretores sobre a mesma base (`20260929-125421-base_ctx_por_apt`): o da v30 (id `20260929-154118-v29_mapa_cf`, 298,05 na simulação) e o `--fila --superficie` (id `20260929-220513-e2_fila_sup`, 298,42 na simulação), + pós-regra de Roma. Desde 30/09 isso está no código: `champion.json` no formato v2 (`base`, `membros`, `pos_regras`; `src/campeao.py`) aponta para esses dois membros, a regra de Roma vive em `src/pos_regras.py` e `train.py submit N` refaz a média e aplica as pós-regras sozinho (refazer a v32 deu rms 7 s contra o arquivo enviado e Roma idêntica). Antes: v30 = 247,76 = v29 + `--mapa` no corretor (colunas `map_*`, `src/mapa.py`) + pós-regra de Roma. Antes: v29 = 247,83 = v28 + `--base-por-apt` (regressor por aeroporto na base) + `--corretor-ref` (colunas `cel_*` da célula aeroporto × stand × pista no corretor) (id `20260929-135844-h1h2_por_apt_ref`, 299,10 na simulação) + pós-regra de Roma; promovida à mão com o ok do usuário depois do oficial (veredito "não comprovado": +0,3 s no completo, mas +1,2 s sem loteria com IC 0,7 a 1,8). Antes: v28 = 249,16 = v26 + `--stand-prefixo` (coluna `stand_p`) + `--corretor-rounds 500` (id `20260929-093849-v28_cf`, 299,41 na simulação) + pós-regra de Roma. Antes: v27 = 251,10 = v26 (id `20260928-195148-v26_cf`, 300,64 na simulação; v20 + `--dist-plano` no corretor) + pós-regra de Roma. Antes: v21 = 252,34 = v20 (id `20260928-131704-v20_cf`, 301,73 na simulação; v18 com a base usando também as colunas `ctx_*` via `--base-ctx`) + pós-regra de Roma. Antes: v19 = 253,95 = v18 (id `20260928-113219-v18_cf`, 303,82 na simulação; v16 + `--plano13`: METAR, rotação no stand, consistência NM e companhia no corretor) + pós-regra de Roma. Antes: v17 = 256,86 = v16 (id `20260927-223230-v16_cf`, 306,65 na simulação; base `--reg-corte 7200`, corretor `--conjunto --externos`) + pós-regra de Roma aplicada ao arquivo. Antes: v13 = 264,35; v12 (id `20260927-160433-v12_cf`, 309,78 na simulação, 264,74 oficial) = v11 com `--conjunto` (média de 3 corretores). A v11 (id `20260927-145005-v11_cf`, 311,09 na simulação, 266,81 oficial) = v9 + colunas `ctx_*` no corretor (`src/contexto.py`: taxi-in das chegadas e vizinhos de `MVT − AOBT_3`, plano 8). A v9 era `stack_cf` com janela do LOBT (id
 `20260927-133718-v9_cf`, 317,23 na simulação, 275,90 oficial). A base é
 `two_stage_nm` (`--nm-min-ms 21600 --janela-lobt`, features `adsb_*`) com corretor
 treinado fora do bloco por meses (`src/crossfit.py`, `stack.py --crossfit`); toda previsão é
 projetada em `MVT − LOBT ± 3606 s`. Promovida à mão com o ok do usuário ("não comprovado"
-na regra: ganho 6,3 s). Envio: `train.py submit N` (~27 min, pico 6,94 GB). A v11 foi medida no código `5d75eef`; depois só entrou o `--conjunto` (plano 9), que não muda nada sem a flag (revisado), então `train.py submit` da v11 precisa de `--forcar`. Antes dela, a
+na regra: ganho 6,3 s). Envio: `train.py submit N [--corrida <id>]` (~27 min por membro, pico 6,94 GB): lê a campeã v2, refaz cada membro, tira a média e aplica as pós-regras. Não há mais `--forcar` nem trava por `src_hash` (saíram em 30/09 com a campeã v2). Antes dela, a
 v6 (id `20260926-223248-nm_retas_6h_adsb`, 314,76) foi promovida à mão com o ok do usuário
 depois do oficial: no `compare.py` o veredito foi "não comprovado" (ganho 9,4 s, IC
 7,5 a 11,7, abaixo dos 10 s; sem os 10 maiores 8,7; jan e jul > 0). As colunas
@@ -240,8 +240,11 @@ Feito:
   sobre `nm_retas` (IC 95% 1,5 a 7,7) → não comprovado (abaixo de 10 s);
   re-testado com seed no plano 3a: FRÁGIL.
 
-Próximo (29/09): plano 13, mais sinais no corretor (METAR, prefixo da companhia nos voos com NM,
-rotação no stand, consistência NM); depois validação jan↔jul. Ver `docs/mapa.md`.
+Próximo (30/09): a esteira de experimentos está **no ar** (serviço `prc-esteira` desde 30/09 ~00h57
+-03, estreia supervisionada em curso) e é ela que testa os candidatos baratos do corretor; o agente
+audita os 10 primeiros vereditos e calibra a régua. Em paralelo: informação nova de fora (o resíduo
+que sobra não é explicável pelas colunas que temos, ver `docs/research/2026-09-29-retrospectiva.md`)
+e as loterias (38 % do erro²). Envio só com ok do usuário. Ver `docs/mapa.md`.
 
 Achados de 28/09 (scripts descartáveis): (1) outras janelas não são exatas como a do LOBT:
 |BLOCK − IOBT| passa de 3606 s em 0,003 % das DEP (máx. 10.737), EOBT_1 e AOBT_3 bem mais;
@@ -630,19 +633,21 @@ Relatório: `docs/esteira.md` (campeã, fila, últimos vereditos, consultas à m
 `prc-esteira`). Auditoria diária: `ferramentas/auditoria.py` checa vazão, falhas, consultas
 à metade B e pausa.
 
-**Próximo passo — estreia supervisionada (com o usuário, depois do merge):**
+**Estreia supervisionada — em curso (serviço iniciado em 30/09 ~00h57 -03):**
 
-1. `bin/run src/esteira.py add --tipo corretor --receita '<receita do membro 1 da v32>' --prioridade 9`
-   — repetição da campeã: a régua deve reprovar em A, e isso mede o ruído.
-2. `bin/run src/esteira.py gerar` e `systemctl --user start prc-esteira`.
-3. Nos 10 primeiros: conferir o veredito contra `bin/run src/compare.py <run>` e contra o
+1. [x] Sonda de ruído na frente da fila: repetição da receita do membro 1 da v32
+   (`add --tipo corretor --receita '<receita do membro 1>' --prioridade 9`). Primeiro veredito
+   (candidato 37): **"A: não seleciona"**, ganho sem loteria −0,13 s em 9,8 min — como esperado.
+2. [x] `esteira.py gerar` e `systemctl --user start prc-esteira` (fila com 36 candidatos).
+3. [ ] Nos 10 primeiros: conferir o veredito contra `bin/run src/compare.py <run>` e contra o
    bootstrap manual nas metades; conferir o tempo (~10 min) e a RAM (`journalctl`).
-4. Registrar a decisão (nada a mudar / ajuste / código) com `esteira.py revisao "<texto>"`.
-5. Só então `systemctl --user enable prc-esteira`.
+4. [ ] Registrar a decisão (nada a mudar / ajuste / código) com `esteira.py revisao "<texto>"`.
+5. [ ] Só então `systemctl --user enable prc-esteira` (ainda **não** habilitado no boot).
 
 A calibrar na estreia: na conferência real, a régua **reprovou** o membro da v32 pela
-metade A (ganho +1,07 s, IC baixo −0,10) — o limiar de A pode estar apertado para o
-ruído de ~0,3 s entre execuções.
+metade A (ganho +1,07 s, IC baixo −0,10) — o limiar de A (`GANHO_A = 0,3`, IC baixo > 0) pode
+estar apertado para o ruído de ~0,3 s entre execuções; decidir com os 10 primeiros vereditos se
+afrouxa ou se aumenta o número de repetições. Envio: sempre com ok do usuário.
 
 ## Estrutura
 
