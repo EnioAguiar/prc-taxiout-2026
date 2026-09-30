@@ -10,6 +10,7 @@ import numpy as np
 
 import campeao
 from cache import TRUTH
+from features import ID
 from compare import paired_bootstrap, slice_masks
 
 GANHO_A, IC_B, COMPLETO_MIN = 0.3, -0.3, -0.5
@@ -78,10 +79,15 @@ def avaliar(membros: list[str], novo: str, semente: int = 0) -> dict:
 
 
 def avaliar_conjunto(membros: list[str], novos: list[str], semente: int = 0) -> dict:
-    """Candidato de base nova: a média completa refeita sobre a base nova contra a campeã."""
+    """Candidato de base nova: a média completa refeita sobre a base nova contra a campeã.
+
+    A base nova grava o holdout na ordem dela: alinha pelo voo antes de comparar."""
     ref = campeao.previsao(membros)
     y, dias = ref[TRUTH].to_numpy(float), ref["dia"].to_numpy()
     sem_lot = slice_masks(ref)["sem loteria"]
-    p = campeao.previsao(novos)["pred"].to_numpy(float)
-    r = decidir(y, ref["pred"].to_numpy(float), p, dias, sem_lot, semente)
+    novo = ref[[ID]].merge(campeao.previsao(novos)[[ID, "pred"]], on=ID, how="left",
+                           validate="one_to_one")["pred"].to_numpy(float)
+    if np.isnan(novo).any():
+        raise SystemExit("base nova não cobre o mesmo holdout da campeã")
+    r = decidir(y, ref["pred"].to_numpy(float), novo, dias, sem_lot, semente)
     return r | {"proposta": "base_nova", "membros": list(novos), "avaliadas": 1}
