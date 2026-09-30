@@ -116,8 +116,8 @@ auditoria passam a ler esse formato (corte limpo, sem ler o antigo).
 Lê `champion.json` v2: gera a previsão de cada membro (corretor treinado nas cegas com o oof do
 cache + base final uma vez só), faz a média e aplica as pós-regras. A regra de Roma sai do arquivo
 colado à mão e vira código em `src/pos_regras.py` (`54310,76 + 0,38·(MVT − SCHED)` em LIRF sem NM
-com MVT − SCHED em (15 h, 30 h]; conferida contra os 4 valores da v28–v32). Previsões de membro
-ficam em `data/cache/membros/<run>.parquet` para não treinar de novo o que não mudou.
+com MVT − SCHED em (15 h, 30 h]; conferida contra os 4 valores da v28–v32). Sem cache por
+membro: dois membros custam ~30 min (base final uma vez, um corretor por membro).
 
 A esteira dispara `train.py submit` quando o ganho `sem_loteria` acumulado sobre a última campeã
 enviada passa de 0,5 s, no máximo uma vez a cada 6 h, e só se não houver arquivo pronto esperando
@@ -171,8 +171,10 @@ ou mudança de código (nova spec curta ou item no plano). A revisão é ponto f
 
 - PC cai: o serviço volta (`Restart=on-failure`); `rodando` → `fila`.
 - Código muda no meio (eu edito `src/`): candidatos já medidos seguem válidos contra a campeã do
-  momento; `src_hash` vai no resultado. `train.py submit` usa o `src_hash` atual, sem `--forcar`
-  (a v2 grava o hash de cada membro e a checagem compara só o código que o membro usa).
+  momento; `src_hash` vai no registro de cada corrida. `train.py submit` deixa de abortar por
+  `src_hash` diferente (a trava pedia `--forcar` a cada edição e travaria a esteira); a prova de
+  reprodutibilidade é refazer a v32 (seção Testes).
+- Candidato de base (base nova) só entra **sozinho**: a média exige membros da mesma base.
 - Oof da campeã ausente do cache: a esteira recalcula (~50 min) uma vez.
 - XGBoost com categoria nova no holdout: continua fora do espaço do gerador.
 
