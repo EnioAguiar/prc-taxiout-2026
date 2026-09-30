@@ -605,11 +605,11 @@ Serviço 24/7 que tira candidatos de uma fila, roda o corretor real e decide pel
 
 ```
 bin/run src/esteira.py add --tipo corretor --receita '{"--fila": true}' [--prioridade N] [--origem X]
-bin/run src/esteira.py fila       # o que está na fila e o que já rodou
+bin/run src/esteira.py fila       # só o que está na fila (o que já rodou sai em status/docs/esteira.md)
 bin/run src/esteira.py status     # vazão, falhas, consultas à metade B, pausa
 bin/run src/esteira.py pausar | retomar     # trava data/esteira.pausa
 bin/run src/esteira.py gerar      # enfileira vizinhos da campeã (grade de parâmetros e blocos)
-bin/run src/esteira.py semente N  # enfileira N candidatos de partida
+bin/run src/esteira.py semente N  # sorteia de novo as metades A/B com a semente N e zera as consultas à metade B (usar quando passar de 50)
 bin/run src/esteira.py revisao "<texto>"    # registra a revisão do agente (com data)
 bin/run src/esteira.py enviado N  # marca a versão N como enviada
 bin/run src/esteira.py trabalhar  # laço do serviço prc-esteira (não rodar à mão)

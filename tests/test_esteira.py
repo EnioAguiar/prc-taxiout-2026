@@ -62,7 +62,7 @@ def test_passo_promove_e_registra(tmp_path, monkeypatch):
     monkeypatch.setattr(esteira, "executar", lambda c, ch, rodar=None: "RUN1")
     ordem = []
     monkeypatch.setattr(esteira, "commitar_promocao",
-                        lambda membros: ordem.append((tmp_path / "esteira.md").exists()))
+                        lambda membros, fila=None: ordem.append((tmp_path / "esteira.md").exists()))
     monkeypatch.setattr(esteira, "RELATORIO", tmp_path / "esteira.md")
     monkeypatch.setattr(esteira, "PAUSA", tmp_path / "pausa")
     f.add("corretor", {"--fila": True}, "usuario", 0, "m")
@@ -111,3 +111,121 @@ def test_passo_respeita_pausa(tmp_path, monkeypatch):
     (tmp_path / "pausa").write_text("")
     f.add("corretor", {"a": 1}, "usuario", 0, "m")
     assert esteira.passo(f) is False
+
+
+def _champ(membros=("m",), sem_loteria=233.0, enviada=None):
+    return {"base": "B", "oof": "O", "sem_loteria": sem_loteria, "pos_regras": ["roma"],
+            "enviada": enviada, "membros": [{"id": i, "config": {"rounds": 500}} for i in membros]}
+
+
+def test_commitar_promocao_versiona_o_relatorio_antes_nao_rastreado(tmp_path, monkeypatch):
+    import subprocess
+
+    raiz = tmp_path / "repo"
+    (raiz / "docs").mkdir(parents=True)
+    git = lambda *a: subprocess.run(["git", *a], cwd=raiz, check=True,  # noqa: E731
+                                    capture_output=True)
+    git("init", "-q")
+    git("config", "user.email", "t@t"); git("config", "user.name", "t")
+    (raiz / "champion.json").write_text("{}")
+    git("add", "champion.json"); git("commit", "-qm", "inicial")
+    (raiz / "champion.json").write_text('{"membros": []}')
+    (raiz / "docs" / "esteira.md").write_text("# relatório\n")  # nunca rastreado
+
+    monkeypatch.setattr(esteira, "ROOT", raiz)
+    assert esteira.commitar_promocao(["m1", "m2"]) is None
+    log = subprocess.run(["git", "show", "--stat", "--name-only", "--format=%s", "HEAD"],
+                         cwd=raiz, capture_output=True, text=True).stdout
+    assert "esteira: promove m1 + m2" in log
+    assert "docs/esteira.md" in log and "champion.json" in log
+    assert not subprocess.run(["git", "status", "--porcelain"], cwd=raiz,
+                              capture_output=True, text=True).stdout.strip()
+
+
+def test_commitar_promocao_anota_erro_e_segue(tmp_path):
+    import subprocess
+
+    f = esteira.Fila(tmp_path / "e.db")
+
+    def rodar(argv, **kw):
+        raise subprocess.CalledProcessError(128, argv)
+
+    erro = esteira.commitar_promocao(["m"], f, rodar)
+    assert erro and "128" in erro and "128" in f.meta("erro_commit")
+
+
+def test_id_campea_soma_os_membros_e_solta_a_dedup(tmp_path):
+    c1, c2 = _champ(["m"]), _champ(["m2", "m"])
+    assert esteira.id_campea(c1) == "m" and esteira.id_campea(c2) == "m+m2"
+    f = esteira.Fila(tmp_path / "e.db")
+    receita = {"--fila": True}
+    assert f.add("corretor", receita, "gerador", 0, esteira.id_campea(c1))
+    assert f.add("corretor", receita, "gerador", 0, esteira.id_campea(c1)) is None
+    assert f.add("corretor", receita, "gerador", 0, esteira.id_campea(c2))
+
+
+def _pronta(tmp_path, monkeypatch, fila):
+    """Campeã com 0,5 s de ganho sobre a enviada e a trava de 6 h vencida."""
+    (tmp_path / "submissions.jsonl").write_text('{"versao": 32}\n')
+    monkeypatch.setattr(esteira, "ROOT", tmp_path)
+    monkeypatch.setattr(esteira, "memoria_livre_gb", lambda: 12.0)
+    fila.meta("ultimo_arquivo_em", "0")
+    return _champ(sem_loteria=232.5, enviada={"versao": 32, "sem_loteria": 233.0})
+
+
+def test_talvez_enviar_anota_erro_quando_o_submit_falha(tmp_path, monkeypatch):
+    import subprocess
+
+    f = esteira.Fila(tmp_path / "e.db")
+    champ = _pronta(tmp_path, monkeypatch, f)
+
+    def rodar(argv, **kw):
+        raise subprocess.CalledProcessError(1, argv)
+
+    assert esteira.talvez_enviar(f, champ, rodar) is None
+    assert "v33" in f.meta("erro_envio") and "código 1" in f.meta("erro_envio")
+    assert not f.meta("pronto")
+
+
+def test_talvez_enviar_espera_memoria(tmp_path, monkeypatch):
+    f = esteira.Fila(tmp_path / "e.db")
+    champ = _pronta(tmp_path, monkeypatch, f)
+    livres, dormiu = iter([1.0, 2.0, 12.0]), []
+    monkeypatch.setattr(esteira, "memoria_livre_gb", lambda: next(livres))
+    monkeypatch.setattr(esteira.time, "sleep", lambda s: dormiu.append(s))
+    cmds = []
+    assert esteira.talvez_enviar(f, champ, lambda argv, **kw: cmds.append(argv))
+    assert dormiu == [60, 60] and cmds[0][-3:] == ["src/train.py", "submit", "33"]
+
+
+def test_passo_sem_aprovacao_ainda_gera_o_arquivo(tmp_path, monkeypatch):
+    f = esteira.Fila(tmp_path / "e.db")
+    champ = _pronta(tmp_path, monkeypatch, f)
+    monkeypatch.setattr(esteira, "carregar_campea", lambda: champ)
+    monkeypatch.setattr(esteira, "executar", lambda c, ch, rodar=None: "RUN1")
+    monkeypatch.setattr(esteira, "RELATORIO", tmp_path / "esteira.md")
+    monkeypatch.setattr(esteira, "PAUSA", tmp_path / "pausa")
+    cmds = []
+    f.add("corretor", {"--fila": True}, "usuario", 0, "m")
+    assert esteira.passo(f, rodar=lambda argv, **kw: cmds.append(argv), avaliar=lambda *a, **k: {
+        "aprovado": False, "membros": ["m"], "proposta": "soma", "a": {"ganho": 0.1}, "b": None,
+        "completo": 0.0, "motivo": "A: não seleciona", "avaliadas": 3})
+    assert [c for c in cmds if "submit" in c] and f.meta("pronto")
+
+
+def test_enviado_grava_o_sem_loteria_do_momento_da_geracao(tmp_path, monkeypatch, capsys):
+    import campeao
+
+    f = esteira.Fila(tmp_path / "e.db")
+    champ = _pronta(tmp_path, monkeypatch, f)
+    assert esteira.talvez_enviar(f, champ, lambda argv, **kw: None)
+    assert f.meta("pronto_sem_loteria") == "232.5" and f.meta("pronto_membros") == "m"
+
+    outra = _champ(["m", "n"], sem_loteria=231.0, enviada=champ["enviada"])
+    monkeypatch.setattr(esteira, "Fila", lambda *a, **k: f)
+    monkeypatch.setattr(esteira, "carregar_campea", lambda: outra)
+    salvo = {}
+    monkeypatch.setattr(campeao, "salvar", lambda c: salvo.update(c))
+    esteira.main(["enviado", "33"])
+    assert salvo["enviada"] == {"versao": 33, "sem_loteria": 232.5}
+    assert not f.meta("pronto") and not f.meta("pronto_sem_loteria")

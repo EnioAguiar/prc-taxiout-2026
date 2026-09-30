@@ -53,7 +53,7 @@ def decidir(y, base, novo, dias, sem_lot, semente: int = 0) -> dict:
 
 
 def avaliar(membros: list[str], novo: str, semente: int = 0) -> dict:
-    """Melhor proposta pela metade A; só ela é confirmada em B."""
+    """Entre as propostas que passam em A, a de maior ganho; só ela é confirmada em B."""
     mesma = campeao.registro(novo)["config"]["base"] == campeao.registro(membros[0])["config"]["base"]
     ref = campeao.previsao(membros)
     y, dias = ref[TRUTH].to_numpy(float), ref["dia"].to_numpy()
@@ -61,13 +61,17 @@ def avaliar(membros: list[str], novo: str, semente: int = 0) -> dict:
     lado = metades(dias, semente)
     base_pred = ref["pred"].to_numpy(float)
     escolha, melhor = None, -np.inf
+    passou, melhor_passou = None, -np.inf
     m = (lado == "A") & sem_lot
     todas = propostas(membros, novo, mesma)
     for nome, ids in todas.items():
         p = campeao.previsao(ids)["pred"].to_numpy(float)
-        g = paired_bootstrap(y[m], base_pred[m], p[m], dias[m])["ganho"]
+        r_a = paired_bootstrap(y[m], base_pred[m], p[m], dias[m])
+        g = r_a["ganho"]
         if g > melhor:
             escolha, melhor = (nome, ids, p), g
-    nome, ids, p = escolha
+        if g >= GANHO_A and r_a["ic_baixo"] > 0 and g > melhor_passou:
+            passou, melhor_passou = (nome, ids, p), g
+    nome, ids, p = passou or escolha  # sem nenhuma passando, reprova com a de maior ganho
     r = decidir(y, base_pred, p, dias, sem_lot, semente)
     return r | {"proposta": nome, "membros": ids, "avaliadas": len(todas)}

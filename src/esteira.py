@@ -165,10 +165,27 @@ def salvar_campea(membros: list[str]) -> None:
     campeao.salvar(nova)
 
 
-def commitar_promocao(membros: list[str]) -> None:
-    """Commit da campeã nova junto com o relatório já reescrito."""
-    subprocess.run(["git", "commit", "-qm", f"esteira: promove {' + '.join(membros)}",
-                    "champion.json", "docs/esteira.md"], cwd=ROOT, check=False)
+def id_campea(champ: dict) -> str:
+    """Chave estável da campeã para deduplicar candidatos (muda quando os membros mudam)."""
+    return "+".join(sorted(m["id"] for m in champ["membros"]))
+
+
+def commitar_promocao(membros: list[str], fila: "Fila | None" = None,
+                      rodar=subprocess.run) -> str | None:
+    """Commit da campeã nova junto com o relatório já reescrito.
+
+    Devolve o motivo quando o commit falha (e grava em `erro_commit` se a fila veio)."""
+    alvos = ["champion.json", "docs/esteira.md"]
+    try:
+        rodar(["git", "add", *alvos], cwd=ROOT, check=True)
+        rodar(["git", "commit", "-qm", f"esteira: promove {' + '.join(membros)}", *alvos],
+              cwd=ROOT, check=True)
+    except subprocess.CalledProcessError as e:
+        erro = f"git falhou (código {e.returncode})"
+        if fila is not None:
+            fila.meta("erro_commit", erro)
+        return erro
+    return None
 
 
 def memoria_livre_gb() -> float:
@@ -231,9 +248,10 @@ def passo(fila: Fila, rodar=subprocess.run, avaliar=regua.avaliar) -> bool:
     c = fila.proximo()
     if c is None:
         for v in vizinhos(champ):
-            fila.add("corretor", v, "gerador", 0, champ["membros"][0]["id"])
+            fila.add("corretor", v, "gerador", 0, id_campea(champ))
         c = fila.proximo()
         if c is None:
+            talvez_enviar(fila, champ, rodar)
             return False
     while memoria_livre_gb() < MEMORIA_MIN_GB:
         time.sleep(60)
@@ -244,10 +262,12 @@ def passo(fila: Fila, rodar=subprocess.run, avaliar=regua.avaliar) -> bool:
         r = avaliar(membros, run_id, semente=int(fila.meta("semente") or 0))
     except subprocess.CalledProcessError as e:
         fila.marcar(c["id"], "falhou", fim=time.time(), motivo=f"código {e.returncode}")
+        talvez_enviar(fila, carregar_campea(), rodar)
         return True
     except (SystemExit, Exception) as e:  # noqa: B014 — SystemExit não é Exception
         fila.marcar(c["id"], "falhou", fim=time.time(),
                     motivo=f"{type(e).__name__}: {e}"[:200])
+        talvez_enviar(fila, carregar_campea(), rodar)
         return True
     if r.get("b") is not None:
         fila.meta("consultas_b", str(int(fila.meta("consultas_b") or 0) + 1))
@@ -256,10 +276,10 @@ def passo(fila: Fila, rodar=subprocess.run, avaliar=regua.avaliar) -> bool:
                 motivo=r["motivo"])
     if r["aprovado"]:
         salvar_campea(r["membros"])
-        talvez_enviar(fila, carregar_campea(), rodar)
+    talvez_enviar(fila, carregar_campea(), rodar)
     RELATORIO.write_text(relatorio(fila, carregar_campea()))
     if r["aprovado"]:
-        commitar_promocao(r["membros"])
+        commitar_promocao(r["membros"], fila)
     return True
 
 
@@ -273,8 +293,19 @@ def talvez_enviar(fila: Fila, champ: dict, rodar=subprocess.run) -> str | None:
         return None
     versao = 1 + max(json.loads(l)["versao"]
                      for l in (ROOT / "submissions.jsonl").read_text().splitlines() if l.strip())
-    rodar(["bin/run", "src/train.py", "submit", str(versao)], cwd=ROOT, check=True)
+    while memoria_livre_gb() < MEMORIA_MIN_GB:
+        time.sleep(60)
+    try:
+        rodar(["bin/run", "src/train.py", "submit", str(versao)], cwd=ROOT, check=True)
+    except subprocess.CalledProcessError as e:
+        fila.meta("erro_envio", f"submit v{versao}: código {e.returncode}")
+        return None
+    except (SystemExit, Exception) as e:  # noqa: B014 — SystemExit não é Exception
+        fila.meta("erro_envio", f"submit v{versao}: {type(e).__name__}: {e}"[:200])
+        return None
     fila.meta("ultimo_arquivo_em", str(time.time()))
+    fila.meta("pronto_sem_loteria", str(champ["sem_loteria"]))
+    fila.meta("pronto_membros", id_campea(champ))
     return fila.meta("pronto", f"submissions/outgoing-boat_v{versao}.parquet "
                                f"(campeã {', '.join(m['id'] for m in champ['membros'])})")
 
@@ -301,7 +332,7 @@ def main(argv: list[str] | None = None) -> None:
 
     fila = Fila()
     if args.cmd == "add":
-        campea = carregar_campea()["membros"][0]["id"]
+        campea = id_campea(carregar_campea())
         cid = fila.add(args.tipo, json.loads(args.receita), args.origem, args.prioridade, campea)
         print(f"candidato {cid}" if cid else "já estava na fila para esta campeã")
     elif args.cmd == "fila":
@@ -319,7 +350,7 @@ def main(argv: list[str] | None = None) -> None:
         print("retomada")
     elif args.cmd == "gerar":
         champ = carregar_campea()
-        n = sum(fila.add("corretor", v, "gerador", 0, champ["membros"][0]["id"]) is not None
+        n = sum(fila.add("corretor", v, "gerador", 0, id_campea(champ)) is not None
                 for v in vizinhos(champ))
         print(f"{n} vizinhos novos na fila")
     elif args.cmd == "semente":
@@ -333,9 +364,12 @@ def main(argv: list[str] | None = None) -> None:
     elif args.cmd == "enviado":
         fila.meta("pronto", "")
         champ = carregar_campea()
-        champ["enviada"] = {"versao": args.n, "sem_loteria": champ["sem_loteria"]}
+        gerado = fila.meta("pronto_sem_loteria")  # valor do momento em que o arquivo foi gerado
+        sem_lot = float(gerado) if gerado else champ["sem_loteria"]
+        champ["enviada"] = {"versao": args.n, "sem_loteria": sem_lot}
         campeao.salvar(champ)
-        print(f"campeã marcada como enviada na v{args.n}")
+        fila.meta("pronto_sem_loteria", "")
+        print(f"campeã marcada como enviada na v{args.n} (sem loteria {sem_lot})")
     elif args.cmd == "trabalhar":
         recuperados = fila.recuperar()
         if recuperados:

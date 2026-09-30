@@ -47,3 +47,33 @@ def test_reprova_quem_nao_melhora_em_nenhuma_metade():
     y, base, novo, dias = _cenario(0.0, 0.0)
     r = regua.decidir(y, base, novo, dias, np.ones(len(y), bool))
     assert not r["aprovado"] and "A" in r["motivo"] and r["b"] is None
+
+
+def test_a_escolhe_entre_as_que_passam_e_nao_a_de_maior_ganho(monkeypatch):
+    import pandas as pd
+
+    import campeao
+    from cache import TRUTH
+
+    rng = np.random.default_rng(0)
+    dias = np.repeat([f"2025-01-{d:02d}" for d in range(1, 21)], 100)
+    n = len(dias)
+    y = rng.normal(1000, 200, n)
+    base = y + rng.normal(0, 150, n)
+    tres = np.isin(dias, dias[[0, 100, 200]])
+    # A1 (sozinho/troca): ganho alto vindo de três dias, IC atravessando o zero.
+    a1 = np.where(tres, y, base + (base - y) * 0.02)
+    a2 = y + (base - y) * 0.99  # A2 (soma): ganho menor, consistente em todo dia
+
+    preds = {("m1",): base, ("n",): a1, ("m1", "n"): a2}
+
+    def previsao(ids):
+        return pd.DataFrame({TRUTH: y, "dia": dias, "pred": preds[tuple(ids)]})
+
+    monkeypatch.setattr(campeao, "previsao", previsao)
+    monkeypatch.setattr(campeao, "registro", lambda i: {"config": {"base": "B"}})
+    monkeypatch.setattr(regua, "slice_masks", lambda ref: {"sem loteria": np.ones(n, bool)})
+
+    r = regua.avaliar(["m1"], "n")
+    assert r["proposta"] == "soma" and r["membros"] == ["m1", "n"]
+    assert r["a"]["ganho"] >= regua.GANHO_A and r["a"]["ic_baixo"] > 0
