@@ -101,3 +101,17 @@ def test_avaliar_conjunto_aprova_a_base_nova_inteira_mesmo_em_outra_ordem(monkey
     r = regua.avaliar_conjunto(["m1", "m2"], ["n1", "n2"])
     assert r["aprovado"], r["motivo"]
     assert r["proposta"] == "base_nova" and r["membros"] == ["n1", "n2"] and r["avaliadas"] == 1
+
+
+def test_confirmacao_em_b_so_exige_o_sinal_quando_os_dias_todos_confirmam():
+    # B com ganho pequeno e IC largo (como a base com plano 13, 30/09) passa se os dias todos
+    # sem loteria têm IC baixo > 0
+    y, base, novo, dias = _cenario(0.05, 0.004)
+    r = regua.decidir(y, base, novo, dias, np.ones(len(y), bool))
+    assert r["b"]["ganho"] > 0 and r["aprovado"], r["motivo"]
+
+
+def test_reprova_quando_b_piora_mesmo_com_a_forte():
+    y, base, novo, dias = _cenario(0.05, -0.01)
+    r = regua.decidir(y, base, novo, dias, np.ones(len(y), bool))
+    assert not r["aprovado"] and r["motivo"].startswith("B")

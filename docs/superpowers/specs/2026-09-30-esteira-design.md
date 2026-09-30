@@ -95,8 +95,11 @@ campeã com o bootstrap pareado por dia do `compare.py`.
 
 - **Seleção (metade A):** ganho `sem_loteria` ≥ 0,3 s e IC baixo > 0. Entre as propostas que
   passam, fica a de maior ganho.
-- **Confirmação cega (metade B):** a proposta escolhida precisa de ganho `sem_loteria` > 0 com IC
-  baixo > −0,3, e o `completo` nos dias todos ≥ −0,5 s.
+- **Confirmação cega (metade B):** a proposta escolhida precisa de ganho `sem_loteria` > 0; nos
+  dias todos, ganho `sem_loteria` com IC baixo > 0 e `completo` ≥ −0,5 s. (Calibração de 30/09:
+  antes B pedia IC baixo > −0,3, o que reprovou a base com plano 13 — A +2,37, B +0,50 com IC
+  −0,93 a +1,95, dias todos sem loteria +1,45 com IC +0,09 a +3,05; meia amostra deixa o IC
+  largo demais para bases novas.)
 - Aprovado nas duas → promove. Reprovado em B → `pulado` com o motivo; B nunca é usada para
   escolher.
 

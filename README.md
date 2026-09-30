@@ -621,8 +621,9 @@ bin/run src/esteira.py trabalhar  # laço do serviço prc-esteira (não rodar à
 
 Régua (`src/regua.py`): os dias são partidos em duas metades. Na metade **A** o candidato
 só é selecionado com ganho `sem_loteria` ≥ **0,3 s** e IC baixo > **0**; a proposta escolhida
-em A é confirmada cega na metade **B** com ganho > 0 e IC baixo > **−0,3**; e o ganho no
-conjunto completo precisa ser ≥ **−0,5 s**. B nunca escolhe, só confirma — é o que segura o
+em A é confirmada cega na metade **B** com ganho > **0** (só o sinal; calibração de 30/09); nos
+dias todos o ganho `sem_loteria` precisa de IC baixo > **0** (o critério que previu o oficial da
+v29 e da v32) e o ganho no completo ≥ **−0,5 s**. B nunca escolhe, só confirma — é o que segura o
 desgaste de testar muita coisa. Propostas de um candidato de corretor: trocar um membro,
 somar ao conjunto ou sozinho.
 

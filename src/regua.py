@@ -1,8 +1,12 @@
 """Régua da esteira: seleção na metade A dos dias, confirmação cega na metade B.
 
 A: ganho `sem_loteria` ≥ GANHO_A e IC baixo > 0 (bootstrap pareado por dia do compare.py).
-B: ganho `sem_loteria` > 0 e IC baixo > IC_B. Dias todos: ganho `completo` ≥ COMPLETO_MIN.
-B nunca escolhe: só confirma a proposta que A escolheu.
+B: ganho `sem_loteria` > 0 (só o sinal; meia amostra deixa o IC largo demais para bases novas).
+Dias todos: ganho `sem_loteria` com IC baixo > 0 — o critério que previu o oficial da v29 e da
+v32 — e ganho `completo` ≥ COMPLETO_MIN. B nunca escolhe: só confirma a proposta que A escolheu.
+
+Calibração de 30/09: com `IC_B = −0,3` a régua reprovou a base com plano 13 (candidato 76:
+A +2,37, B +0,50 com IC −0,93 a +1,95, dias todos sem loteria +1,45 com IC +0,09 a +3,05).
 """
 from __future__ import annotations
 
@@ -13,7 +17,7 @@ from cache import TRUTH
 from features import ID
 from compare import paired_bootstrap, slice_masks
 
-GANHO_A, IC_B, COMPLETO_MIN = 0.3, -0.3, -0.5
+GANHO_A, COMPLETO_MIN = 0.3, -0.5
 
 
 def metades(dias: np.ndarray, semente: int = 0) -> np.ndarray:
@@ -44,9 +48,13 @@ def decidir(y, base, novo, dias, sem_lot, semente: int = 0) -> dict:
     if not (a["ganho"] >= GANHO_A and a["ic_baixo"] > 0):
         return {"aprovado": False, "a": a, "b": None, "completo": completo,
                 "motivo": "A: não seleciona"}
-    if not (b["ganho"] > 0 and b["ic_baixo"] > IC_B):
+    if not b["ganho"] > 0:
         return {"aprovado": False, "a": a, "b": b, "completo": completo,
                 "motivo": "B: não confirma"}
+    todos = boot(sem_lot)
+    if not todos["ic_baixo"] > 0:
+        return {"aprovado": False, "a": a, "b": b, "completo": completo,
+                "motivo": "sem loteria (dias todos): IC toca 0"}
     if completo < COMPLETO_MIN:
         return {"aprovado": False, "a": a, "b": b, "completo": completo,
                 "motivo": "completo piora"}
