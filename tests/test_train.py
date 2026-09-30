@@ -112,7 +112,7 @@ def _corretor_final_com(config: dict, monkeypatch, tmp_path) -> bool:
     monkeypatch.setattr(train, "oof_base", lambda *a, **k: pd.DataFrame(
         {F.ID: cegas[F.ID], TRUTH: cegas[TRUTH], "pred": [800.0, 1000.0]}))
     monkeypatch.setattr(train, "fit_corrector",
-                        lambda X, y, base, conjunto=False, xgb=False, rounds=0:
+                        lambda X, y, base, conjunto=False, xgb=False, rounds=0, params=None:
                         visto.setdefault("conjunto", conjunto))
     train.corretor_final(config.get("base_config", {}), False, cegas, cegas,
                          tmp_path / "oof.parquet", _Run(),

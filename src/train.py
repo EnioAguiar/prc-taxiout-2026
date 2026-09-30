@@ -141,7 +141,7 @@ def corretor_final(cfg_bloco: dict, adsb: bool, full: pd.DataFrame, rk: pd.DataF
                    copia: CopiaCia | None = None, cias: list[str] | None = None,
                    fila: bool | str = False, dist_plano: bool = False, sem_ctx: bool = False,
                    xgb: bool = False, superficie: bool = False, rounds: int = ROUNDS_CORRETOR,
-                   mapa: bool = False, cel: tuple | None = None):
+                   mapa: bool = False, cel: tuple | None = None, params: dict | None = None):
     """Corretor treinado nas cegas com a previsão de uma base que não viu o mês delas.
 
     A previsão fora do bloco sai de `caminho_oof` quando ele já existe (ver `chave_oof`);
@@ -177,7 +177,7 @@ def corretor_final(cfg_bloco: dict, adsb: bool, full: pd.DataFrame, rk: pd.DataF
     del cegas
     if adsb:
         run.log(f"adsb no treino do corretor: {X['adsb_taxi'].notna().mean():.1%}")
-    return fit_corrector(X, oof[TRUTH].to_numpy(float), pred_oof, conjunto, xgb, rounds)
+    return fit_corrector(X, oof[TRUTH].to_numpy(float), pred_oof, conjunto, xgb, rounds, params)
 
 
 def corrigir_ranking(corretor, cfg_bloco: dict, adsb: bool, rk: pd.DataFrame,
@@ -214,7 +214,7 @@ def prever_membros(membros: list[dict], full, rk, run) -> list[tuple[dict, objec
             run, c.get("corretor") == "conjunto", c.get("sem_features", ()), copia, cias,
             c.get("fila", False), bool(c.get("dist_plano")), bool(c.get("corretor_sem_ctx")),
             bool(c.get("corretor_xgb")), bool(c.get("superficie")), c.get("rounds", ROUNDS_CORRETOR),
-            bool(c.get("mapa")), cel,
+            bool(c.get("mapa")), cel, c.get("corretor_params"),
         )
         saida.append((c, corretor, {"copia": copia, "cias": cias, "tabs_cel": tabs_cel}))
     return saida

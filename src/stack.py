@@ -284,21 +284,24 @@ def fit_xgb(X: pd.DataFrame, alvo: np.ndarray):
 
 def fit_corrector(X: pd.DataFrame, y: np.ndarray, base: np.ndarray,
                   conjunto: bool = False, xgb: bool = False,
-                  rounds: int = ROUNDS) -> lgb.Booster | Conjunto:
+                  rounds: int = ROUNDS, params: dict | None = None) -> lgb.Booster | Conjunto:
     """Corretor L2 na diferença entre o alvo e a previsão da base.
 
     Com `conjunto`, devolve a média de três corretores sobre as mesmas entradas; com `xgb`
-    também, soma um quarto (XGBoost na GPU). `rounds` vale só para os LightGBM.
+    também, soma um quarto (XGBoost na GPU). `rounds` vale só para os LightGBM, e `params`
+    sobrescreve os parâmetros deles (o CatBoost fica intocado).
     """
     alvo = np.asarray(y, float) - np.asarray(base, float)
-    global_ = lgb.train(lgb_params(PARAMS), lgb.Dataset(X, alvo), rounds)
+    pg = lgb_params({**PARAMS, **(params or {})})
+    pa = lgb_params({**PARAMS_AEROPORTO, **(params or {})})
+    global_ = lgb.train(pg, lgb.Dataset(X, alvo), rounds)
     if not conjunto:
         return global_
     aeroportos = {}
     aero = X[F.AIRPORT].astype(str).to_numpy()
     for nome in np.unique(aero):
         sel = aero == nome
-        aeroportos[nome] = lgb.train(lgb_params(PARAMS_AEROPORTO), lgb.Dataset(X[sel], alvo[sel]), rounds)
+        aeroportos[nome] = lgb.train(pa, lgb.Dataset(X[sel], alvo[sel]), rounds)
     return Conjunto(global_, aeroportos, fit_catboost(X, alvo), fit_xgb(X, alvo) if xgb else None)
 
 
@@ -384,7 +387,7 @@ def simulacao_crossfit(
     sem: Iterable[str] = (), externos: bool = False, plano13: bool = False,
     fila: bool | str = False, dist_plano: bool = False, sem_ctx: bool = False,
     reusar_oof: str | None = None, corretor_xgb: bool = False, superficie: bool = False,
-    rounds: int = ROUNDS, mapa: bool = False, ref_cel: bool = False,
+    rounds: int = ROUNDS, mapa: bool = False, ref_cel: bool = False, params: dict | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame, np.ndarray]:
     """Corretor treinado no ano fora do bloco; devolve (holdout, base, previsão).
 
@@ -443,7 +446,7 @@ def simulacao_crossfit(
         if adsb:
             run.log(f"adsb no treino do corretor: {X_oof['adsb_taxi'].notna().mean():.1%}")
         model = fit_corrector(X_oof, oof[TRUTH].to_numpy(float), pred_oof, conjunto, corretor_xgb,
-                              rounds)
+                              rounds, params)
         del X_oof
         pred_base = base["pred"].to_numpy(float)
         pred = previsao_corrigida(model, hold, pred_base, adsb, janela, sem, ext_hold, p13_hold,
@@ -489,6 +492,8 @@ def parser() -> argparse.ArgumentParser:
     ap.add_argument("--corretor-ref", action="store_true",
                     help="--crossfit: soma as colunas cel_* (mediana, P90, desvio e tamanho da "
                          "célula aeroporto × stand × pista, src/refcel.py)")
+    ap.add_argument("--corretor-params", type=json.loads, metavar="JSON",
+                    help="--crossfit: sobrescreve parâmetros dos LightGBM do corretor")
     ap.add_argument("--nota", default="")
     return ap
 
@@ -535,6 +540,8 @@ def config_da_corrida(a: argparse.Namespace, base_id: str) -> dict:
         cfg["corretor_xgb"] = True
     if a.corretor_ref:
         cfg["ref_cel"] = True
+    if a.corretor_params:
+        cfg["corretor_params"] = a.corretor_params
     if a.reusar_oof:
         cfg["reusar_oof"] = a.reusar_oof
     if sem:
@@ -573,6 +580,8 @@ def main() -> None:
         ap.error("--reusar-oof só vale com --crossfit (só ele calcula a base fora do bloco)")
     if a.corretor_ref and not a.crossfit:
         ap.error("--corretor-ref só vale com --crossfit (os folds não têm meses de treino separados)")
+    if a.corretor_params and not a.crossfit:
+        ap.error("--corretor-params só vale com --crossfit")
     base_id = a.base or json.loads((ROOT / "champion.json").read_text())["base"]
     adsb = not a.sem_adsb
     cfg = config_da_corrida(a, base_id)
@@ -585,7 +594,8 @@ def main() -> None:
                                                   a.conjunto, sem, a.externos, a.plano13,
                                                   cfg.get("fila", False), a.dist_plano, a.corretor_sem_ctx,
                                                   a.reusar_oof, a.corretor_xgb, a.superficie,
-                                                  a.corretor_rounds, a.mapa, a.corretor_ref)
+                                                  a.corretor_rounds, a.mapa, a.corretor_ref,
+                                                  a.corretor_params)
         else:
             hold, base, pred = simulacao_folds(run, base_id, adsb, sem)
         with run.phase("métricas", 0.1):
