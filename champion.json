@@ -33,7 +33,7 @@
       }
     },
     {
-      "id": "20260929-220513-e2_fila_sup",
+      "id": "20260930-061236-e30",
       "config": {
         "model": "stack_cf",
         "base": "20260929-125421-base_ctx_por_apt",
@@ -60,15 +60,18 @@
         "superficie": true,
         "mapa": true,
         "ref_cel": true,
-        "reusar_oof": "20260929-154118-v29_mapa_cf"
+        "corretor_params": {
+          "num_leaves": 127
+        },
+        "reusar_oof": "20260929-135844-h1h2_por_apt_ref"
       }
     }
   ],
   "pos_regras": [
     "roma"
   ],
-  "rmse_simulacao": 297.67,
-  "sem_loteria": 232.35,
+  "rmse_simulacao": 297.49,
+  "sem_loteria": 232.15,
   "enviada": {
     "versao": 32,
     "sem_loteria": 232.35
