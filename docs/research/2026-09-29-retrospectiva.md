@@ -215,3 +215,13 @@ Scripts em `.superpowers/noite2/`. Nenhum treina o modelo principal.
 
 Conclusão: o erro que sobra não é explicável pelas colunas que temos. Ganho novo exige
 informação nova (fonte externa) ou a cauda/loterias, não mais busca no mesmo quadro.
+
+### Risco da regra do ADS-B (30/09, pergunta do arnavhm13 no Discord)
+
+Campeã v32 refeita sem o rastro do próprio voo (as 9 colunas `adsb_*` fora da base e dos dois
+corretores; `superficie` e contexto ficam, porque vêm de outros aviões): base
+`base_sem_adsb_proprio`, corretores `20260930-120329-sem_adsb_m0` e `20260930-124715-sem_adsb_m1`.
+Simulação 297,49 → **306,36 (−8,9 s)**; sem loteria, metade A −10,9 s (IC −12,8 a −8,9).
+Em 2026 o ADS-B cobre mais voos (EGLL 79 %, LEMD 67 %), então a perda no oficial tende a ser
+maior que na simulação [inferência]. Se a regra proibir, a versão sem rastro próprio já está
+treinada (os dois corretores acima). Esteira: candidato 75 (`--base-mapa`) reprovado (−0,12).
