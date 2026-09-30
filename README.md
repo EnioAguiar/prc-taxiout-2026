@@ -158,11 +158,12 @@ fora do cache de features. `train.py submit N` precisa do `events.parquet` no SS
   `MVT − SCHED` > `--min-ms`) contra um oráculo otimista `y = MVT − SCHED`;
   ganho simulado > 2 × teto = a simulação mede folga que o modelo final não
   tem. `--salvar` grava um candidato (base + novo só nessas linhas).
-- `src/train.py submit N` refaz o campeão no ano inteiro com o `best_iter`
-  (ou as rodadas configuradas, se não houver) × 1,2 (full2025 tem 2,085 M
-  linhas contra 1,741 M do treino) e só gera o arquivo; o envio é um comando
-  à parte. Aborta se o código mudou desde a promoção do campeão; `--forcar`
-  ignora a checagem. A previsão da base fora do bloco (~50 min com `--base-por-apt`)
+- `src/train.py submit N` refaz a campeã (`champion.json` v2) no ano inteiro: a base
+  comum com as rodadas × 1,2 (full2025 tem 2,085 M linhas contra 1,741 M do treino),
+  um corretor por membro, a média simples deles e as `pos_regras` (Roma) — tudo em
+  código — e só gera o arquivo; o envio é um comando à parte. Com `--corrida <id>`,
+  a receita é a daquela corrida sozinha, com a regra de Roma. O `src_hash` atual fica
+  no registro do envio. A previsão da base fora do bloco (~50 min com `--base-por-apt`)
   fica em `data/cache/oof_base/<chave>.parquet`, com a chave feita da config da base,
   do código que ela usa (`crossfit.py` e seus imports) e dos arquivos de dados; envio
   que só muda o corretor a reaproveita e cai de ~70 para ~21 min (medido 29/09).
@@ -550,7 +551,7 @@ bin/run src/experiment.py <nome> --model two_stage_nm [--nm-split-ms] [--nm-min-
 bin/run src/compare.py <id> --promover            # decide contra o campeão (FRÁGIL não promove)
 bin/run src/compare.py <id> --promover --aceitar-fragil   # só após teto.py e ok do usuário
 bin/run src/teto.py <base.parquet> <novo.parquet> --oficial-base <RMSE> [--min-ms 21600] [--salvar submissions/<TEAM>_vN.parquet]
-bin/run src/train.py submit N [--forcar] [--corrida <id>]   # gera a vN (não envia); --corrida usa a receita daquela corrida do experiments.jsonl, sem mexer no champion.json
+bin/run src/train.py submit N [--corrida <id>]   # gera a vN (não envia); sem --corrida usa a campeã (média dos membros + pós-regras); --corrida usa a receita daquela corrida do experiments.jsonl, sem mexer no champion.json
 .venv/bin/python src/s3.py submit submissions/<TEAM>_vN.parquet   # só após aprovação
 bin/run src/adsb.py baixar [--dias 2025-01,2025-07] [--dia AAAA-MM-DD] [--procs 5]   # recortes adsb.lol no SSD
 bin/run src/adsb_events.py                        # eventos por voo → <SSD>/events.parquet

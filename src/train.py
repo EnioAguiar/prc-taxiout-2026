@@ -1,11 +1,12 @@
 """Versão final para envio, a partir do campeão (champion.json).
 
-    bin/run src/train.py submit N [--forcar] [--corrida <id>]   # gera submissions/<TEAM>_vN.parquet (NÃO envia)
+    bin/run src/train.py submit N [--corrida <id>]   # gera submissions/<TEAM>_vN.parquet (NÃO envia)
 
-Sem `--corrida`, a receita é a do campeão; com `--corrida <id>`, a da última linha dessa
-corrida no `experiments.jsonl` (o `champion.json` não é lido nem mexido).
+Sem `--corrida`, a receita é a da campeã (`champion.json` v2: média dos membros e as
+`pos_regras`); com `--corrida <id>`, a da última linha dessa corrida no `experiments.jsonl`,
+sozinha e com a pós-regra de Roma (o `champion.json` não é lido nem mexido).
 
-Aborta se o código mudou desde a corrida escolhida (src_hash); --forcar ignora.
+Grava o `src_hash` atual no registro do envio.
 Envio separado, só depois de aprovado: .venv/bin/python src/s3.py submit <arquivo>
 
 Campeã `stack_cf`: o corretor treina nas cegas com a previsão da base fora do bloco
@@ -39,17 +40,18 @@ import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
 
+import campeao
 import features as F
+import pos_regras
+import refcel
 import runlog
-from cache import CACHE, DATA, TRUTH, load_split
 from adsb_events import RAIZ as ADSB_RAIZ
-from compare import CHAMPION
+from cache import CACHE, DATA, TRUTH, load_split
 from crossfit import oof_base
 from externos import MESES_2025, CopiaCia, colunas_ext, copia_cia_2025
 from models import build_model, leaky_columns, prepare
 from plano13 import colunas_p13, vocabulario
-from runlog import REGISTRY, ROOT, Run
-import refcel
+from runlog import ROOT, Run
 from stack import (ROUNDS as ROUNDS_CORRETOR, corrector_frame, fit_corrector,
                    previsao_corrigida, tabelas_celula)
 
@@ -90,18 +92,6 @@ def chave_oof(cfg_base: dict) -> str:
     return h.hexdigest()[:16]
 
 
-def check_code(champ: dict, forcar: bool) -> str:
-    """O campeão vale para o código que o mediu; mudou, refaça o experimento."""
-    atual = runlog.src_hash()
-    esperado = champ.get("src_hash")
-    if esperado and esperado != atual and not forcar:
-        raise SystemExit(
-            f"o código mudou desde o campeão {champ['id']} (src_hash {esperado} → {atual}): "
-            "refaça o experimento dele e promova de novo, ou repita com --forcar"
-        )
-    return atual
-
-
 def escalar_rodadas(cfg: dict) -> dict:
     """Mais linhas no treino final pedem proporcionalmente mais rodadas."""
     for key in ("rounds", "cls_rounds", "reg_rounds"):
@@ -110,16 +100,9 @@ def escalar_rodadas(cfg: dict) -> dict:
     return cfg
 
 
-def final_config(champ: dict) -> dict:
-    cfg = dict(champ["config"])
-    if cfg.get("model") == "stack_cf":
-        # Só a base final vê o full2025; o corretor e os blocos ficam como foram medidos
-        # (as rodadas sem escala seguem em champ["config"]["base_config"]).
-        cfg["base_config"] = escalar_rodadas(dict(cfg["base_config"]))
-        return cfg
-    if champ.get("best_iter"):
-        cfg["rounds"] = champ["best_iter"]
-    return escalar_rodadas(cfg)
+def escala_base(base_config: dict) -> dict:
+    """Só a base final vê o full2025: rodadas × 1,2; corretor e blocos ficam como medidos."""
+    return escalar_rodadas(dict(base_config))
 
 
 def build_submission(
@@ -212,75 +195,74 @@ def corrigir_ranking(corretor, cfg_bloco: dict, adsb: bool, rk: pd.DataFrame,
                               sem, ext, p13, dist_plano, sem_ctx, superficie, mapa, cel)
 
 
-def corrida_registrada(corrida_id: str) -> dict:
-    """A última linha de `experiments.jsonl` com esse id (como `stack.base_config`)."""
-    for line in reversed(REGISTRY.read_text().splitlines()):
-        rec = json.loads(line) if line.strip() else {}
-        if rec.get("id") == corrida_id:
-            return rec
-    raise SystemExit(f"corrida {corrida_id} não está em {REGISTRY.name}")
+def prever_membros(membros: list[dict], full, rk, run) -> list[tuple[dict, object, dict]]:
+    """Um corretor por membro, treinado nas cegas com o oof do cache da base comum."""
+    saida = []
+    for m in membros:
+        c = m["config"]
+        copia = copia_cia_2025(run) if c.get("externos") else None
+        cias = vocabulario(full) if c.get("plano13") else None
+        if cias is not None:
+            run.log(f"plano 13: {len(cias)} companhias no vocabulário do full2025")
+        cel = tabs_cel = None
+        if c.get("ref_cel"):
+            tabs_bloco, tabs_cel, bloco_do_mes = tabelas_celula(full, run)
+            cel = (tabs_bloco, bloco_do_mes)
+        corretor = corretor_final(
+            c["base_config"], c["adsb"], full, rk,
+            OOF_CACHE / f"{chave_oof(c['base_config'])}.parquet",
+            run, c.get("corretor") == "conjunto", c.get("sem_features", ()), copia, cias,
+            c.get("fila", False), bool(c.get("dist_plano")), bool(c.get("corretor_sem_ctx")),
+            bool(c.get("corretor_xgb")), bool(c.get("superficie")), c.get("rounds", ROUNDS_CORRETOR),
+            bool(c.get("mapa")), cel,
+        )
+        saida.append((c, corretor, {"copia": copia, "cias": cias, "tabs_cel": tabs_cel}))
+    return saida
 
 
-def submit(version: int, forcar: bool = False, corrida: str | None = None) -> None:
-    """Gera a versão N do campeão, ou da corrida `corrida` do registro."""
+def media_membros(membros, rk, pred_base, full, run, regras, prontos=None) -> np.ndarray:
+    """Média simples das previsões corrigidas de cada membro, depois as pós-regras.
+
+    `prontos` = saída de `prever_membros` já calculada antes da `base_final` (que muta `full`
+    e `rk`); sem ela, calcula aqui (usado nos testes)."""
+    preds = []
+    for c, corretor, ex in prontos or prever_membros(membros, full, rk, run):
+        preds.append(corrigir_ranking(
+            corretor, c["base_config"], c["adsb"], rk, pred_base, c.get("sem_features", ()),
+            ex.get("copia"), ex.get("cias"), c.get("fila", False), bool(c.get("dist_plano")),
+            bool(c.get("corretor_sem_ctx")), bool(c.get("superficie")), bool(c.get("mapa")),
+            ex.get("tabs_cel")))
+    return pos_regras.aplicar(rk, np.mean(preds, axis=0), regras)
+
+
+def submit(version: int, corrida: str | None = None) -> None:
+    """Gera a versão N da campeã (champion.json v2) ou de uma corrida sozinha (`--corrida`)."""
     load_dotenv(ROOT / ".env")
     team = os.environ.get("TEAM_NAME") or sys.exit("Falta TEAM_NAME no .env")
-    champ = corrida_registrada(corrida) if corrida else json.loads(CHAMPION.read_text())
-    check_code(champ, forcar)
-    cfg = final_config(champ)
-    empilhado = cfg["model"] == "stack_cf"
+    if corrida:
+        membros, regras = [campeao.registro(corrida)], ["roma"]
+    else:
+        champ = campeao.carregar()
+        membros, regras = [campeao.registro(m["id"]) for m in champ["membros"]], champ["pos_regras"]
+    base_cfg = membros[0]["config"]["base_config"]
     OUT.mkdir(exist_ok=True)
-
-    with Run(f"submit_v{version}", {**cfg, "campeao": champ["id"], "forcar": forcar}) as run:
+    with Run(f"submit_v{version}", {"membros": [m["id"] for m in membros], "pos_regras": regras,
+                                    "src_hash": runlog.src_hash()}) as run:
         with run.phase("dados", 0.05):
             full, rk = load_split("full2025"), load_split("ranking2026")
             template = pd.read_parquet(DATA / "submitting.parquet")
-        if empilhado:
-            with run.phase("corretor", 0.55):
-                copia = copia_cia_2025(run) if champ["config"].get("externos") else None
-                cias = vocabulario(full) if champ["config"].get("plano13") else None
-                if cias is not None:
-                    run.log(f"plano 13: {len(cias)} companhias no vocabulário do full2025")
-                cel = tabs_cel = None
-                if champ["config"].get("ref_cel"):
-                    tabs_bloco, tabs_cel, bloco_do_mes = tabelas_celula(full, run)
-                    cel = (tabs_bloco, bloco_do_mes)
-                corretor = corretor_final(
-                    champ["config"]["base_config"], champ["config"]["adsb"], full, rk,
-                    OOF_CACHE / f"{chave_oof(champ['config']['base_config'])}.parquet", run,
-                    champ["config"].get("corretor") == "conjunto",
-                    champ["config"].get("sem_features", ()), copia, cias,
-                    champ["config"].get("fila", False),
-                    bool(champ["config"].get("dist_plano")),
-                    bool(champ["config"].get("corretor_sem_ctx")),
-                    bool(champ["config"].get("corretor_xgb")),
-                    bool(champ["config"].get("superficie")),
-                    champ["config"].get("rounds", ROUNDS_CORRETOR),
-                    bool(champ["config"].get("mapa")), cel,
-                )
-            with run.phase("base final", 0.30):
-                pred = base_final(cfg["base_config"], full, rk, run)
-                pred = corrigir_ranking(
-                    corretor, champ["config"]["base_config"], champ["config"]["adsb"], rk, pred,
-                    champ["config"].get("sem_features", ()), copia, cias,
-                    champ["config"].get("fila", False),
-                    bool(champ["config"].get("dist_plano")),
-                    bool(champ["config"].get("corretor_sem_ctx")),
-                    bool(champ["config"].get("superficie")),
-                    bool(champ["config"].get("mapa")), tabs_cel,
-                )
-        else:
-            with run.phase("treino", 0.85):
-                pred = base_final(cfg, full, rk, run)
+        with run.phase("corretor", 0.55):
+            prontos = prever_membros(membros, full, rk, run)
+        with run.phase("base final", 0.30):
+            pred_base = base_final(escala_base(base_cfg), full, rk, run)
+            pred = media_membros(membros, rk, pred_base, full, run, regras, prontos)
         with run.phase("arquivo", 0.10):
             out, preenchidas = build_submission(template, rk[F.ID], pred)
             path = OUT / f"{team}_v{version}.parquet"
             out.to_parquet(path, index=False)
             run.set(arquivo=str(path.relative_to(ROOT)), preenchidas=preenchidas)
-            run.log(
-                f"gerado {path.name}: {len(out):,} linhas, mediana {out[F.TARGET].median():.0f} s, "
-                f"preenchidas com a mediana: {preenchidas}. NÃO enviado."
-            )
+            run.log(f"gerado {path.name}: {len(out):,} linhas, {len(membros)} membro(s), "
+                    f"pós-regras {regras}. NÃO enviado.")
 
 
 if __name__ == "__main__":
@@ -289,7 +271,6 @@ if __name__ == "__main__":
     sub = ap.add_subparsers(dest="cmd", required=True)
     sp = sub.add_parser("submit", help="gera submissions/<TEAM>_vN.parquet (não envia)")
     sp.add_argument("version", type=int)
-    sp.add_argument("--forcar", action="store_true", help="ignora a mudança de src_hash")
     sp.add_argument("--corrida", help="id no experiments.jsonl (padrão: champion.json)")
     a = ap.parse_args()
-    submit(a.version, forcar=a.forcar, corrida=a.corrida)
+    submit(a.version, corrida=a.corrida)
