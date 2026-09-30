@@ -180,3 +180,38 @@ fração da célula (aeroporto × ADS-B sim/não × NM sim/não) no ranking ÷ n
 
 Nenhuma régua acerta a v30; `sem_loteria` segue a melhor nas três, e repesar não ajuda. Com
 três pontos, o ruído do próprio oficial (~0,5–1 s por envio) ainda não se separa [inferência].
+
+### Média de corretores sobre a mesma base (29/09 à noite)
+
+Previsões de corretores da mesma base (v30), sem treinar nada de novo, média simples, bootstrap
+pareado contra a v30. Corretores com colunas diferentes somam; repetições da mesma receita
+(`ref`, 700 rodadas, v29 sem mapa) diluem.
+
+| Média | completo | sem loteria | sem top 10 |
+|---|---|---|---|
+| v30 + `fila` + `superficie` (v31, arquivo pronto, não enviado) | +0,23 | +0,75 (IC 0,12 a 1,38) | −0,11 |
+| + v29 | +0,03 | +0,55 | |
+| v30 + `e2_fila_sup` (`--fila --superficie` numa corrida) | **+0,38** | **+0,95** (IC baixo +0,21) | −0,02 |
+
+`e2_fila_sup` sozinho: 298,42, sem loteria 232,82, normais 189,96. `--corretor-xgb` quebra com
+categoria nova no holdout (`stand_p` = `EDDM|C`). A melhor de 98 combinações tem viés de
+seleção; é também a mais simples (2 membros).
+
+### Força bruta sobre o resíduo da v30 (29/09, 23h) — nada sobra nas colunas
+
+Scripts em `.superpowers/noite2/`. Nenhum treina o modelo principal.
+
+1. **Janelas por grupo** (`cacador3.py`): BLOCK − X para 8 horários × 8 recortes (aeroporto,
+   NM, companhia, pista, tipo de voo e cruzamentos) × cortes 0 / 1e-4 / 1e-3, aprendidas em 10
+   meses e aplicadas à v30 no holdout. Melhor: +0,007 % do erro² sem loteria (LOBT global). Só a
+   janela do LOBT existe.
+2. **Deslocamentos exatos** (`cacador4.py`): pico de BLOCK = X + c (passos de 1 min) por grupo.
+   Os picos fortes são todos c = 0 em LIRF (a cópia do SCHED, já tratada); os 43 com c ≠ 0 somam
+   < 0,1 % do erro² sem loteria.
+3. **Detetive do resíduo** (`detetive2.py`): LightGBM no y − pred da v30 com todas as colunas do
+   holdout, 5 dobras por dia dentro de jan+jul (otimista). Com `FLIGHT`/`CALLSIGN`: 233,31 →
+   235,63 sem loteria (overfit); sem eles: 233,31 → 234,07, normais 191,31 → 193,07. Nem o teto
+   otimista reduz o erro.
+
+Conclusão: o erro que sobra não é explicável pelas colunas que temos. Ganho novo exige
+informação nova (fonte externa) ou a cauda/loterias, não mais busca no mesmo quadro.
