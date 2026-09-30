@@ -622,8 +622,20 @@ Régua (`src/regua.py`): os dias são partidos em duas metades. Na metade **A** 
 só é selecionado com ganho `sem_loteria` ≥ **0,3 s** e IC baixo > **0**; a proposta escolhida
 em A é confirmada cega na metade **B** com ganho > 0 e IC baixo > **−0,3**; e o ganho no
 conjunto completo precisa ser ≥ **−0,5 s**. B nunca escolhe, só confirma — é o que segura o
-desgaste de testar muita coisa. Propostas por candidato: trocar um membro, somar ao conjunto
-ou sozinho (só `sozinho` quando a base é outra).
+desgaste de testar muita coisa. Propostas de um candidato de corretor: trocar um membro,
+somar ao conjunto ou sozinho.
+
+**Candidato de base** (revisão 30/09): a base nova não entra mais como um corretor sozinho
+contra a média da campeã (comparação injusta, que quase sempre perde). `executar` roda o
+`experiment.py` da base e depois refaz **todos** os corretores da campeã sobre ela — o
+primeiro calcula o oof fora do bloco (~50 min) e os seguintes o reaproveitam com
+`--reusar-oof` (~10 min cada), ~1 h no total. A régua avalia uma única proposta
+`base_nova` (`regua.avaliar_conjunto`): média completa nova contra média completa velha.
+
+Grade do gerador (revisão 30/09): blocos, bloco de fila e `num_leaves`/`learning_rate`.
+Dos 53 testes da estreia (madrugada de 30/09) os parâmetros deram média −0,10 s e as
+rodadas −0,11 s, com uma única promoção (`num_leaves` 127) — as rodadas, `lambda_l2` e
+`min_data_in_leaf` saíram da grade.
 
 Guardas do trabalhador: ≥ 8 GB de RAM livre (ajustado na estreia, 30/09) para começar um candidato, uma corrida por vez
 e `data/esteira.pausa` para parar sem matar o serviço.

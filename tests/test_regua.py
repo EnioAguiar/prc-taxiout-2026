@@ -77,3 +77,25 @@ def test_a_escolhe_entre_as_que_passam_e_nao_a_de_maior_ganho(monkeypatch):
     r = regua.avaliar(["m1"], "n")
     assert r["proposta"] == "soma" and r["membros"] == ["m1", "n"]
     assert r["a"]["ganho"] >= regua.GANHO_A and r["a"]["ic_baixo"] > 0
+
+
+def test_avaliar_conjunto_aprova_a_base_nova_inteira(monkeypatch):
+    import pandas as pd
+
+    import campeao
+    from cache import TRUTH
+
+    y, base, novo, dias = _cenario(0.05, 0.05)
+    n = len(y)
+    preds = {("m1", "m2"): base, ("n1", "n2"): novo}
+
+    def previsao(ids):
+        return pd.DataFrame({TRUTH: y, "dia": dias, "pred": preds[tuple(ids)]})
+
+    monkeypatch.setattr(campeao, "previsao", previsao)
+    monkeypatch.setattr(campeao, "registro", lambda i: {"config": {"base": "B"}})
+    monkeypatch.setattr(regua, "slice_masks", lambda ref: {"sem loteria": np.ones(n, bool)})
+
+    r = regua.avaliar_conjunto(["m1", "m2"], ["n1", "n2"])
+    assert r["aprovado"], r["motivo"]
+    assert r["proposta"] == "base_nova" and r["membros"] == ["n1", "n2"] and r["avaliadas"] == 1

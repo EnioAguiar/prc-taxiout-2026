@@ -73,8 +73,13 @@ marca `rodando`, executa, avalia, grava, repete. Antes de cada processo pesado c
 
 Execução por tipo, sempre como subprocesso (`bin/run`, que já limita CPU):
 - `corretor`: `stack.py e_<id> --base <base da campeã> --crossfit <receita> --reusar-oof <oof da campeã>`.
-- `base`: `experiment.py` com a receita da base, depois `stack.py` completo (sem `--reusar-oof`)
-  com a receita de corretor da campeã; o oof novo entra no cache na primeira vez que virar envio.
+- `base` (**revisão 30/09**): `experiment.py` com a receita da base e depois a média completa
+  refeita sobre ela — um `stack.py e<id>_m<i>` por membro da campeã, na ordem, com a receita
+  de corretor daquele membro. O primeiro calcula o oof fora do bloco do zero (~50 min) e os
+  seguintes usam `--reusar-oof <id do primeiro>` (~10 min cada): ~1 h no total. `executar`
+  devolve a lista de run_ids e a régua compara média nova × média velha
+  (`regua.avaliar_conjunto`, proposta única `base_nova`), em vez do corretor sozinho contra a
+  média da campeã, que perdia por construção.
 
 Falha do subprocesso: `falhou` com as últimas linhas do log em `motivo`; a esteira segue.
 
@@ -128,9 +133,12 @@ ok. Resultado: `submissions/<TEAM>_vN.parquet` + seção "Pronto para enviar" no
 Chamado quando a fila de `gerador` fica vazia. Espaço (só corretor):
 - blocos liga/desliga: `--stand-prefixo`|`--fila`, `--superficie`, `--mapa`, `--corretor-ref`,
   `--dist-plano`, `--corretor-sem-ctx`;
-- rodadas: 300, 500, 700;
-- parâmetros do LightGBM do corretor (opção nova `--corretor-params '<json>'`): `learning_rate`
-  0,03/0,05, `num_leaves` 63/127/255, `lambda_l2` 0/10/50, `min_data_in_leaf` 100/200.
+- parâmetros do LightGBM do corretor (opção `--corretor-params '<json>'`): `num_leaves`
+  63/127/255 e `learning_rate` 0,03/0,05.
+
+**Revisão 30/09**: dos 53 testes da estreia (madrugada de 30/09) os parâmetros deram média
+−0,10 s e as rodadas −0,11 s (6 testes), com uma única promoção — `num_leaves` 127. As
+rodadas saíram da grade (`ROUNDS = ()`) junto com `lambda_l2` e `min_data_in_leaf`.
 
 Vizinhos = mudar **uma** coisa em relação a cada membro da campeã. Receitas já feitas contra a
 campeã atual são puladas (hash). Prioridade: vizinhos de membro recém-promovido primeiro.

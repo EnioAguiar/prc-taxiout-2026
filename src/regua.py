@@ -75,3 +75,13 @@ def avaliar(membros: list[str], novo: str, semente: int = 0) -> dict:
     nome, ids, p = passou or escolha  # sem nenhuma passando, reprova com a de maior ganho
     r = decidir(y, base_pred, p, dias, sem_lot, semente)
     return r | {"proposta": nome, "membros": ids, "avaliadas": len(todas)}
+
+
+def avaliar_conjunto(membros: list[str], novos: list[str], semente: int = 0) -> dict:
+    """Candidato de base nova: a média completa refeita sobre a base nova contra a campeã."""
+    ref = campeao.previsao(membros)
+    y, dias = ref[TRUTH].to_numpy(float), ref["dia"].to_numpy()
+    sem_lot = slice_masks(ref)["sem loteria"]
+    p = campeao.previsao(novos)["pred"].to_numpy(float)
+    r = decidir(y, ref["pred"].to_numpy(float), p, dias, sem_lot, semente)
+    return r | {"proposta": "base_nova", "membros": list(novos), "avaliadas": 1}

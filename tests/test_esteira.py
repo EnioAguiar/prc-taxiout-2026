@@ -1,3 +1,5 @@
+import json
+
 import esteira
 
 
@@ -47,8 +49,55 @@ def test_vizinhos_mudam_uma_coisa_por_vez():
     for v in vs:
         dif = {k for k in set(base) | set(v) if base.get(k) != v.get(k)}
         assert 1 <= len(dif) <= 2  # trocar stand-prefixo por fila mexe em duas chaves
-    assert any(v.get("--corretor-rounds") == 700 for v in vs)
+    assert any(v.get("--corretor-params", {}).get("num_leaves") == 127 for v in vs)
     assert any("--mapa" not in v for v in vs)
+
+
+def test_vizinhos_nao_variam_rodadas_nem_params_cortados():
+    champ = {"membros": [{"id": "m", "config": {"rounds": 500, "corretor_params": {"num_leaves": 63}}}]}
+    vs = esteira.vizinhos(champ)
+    assert all(v.get("--corretor-rounds") == 500 for v in vs)
+    params = [v.get("--corretor-params", {}) for v in vs]
+    assert all("lambda_l2" not in p and "min_data_in_leaf" not in p for p in params)
+    assert any(p.get("num_leaves") == 127 for p in params)
+
+
+def test_executar_base_refaz_todos_os_membros_reusando_o_oof(monkeypatch):
+    import campeao
+    champ = {"base": "B", "oof": "O", "membros": [
+        {"id": "m1", "config": {"rounds": 500}},
+        {"id": "m2", "config": {"mapa": True}}]}
+    monkeypatch.setattr(campeao, "ultimo_por_nome", lambda n: {"id": f"ID:{n}"})
+    cmds = []
+    c = {"id": 7, "tipo": "base", "receita": json.dumps({"base": ["--superficie"]})}
+    ids = esteira.executar(c, champ, rodar=lambda *a, **k: cmds.append(a[0]))
+    assert ids == ["ID:e7_m0", "ID:e7_m1"]
+    assert cmds[0][:4] == ["bin/run", "src/experiment.py", "e7_base", "--superficie"]
+    assert len(cmds) == 3 and "--reusar-oof" not in cmds[1]
+    assert cmds[1][cmds[1].index("--base") + 1] == "ID:e7_base"
+    assert cmds[2][cmds[2].index("--reusar-oof") + 1] == "ID:e7_m0"
+
+
+def test_passo_usa_avaliar_conjunto_quando_executar_devolve_lista(tmp_path, monkeypatch):
+    f = esteira.Fila(tmp_path / "e.db")
+    champ = {"base": "B", "oof": "O", "membros": [{"id": "m", "config": {"rounds": 500}}],
+             "pos_regras": ["roma"], "sem_loteria": 233.0, "enviada": None}
+    monkeypatch.setattr(esteira, "carregar_campea", lambda: champ)
+    monkeypatch.setattr(esteira, "memoria_livre_gb", lambda: 12.0)
+    monkeypatch.setattr(esteira, "RELATORIO", tmp_path / "esteira.md")
+    monkeypatch.setattr(esteira, "PAUSA", tmp_path / "pausa")
+    monkeypatch.setattr(esteira, "executar", lambda c, ch, rodar=None: ["R1", "R2"])
+    vistos = {}
+
+    def conjunto(membros, novos, semente=0):
+        vistos["novos"] = novos
+        return {"aprovado": False, "membros": novos, "proposta": "base_nova", "a": {"ganho": 0.1},
+                "b": None, "completo": -1.0, "motivo": "A: não seleciona", "avaliadas": 1}
+
+    f.add("base", {"base": ["--superficie"]}, "usuario", 0, "m")
+    assert esteira.passo(f, avaliar=lambda *a, **k: 1 / 0, avaliar_conjunto=conjunto) is True
+    c = f.ultimos(1)[0]
+    assert vistos["novos"] == ["R1", "R2"] and c["run_id"] == "R1+R2" and c["estado"] == "pulado"
 
 
 def test_passo_promove_e_registra(tmp_path, monkeypatch):

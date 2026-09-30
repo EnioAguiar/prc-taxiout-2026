@@ -24,9 +24,10 @@ PAUSA = ROOT / "data" / "esteira.pausa"
 RELATORIO = ROOT / "docs" / "esteira.md"
 
 MEMORIA_MIN_GB = 8.0  # pico do corretor 7,8 GB; o envio (9,5 GB) usa o swap, como em 29/09
-ROUNDS = (300, 500, 700)
-PARAMS_GRADE = {"learning_rate": (0.03, 0.05), "num_leaves": (63, 127, 255),
-                "lambda_l2": (0, 10, 50), "min_data_in_leaf": (100, 200)}
+# Grade enxuta em 30/09: dos 53 testes da estreia (madrugada de 30/09) os params deram média
+# −0,10 s e as rodadas −0,11 s; a única promoção veio de `num_leaves` 127. Sem variar rodadas.
+ROUNDS = ()
+PARAMS_GRADE = {"num_leaves": (63, 127, 255), "learning_rate": (0.03, 0.05)}
 BLOCOS = ("--superficie", "--mapa", "--corretor-ref", "--dist-plano", "--corretor-sem-ctx")
 GANHO_ENVIO_S, ENVIO_INTERVALO_S = 0.5, 6 * 3600
 
@@ -201,7 +202,7 @@ def memoria_livre_gb() -> float:
 
 def vizinhos(champ: dict) -> list[dict]:
     """Receitas a um passo da campeã: liga/desliga um bloco, troca o bloco de fila,
-    varia os rounds ou um parâmetro do corretor por vez."""
+    ou varia um parâmetro do corretor por vez."""
     saida = []
     for m in champ["membros"]:
         r = receita_de_config(m["config"])
@@ -229,22 +230,28 @@ def vizinhos(champ: dict) -> list[dict]:
     return [v for k, v in unicos.items() if k not in atuais]
 
 
-def executar(c: dict, champ: dict, rodar=subprocess.run) -> str:
+def executar(c: dict, champ: dict, rodar=subprocess.run) -> str | list[str]:
+    """Um run_id para o corretor; a lista dos corretores da campeã refeitos, para base nova."""
     nome = f"e{c['id']}"
     receita = json.loads(c["receita"])
     if c["tipo"] == "corretor":
         argv = argv_corretor(receita, champ["base"], champ["oof"])
         rodar(["bin/run", "src/stack.py", nome, *argv], cwd=ROOT, check=True)
-    else:  # base: experiment.py com a receita da base, depois stack com a receita do 1º membro
-        rodar(["bin/run", "src/experiment.py", f"{nome}_base", *receita["base"]], cwd=ROOT, check=True)
-        base_id = campeao.ultimo_por_nome(f"{nome}_base")["id"]
-        corr = receita_de_config(champ["membros"][0]["config"])
-        argv = argv_corretor(corr, base_id, None)  # base nova: oof calculado do zero
-        rodar(["bin/run", "src/stack.py", nome, *argv], cwd=ROOT, check=True)
-    return campeao.ultimo_por_nome(nome)["id"]
+        return campeao.ultimo_por_nome(nome)["id"]
+    # base: experiment.py com a receita da base, depois a média completa refeita sobre ela;
+    # o 1º corretor calcula o oof fora do bloco (~50 min) e os seguintes o reaproveitam (~10 min).
+    rodar(["bin/run", "src/experiment.py", f"{nome}_base", *receita["base"]], cwd=ROOT, check=True)
+    base_id = campeao.ultimo_por_nome(f"{nome}_base")["id"]
+    ids: list[str] = []
+    for i, membro in enumerate(champ["membros"]):
+        argv = argv_corretor(receita_de_config(membro["config"]), base_id, ids[0] if ids else None)
+        rodar(["bin/run", "src/stack.py", f"{nome}_m{i}", *argv], cwd=ROOT, check=True)
+        ids.append(campeao.ultimo_por_nome(f"{nome}_m{i}")["id"])
+    return ids
 
 
-def passo(fila: Fila, rodar=subprocess.run, avaliar=regua.avaliar) -> bool:
+def passo(fila: Fila, rodar=subprocess.run, avaliar=regua.avaliar,
+          avaliar_conjunto=regua.avaliar_conjunto) -> bool:
     """Um candidato do começo ao fim; False quando não há nada a fazer (ou pausa)."""
     if PAUSA.exists():
         return False
@@ -261,9 +268,13 @@ def passo(fila: Fila, rodar=subprocess.run, avaliar=regua.avaliar) -> bool:
         time.sleep(60)
     fila.marcar(c["id"], "rodando", inicio=time.time())
     try:
-        run_id = executar(c, champ, rodar)
+        saida = executar(c, champ, rodar)
         membros = [m["id"] for m in champ["membros"]]
-        r = avaliar(membros, run_id, semente=int(fila.meta("semente") or 0))
+        semente = int(fila.meta("semente") or 0)
+        if isinstance(saida, list):  # base nova: a média completa refeita sobre a base
+            run_id, r = "+".join(saida), avaliar_conjunto(membros, saida, semente=semente)
+        else:
+            run_id, r = saida, avaliar(membros, saida, semente=semente)
     except subprocess.CalledProcessError as e:
         fila.marcar(c["id"], "falhou", fim=time.time(), motivo=f"código {e.returncode}")
         talvez_enviar(fila, carregar_campea(), rodar)
