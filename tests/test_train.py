@@ -4,11 +4,12 @@ import numpy as np
 import pandas as pd
 import pytest
 
+import campeao
 import features as F
 import runlog
 import train
 from cache import TRUTH
-from train import build_submission, corrigir_ranking, final_config
+from train import build_submission, corrigir_ranking
 
 
 class _Corretor:
@@ -51,26 +52,23 @@ def test_submissao_recusa_preencher_demais():
         build_submission(template, np.array([1.0]), np.array([10.0]))
 
 
-def test_rodadas_finais_escalam_o_melhor_ponto():
-    single = final_config({"config": {"model": "single", "rounds": 400}, "best_iter": 325})
-    assert single["rounds"] == 390
-    two = final_config({"config": {"model": "two_stage", "cls_rounds": 400, "reg_rounds": 500},
-                        "best_iter": None})
-    assert (two["cls_rounds"], two["reg_rounds"]) == (480, 600)
+def test_escala_base_multiplica_as_rodadas_sem_mutar():
+    cfg = {"model": "two_stage_nm", "cls_rounds": 400, "reg_rounds": 400}
+    assert train.escala_base(cfg)["cls_rounds"] == 480
+    assert cfg["cls_rounds"] == 400
 
 
-def test_rodadas_finais_da_stack_escalam_so_a_base():
-    champ = {"config": {"model": "stack_cf", "rounds": 300, "adsb": True,
-                        "base_config": {"model": "two_stage_nm", "cls_rounds": 400,
-                                        "reg_rounds": 400}},
-             "best_iter": 325}
-    cfg = final_config(champ)
-    assert cfg["base_config"]["cls_rounds"] == 480
-    assert cfg["base_config"]["reg_rounds"] == 480
-    assert cfg["rounds"] == 300  # corretor intocado, best_iter ignorado
-    # a campeã original continua com as rodadas dos blocos (sem escala)
-    assert champ["config"]["base_config"]["cls_rounds"] == 400
-    assert champ["config"]["rounds"] == 300
+def test_envio_e_a_media_dos_membros_com_pos_regras(monkeypatch, tmp_path):
+    rk = _ranking()
+    rk["FLIGHT_ID_mvt"] = [1.0, 2.0]
+    rk["to_takeoff_from_SCHED_TIME_UTC_mvt"] = [100.0, 100.0]
+    membros = [{"config": {"base_config": {"model": "two_stage_nm"}, "adsb": False}},
+               {"config": {"base_config": {"model": "two_stage_nm"}, "adsb": False}}]
+    corretores = iter([_Corretor(100.0), _Corretor(300.0)])
+    monkeypatch.setattr(train, "prever_membros",
+                        lambda ms, full, rk_, run: [(m["config"], next(corretores), {}) for m in ms])
+    pred = train.media_membros(membros, rk, np.array([1000.0, 1000.0]), None, None, ["roma"])
+    np.testing.assert_allclose(pred, [1200.0, 1200.0])
 
 
 def test_envio_com_janela_na_base_para_nos_limites_do_lobt():
@@ -114,7 +112,7 @@ def _corretor_final_com(config: dict, monkeypatch, tmp_path) -> bool:
     monkeypatch.setattr(train, "oof_base", lambda *a, **k: pd.DataFrame(
         {F.ID: cegas[F.ID], TRUTH: cegas[TRUTH], "pred": [800.0, 1000.0]}))
     monkeypatch.setattr(train, "fit_corrector",
-                        lambda X, y, base, conjunto=False, xgb=False, rounds=0:
+                        lambda X, y, base, conjunto=False, xgb=False, rounds=0, params=None:
                         visto.setdefault("conjunto", conjunto))
     train.corretor_final(config.get("base_config", {}), False, cegas, cegas,
                          tmp_path / "oof.parquet", _Run(),
@@ -132,29 +130,31 @@ def test_com_corretor_conjunto_o_envio_usa_o_conjunto(monkeypatch, tmp_path):
 
 
 def _registro(tmp_path, monkeypatch, *ids) -> None:
-    """experiments.jsonl sintético; `champion.json` aponta para um arquivo que não existe."""
-    linhas = [json.dumps({"id": i, "config": {"model": "single", "rounds": 400},
-                          "src_hash": runlog.src_hash(), "best_iter": 300}) for i in ids]
+    """experiments.jsonl sintético no lugar do real; a campeã não pode ser lida."""
+    linhas = [json.dumps({"id": i, "config": {"base_config": {"model": "single"}, "adsb": False},
+                          "src_hash": runlog.src_hash()}) for i in ids]
     registro = tmp_path / "experiments.jsonl"
     registro.write_text("\n".join(linhas) + "\n", encoding="utf-8")
-    monkeypatch.setattr(train, "REGISTRY", registro)
-    monkeypatch.setattr(train, "CHAMPION", tmp_path / "nao_existe.json")
+    monkeypatch.setattr(campeao, "REGISTRY", registro)
+    monkeypatch.setattr(campeao, "CAMPEA", tmp_path / "nao_existe.json")
     monkeypatch.setenv("TEAM_NAME", "equipe")
 
 
-def test_submit_com_corrida_usa_a_linha_do_registro_e_nao_o_campeao(tmp_path, monkeypatch):
+def test_submit_com_corrida_usa_so_essa_corrida_e_nao_a_campea(tmp_path, monkeypatch):
     _registro(tmp_path, monkeypatch, "20260101-a", "20260101-b")
     visto = {}
 
-    def parar(champ):
-        visto["id"] = champ["id"]
-        raise SystemExit("parou depois de escolher a corrida")
+    def parar(membros, full, rk, run):
+        visto["ids"] = [m["id"] for m in membros]
+        raise SystemExit("parou depois de escolher os membros")
 
-    monkeypatch.setattr(train, "final_config", parar)
+    monkeypatch.setattr(train, "prever_membros", parar)
+    monkeypatch.setattr(train, "load_split", lambda nome: _ranking())
+    monkeypatch.setattr(train.pd, "read_parquet", lambda *a, **k: _ranking())
     with pytest.raises(SystemExit, match="parou"):
         train.submit(14, corrida="20260101-b")
 
-    assert visto["id"] == "20260101-b"
+    assert visto["ids"] == ["20260101-b"]
 
 
 def test_submit_com_corrida_inexistente_cita_o_id(tmp_path, monkeypatch):

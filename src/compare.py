@@ -2,13 +2,13 @@
 
     bin/run src/compare.py <id_novo> [<id_base>] [--promover] [--aceitar-fragil]
 
-Sem <id_base>, compara com o campeão (champion.json). Veredito MELHOR exige ganho ≥ 10 s,
+Sem <id_base>, compara com a média dos membros da campeã (champion.json v2). Veredito MELHOR exige ganho ≥ 10 s,
 IC 95% > 0, ganho sem os 10 maiores voos > 0 e ≥ 10 % do cheio, e ganho com IC > 0 em cada
 mês. Se só os critérios de robustez falham: FRÁGIL (não promove sem --aceitar-fragil).
 O ganho nos voos normais com NM e o ganho sem os voos "loteria" saem como informação
 para decidir; nenhum dos dois entra no veredito.
---promover grava o novo campeão quando o veredito é MELHOR e a base é o próprio campeão
-(ou uma repetição da configuração dele); sem campeão, promove direto.
+--promover grava a nova campeã quando o veredito é MELHOR e a base é a própria campeã
+(ou o único membro dela); sem campeã, promove direto.
 """
 
 from __future__ import annotations
@@ -19,12 +19,13 @@ import json
 import numpy as np
 import pandas as pd
 
+import campeao
 from cache import TRUTH, load_split
+from campeao import CAMPEA as CHAMPION
 from experiment import TAIL_S, lottery_mask
 from features import ID, PLAN_REFS
 from runlog import REGISTRY, ROOT
 
-CHAMPION = ROOT / "champion.json"
 MIN_GAIN_S = 10.0
 
 
@@ -111,21 +112,18 @@ def registry_entry(run_id: str) -> dict:
     raise SystemExit(f"{run_id} não está em {REGISTRY.name}")
 
 
-def may_promote(base: dict, champion: dict | None) -> bool:
-    """Só se pode destronar o campeão comparando com ele (ou com uma repetição dele)."""
-    if not champion:
+def may_promote(base_id: str | None, champion: dict | None) -> bool:
+    """Só se destrona a campeã comparando com ela (ou com o único membro dela)."""
+    if not champion or base_id is None:
         return True
-    return base["id"] == champion["id"] or base["config"] == champion["config"]
+    ids = [m["id"] for m in champion["membros"]]
+    return ids == [base_id]
 
 
 def promote(rec: dict) -> None:
-    champ = {
-        "id": rec["id"], "config": rec["config"], "best_iter": rec.get("best_iter"),
-        "rmse_simulacao": rec["metricas"]["completo"],
-        "src_hash": rec.get("src_hash"), "git_commit": rec.get("git_commit"),
-    }
-    CHAMPION.write_text(json.dumps(champ, indent=2, ensure_ascii=False) + "\n")
-    print(f"campeão agora: {rec['id']}")
+    atual = campeao.carregar() if CHAMPION.exists() else None
+    campeao.salvar(campeao.nova([rec], enviada=atual.get("enviada") if atual else None))
+    print(f"campeã agora: {rec['id']} (1 membro)")
 
 
 def main() -> None:
@@ -138,18 +136,21 @@ def main() -> None:
     a = ap.parse_args()
 
     new = registry_entry(a.novo)
-    champ = json.loads(CHAMPION.read_text()) if CHAMPION.exists() else None
+    champ = campeao.carregar() if CHAMPION.exists() else None
     if a.base:
         base = registry_entry(a.base)
+        pb = pd.read_parquet(ROOT / base["previsoes"])
+        nome_base, rmse_base = base["id"], base["metricas"]["completo"]
     elif champ:
-        base = registry_entry(champ["id"])
+        pb = campeao.previsao([m["id"] for m in champ["membros"]])
+        nome_base = "campeã (" + " + ".join(m["id"] for m in champ["membros"]) + ")"
+        rmse_base = champ["rmse_simulacao"]
     else:
-        print("ainda não há campeão")
+        print("ainda não há campeã")
         if a.promover:
             promote(new)
         return
 
-    pb = pd.read_parquet(ROOT / base["previsoes"])
     pn = pd.read_parquet(ROOT / new["previsoes"])
     m = pb.merge(pn[[ID, "pred"]], on=ID, suffixes=("_base", "_novo"))
     if not len(m) == len(pb) == len(pn):
@@ -159,8 +160,8 @@ def main() -> None:
     sem_top = gain_without_top(y, pb_, pn_)
     meses = by_month(y, pb_, pn_, m["dia"])
     v = verdict(res, sem_top, meses)
-    print(f"{base['id']} → {new['id']}")
-    print(f"  RMSE simulação {base['metricas']['completo']} → {new['metricas']['completo']}")
+    print(f"{nome_base} → {new['id']}")
+    print(f"  RMSE simulação {rmse_base} → {new['metricas']['completo']}")
     print(f"  ganho {res['ganho']:.1f} s (IC 95% {res['ic_baixo']:.1f} a {res['ic_alto']:.1f})")
     print(f"  sem os {TOP_K} maiores voos: {sem_top:.1f} s")
     for mes, r in meses.items():
@@ -175,12 +176,12 @@ def main() -> None:
     print(f"  veredito: {v}")
     promote_ok = v == "MELHOR" or (v == "FRÁGIL" and a.aceitar_fragil)
     if a.promover and promote_ok:
-        if may_promote(base, champ):
+        if may_promote(a.base, champ):
             promote(new)
         else:
             print(
-                f"não promovido: a base {base['id']} não é o campeão {champ['id']}; "
-                "compare sem <id_base> ou refaça a corrida do campeão"
+                f"não promovido: a base {a.base} não é a campeã; "
+                "compare sem <id_base> ou refaça a corrida da campeã"
             )
     elif a.promover and v == "FRÁGIL":
         print("não promovido: ganho frágil. Só com --aceitar-fragil, depois do teto.py e do ok do usuário")

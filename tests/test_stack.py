@@ -430,3 +430,28 @@ def test_reusar_oof_sem_crossfit_e_recusado(monkeypatch, capsys):
         stack.main()
 
     assert "--reusar-oof só vale com --crossfit" in capsys.readouterr().err
+
+
+def test_a_config_do_crossfit_grava_corretor_params(tmp_path, monkeypatch):
+    registro = tmp_path / "experiments.jsonl"
+    registro.write_text(json.dumps(
+        {"id": "20260101-a", "config": {"model": "two_stage_nm", "seed": 0}}
+    ) + "\n", encoding="utf-8")
+    monkeypatch.setattr(stack, "REGISTRY", registro)
+
+    com = stack.config_da_corrida(stack.parser().parse_args(
+        ["v31", "--crossfit", "--corretor-params", '{"num_leaves": 127}']), "20260101-a")
+    sem = stack.config_da_corrida(
+        stack.parser().parse_args(["v31", "--crossfit"]), "20260101-a")
+
+    assert com["corretor_params"] == {"num_leaves": 127}
+    assert "corretor_params" not in sem
+
+
+def test_corretor_params_sem_crossfit_e_recusado(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["stack.py", "v31", "--corretor-params", '{"num_leaves": 7}'])
+
+    with pytest.raises(SystemExit):
+        stack.main()
+
+    assert "--corretor-params só vale com --crossfit" in capsys.readouterr().err

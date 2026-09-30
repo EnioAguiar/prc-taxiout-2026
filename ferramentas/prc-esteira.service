@@ -1,0 +1,14 @@
+# Instalação: cp ferramentas/prc-esteira.service ~/.config/systemd/user/ && systemctl --user daemon-reload
+# Não habilitar ainda: a estreia supervisionada é a Task 9.
+[Unit]
+Description=Esteira de experimentos PRC 2026
+After=network-online.target
+
+[Service]
+WorkingDirectory=%h/Projetos/bots-competicoes-python/prc-taxiout-2026
+ExecStart=%h/Projetos/bots-competicoes-python/prc-taxiout-2026/bin/run src/esteira.py trabalhar
+Restart=on-failure
+RestartSec=60
+
+[Install]
+WantedBy=default.target

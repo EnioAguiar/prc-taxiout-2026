@@ -66,12 +66,21 @@ flowchart LR
 flowchart TD
     D1["Dados do organizador<br/>2025 + ranking 2026"] --> F["Features<br/>horários NM, congestionamento,<br/>stand/pista"]
     D2["ADS-B adsb.lol<br/>5,7 GB no SSD"] --> F
-    F --> B["BASE: 2 estágios<br/>classificador 'cópia do SCHED'<br/>+ regressor normal<br/>+ retas voos sem NM"]
-    B --> C["CORRETOR (3 modelos em média)<br/>+ taxi-in chegadas + vizinhos"]
-    C --> J["Janela do LOBT<br/>previsão limitada a ±3606 s"]
-    J --> R["Regra de Roma (4 voos)"]
+    F --> B["BASE (comum aos membros)<br/>2 estágios: classificador 'cópia do SCHED'<br/>+ regressor normal por aeroporto<br/>+ retas voos sem NM"]
+    B --> C1["MEMBRO 1: corretor --mapa<br/>(3 modelos em média)"]
+    B --> C2["MEMBRO 2: corretor --fila --superficie<br/>(3 modelos em média)"]
+    C1 --> M["Campeã v2 (champion.json)<br/>média simples dos membros"]
+    C2 --> M
+    M --> J["Janela do LOBT<br/>previsão limitada a ±3606 s"]
+    J --> R["Pós-regras: regra de Roma (4 voos)"]
     R --> S["Arquivo de envio"]
 ```
+
+A campeã é um conjunto: `champion.json` guarda a `base` comum, a lista de `membros`
+(um corretor cada, com a config completa) e as `pos_regras`. `src/campeao.py` monta a
+previsão média; `src/train.py submit N` refaz tudo no ano inteiro. A esteira
+(`src/esteira.py` + `src/regua.py`) propõe trocar um membro, somar um novo ou substituir
+o conjunto, e só aprova com confirmação cega na metade B dos dias.
 
 ## Onde está o erro (simulação da v11)
 

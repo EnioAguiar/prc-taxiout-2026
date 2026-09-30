@@ -13,6 +13,7 @@ import json
 import re
 import subprocess
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -67,18 +68,11 @@ def checar_placar_e_envios() -> None:
 def checar_campea() -> None:
     champ = json.loads((ROOT / "champion.json").read_text())
     reg = {json.loads(l)["id"]: json.loads(l) for l in (ROOT / "experiments.jsonl").read_text().splitlines() if l.strip()}
-    ok(champ["id"] in reg, f"campeã `{champ['id']}` existe no experiments.jsonl")
-    if champ["id"] in reg:
-        ok(abs(reg[champ["id"]]["metricas"]["completo"] - champ["rmse_simulacao"]) < 0.01,
-           "RMSE da campeã bate com a corrida registrada")
-    from runlog import src_hash
-
-    atual = src_hash()
-    ok(champ.get("src_hash") == atual,
-       f"código igual ao que mediu a campeã (campeã {champ.get('src_hash')}, atual {atual}); "
-       "se não, `train.py submit` precisa de --forcar ou re-medir a campeã")
+    ids = [m["id"] for m in champ["membros"]]
+    ok(all(i in reg for i in ids), f"membros da campeã existem no experiments.jsonl ({', '.join(ids)})")
+    ok(all(reg[i]["config"]["base"] == champ["base"] for i in ids if i in reg), "membros com a mesma base")
     readme = (ROOT / "README.md").read_text()
-    ok(champ["id"] in readme, "README cita o id da campeã")
+    ok(all(i in readme for i in ids), "README cita os membros da campeã")
     melhor = min(e["oficial"] for e in envios() if e["oficial"] is not None)
     txt = f"{melhor:.2f}".replace(".", ",")
     ok(txt in readme, f"README cita a melhor nota oficial ({txt})")
@@ -127,8 +121,25 @@ def checar_dados() -> None:
     ok("prc-" not in falhos, "nenhum serviço prc-* falhou" + (f": {falhos}" if "prc-" in falhos else ""))
 
 
+def checar_esteira() -> None:
+    import esteira
+
+    if not esteira.DB.exists():
+        ok(False, "esteira ainda não rodou (data/esteira.db ausente)")
+        return
+    f = esteira.Fila(esteira.DB)
+    ult = f.ultimos(1000)
+    dia = [c for c in ult if c["fim"] and time.time() - c["fim"] < 86400]
+    falhas = sum(c["estado"] == "falhou" for c in dia)
+    ok(len(dia) >= 24, f"esteira: {len(dia)} candidatos nas últimas 24 h (esperado ≥ 24)")
+    ok(falhas <= max(2, len(dia) // 10), f"esteira: {falhas} falhas nas últimas 24 h")
+    ok(int(f.meta("consultas_b") or 0) <= 50, f"esteira: {f.meta('consultas_b') or 0} consultas à metade B (≤ 50)")
+    ok(not esteira.PAUSA.exists(), "esteira: não está pausada")
+
+
 def main() -> int:
-    for f in (checar_placar_e_envios, checar_campea, checar_estrutura, checar_testes_e_git, checar_dados):
+    for f in (checar_placar_e_envios, checar_campea, checar_estrutura, checar_testes_e_git, checar_dados,
+              checar_esteira):
         try:
             f()
         except Exception as e:  # noqa: BLE001 — uma checagem quebrada vira item, não aborta

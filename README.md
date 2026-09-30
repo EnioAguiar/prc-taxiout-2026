@@ -158,11 +158,12 @@ fora do cache de features. `train.py submit N` precisa do `events.parquet` no SS
   `MVT − SCHED` > `--min-ms`) contra um oráculo otimista `y = MVT − SCHED`;
   ganho simulado > 2 × teto = a simulação mede folga que o modelo final não
   tem. `--salvar` grava um candidato (base + novo só nessas linhas).
-- `src/train.py submit N` refaz o campeão no ano inteiro com o `best_iter`
-  (ou as rodadas configuradas, se não houver) × 1,2 (full2025 tem 2,085 M
-  linhas contra 1,741 M do treino) e só gera o arquivo; o envio é um comando
-  à parte. Aborta se o código mudou desde a promoção do campeão; `--forcar`
-  ignora a checagem. A previsão da base fora do bloco (~50 min com `--base-por-apt`)
+- `src/train.py submit N` refaz a campeã (`champion.json` v2) no ano inteiro: a base
+  comum com as rodadas × 1,2 (full2025 tem 2,085 M linhas contra 1,741 M do treino),
+  um corretor por membro, a média simples deles e as `pos_regras` (Roma) — tudo em
+  código — e só gera o arquivo; o envio é um comando à parte. Com `--corrida <id>`,
+  a receita é a daquela corrida sozinha, com a regra de Roma. O `src_hash` atual fica
+  no registro do envio. A previsão da base fora do bloco (~50 min com `--base-por-apt`)
   fica em `data/cache/oof_base/<chave>.parquet`, com a chave feita da config da base,
   do código que ela usa (`crossfit.py` e seus imports) e dos arquivos de dados; envio
   que só muda o corretor a reaproveita e cai de ~70 para ~21 min (medido 29/09).
@@ -550,7 +551,7 @@ bin/run src/experiment.py <nome> --model two_stage_nm [--nm-split-ms] [--nm-min-
 bin/run src/compare.py <id> --promover            # decide contra o campeão (FRÁGIL não promove)
 bin/run src/compare.py <id> --promover --aceitar-fragil   # só após teto.py e ok do usuário
 bin/run src/teto.py <base.parquet> <novo.parquet> --oficial-base <RMSE> [--min-ms 21600] [--salvar submissions/<TEAM>_vN.parquet]
-bin/run src/train.py submit N [--forcar] [--corrida <id>]   # gera a vN (não envia); --corrida usa a receita daquela corrida do experiments.jsonl, sem mexer no champion.json
+bin/run src/train.py submit N [--corrida <id>]   # gera a vN (não envia); sem --corrida usa a campeã (média dos membros + pós-regras); --corrida usa a receita daquela corrida do experiments.jsonl, sem mexer no champion.json
 .venv/bin/python src/s3.py submit submissions/<TEAM>_vN.parquet   # só após aprovação
 bin/run src/adsb.py baixar [--dias 2025-01,2025-07] [--dia AAAA-MM-DD] [--procs 5]   # recortes adsb.lol no SSD
 bin/run src/adsb_events.py                        # eventos por voo → <SSD>/events.parquet
@@ -598,6 +599,51 @@ máquina não pega (roadmap, "Retomar" do CONTEXTO, caixas do plano), atualizar
 no prazo em três cenários (parado, desacelerando com meia-vida de 7 dias, ritmo
 atual) e Monte Carlo da nossa nota final sobre a fila de `saltos.json`.
 
+## Esteira de experimentos
+
+Serviço 24/7 que tira candidatos de uma fila, roda o corretor real e decide pela régua.
+
+```
+bin/run src/esteira.py add --tipo corretor --receita '{"--fila": true}' [--prioridade N] [--origem X]
+bin/run src/esteira.py fila       # só o que está na fila (o que já rodou sai em status/docs/esteira.md)
+bin/run src/esteira.py status     # vazão, falhas, consultas à metade B, pausa
+bin/run src/esteira.py pausar | retomar     # trava data/esteira.pausa
+bin/run src/esteira.py gerar      # enfileira vizinhos da campeã (grade de parâmetros e blocos)
+bin/run src/esteira.py semente N  # sorteia de novo as metades A/B com a semente N e zera as consultas à metade B (usar quando passar de 50)
+bin/run src/esteira.py revisao "<texto>"    # registra a revisão do agente (com data)
+bin/run src/esteira.py enviado N  # marca a versão N como enviada
+bin/run src/esteira.py trabalhar  # laço do serviço prc-esteira (não rodar à mão)
+```
+
+Régua (`src/regua.py`): os dias são partidos em duas metades. Na metade **A** o candidato
+só é selecionado com ganho `sem_loteria` ≥ **0,3 s** e IC baixo > **0**; a proposta escolhida
+em A é confirmada cega na metade **B** com ganho > 0 e IC baixo > **−0,3**; e o ganho no
+conjunto completo precisa ser ≥ **−0,5 s**. B nunca escolhe, só confirma — é o que segura o
+desgaste de testar muita coisa. Propostas por candidato: trocar um membro, somar ao conjunto
+ou sozinho (só `sozinho` quando a base é outra).
+
+Guardas do trabalhador: ≥ 10 GB de RAM livre para começar um candidato, uma corrida por vez
+e `data/esteira.pausa` para parar sem matar o serviço.
+
+Relatório: `docs/esteira.md` (campeã, fila, últimos vereditos, consultas à metade B e as
+"Revisões" do agente). Serviço: `ferramentas/prc-esteira.service` (systemd do usuário,
+`prc-esteira`). Auditoria diária: `ferramentas/auditoria.py` checa vazão, falhas, consultas
+à metade B e pausa.
+
+**Próximo passo — estreia supervisionada (com o usuário, depois do merge):**
+
+1. `bin/run src/esteira.py add --tipo corretor --receita '<receita do membro 1 da v32>' --prioridade 9`
+   — repetição da campeã: a régua deve reprovar em A, e isso mede o ruído.
+2. `bin/run src/esteira.py gerar` e `systemctl --user start prc-esteira`.
+3. Nos 10 primeiros: conferir o veredito contra `bin/run src/compare.py <run>` e contra o
+   bootstrap manual nas metades; conferir o tempo (~10 min) e a RAM (`journalctl`).
+4. Registrar a decisão (nada a mudar / ajuste / código) com `esteira.py revisao "<texto>"`.
+5. Só então `systemctl --user enable prc-esteira`.
+
+A calibrar na estreia: na conferência real, a régua **reprovou** o membro da v32 pela
+metade A (ganho +1,07 s, IC baixo −0,10) — o limiar de A pode estar apertado para o
+ruído de ~0,3 s entre execuções.
+
 ## Estrutura
 
 ```
@@ -620,6 +666,10 @@ prc-taxiout-2026/
   src/externos.py     # dados abertos: taxa de cópia por companhia, séries diárias e OPDI (colunas ext_*)
   src/plano13.py      # METAR, rotação no stand, consistência NM e companhia (só no corretor, --plano13)
   src/refcel.py       # mediana, P90, desvio e tamanho da célula aeroporto × stand × pista (--corretor-ref)
+  src/campeao.py      # campeã v2: membros, previsão média e registro do experiments.jsonl
+  src/pos_regras.py   # pós-regras aplicadas ao arquivo de envio (Roma)
+  src/regua.py        # régua da esteira: seleção na metade A, confirmação cega na B
+  src/esteira.py      # fila SQLite, trabalhador 24/7, gerador de vizinhos e relatório
   ferramentas/projecao.py   # placar do dia e projeção até o prazo (docs/projecao.md)
   ferramentas/auditoria.py  # auditoria diária (docs/auditoria/)
   submissions.jsonl   # nossos envios com a nota oficial (versionado)
@@ -627,7 +677,9 @@ prc-taxiout-2026/
   placar/             # fotos diárias do placar público (versionado)
   tests/              # pytest
   experiments.jsonl   # uma linha por corrida (versionado)
-  champion.json       # config campeã (versionado)
+  champion.json       # campeã v2 (versionado): `base`, `oof`, lista de `membros`
+                      # (id + config de cada corretor), `pos_regras`, `rmse_simulacao`,
+                      # `sem_loteria` e a última `enviada`; a previsão é a média dos membros
   docs/               # specs, planos e pesquisa
   data/               # parquet baixados (ignorado pelo git)
   submissions/        # arquivos gerados (ignorado pelo git)
