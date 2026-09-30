@@ -1,34 +1,76 @@
 {
-  "id": "20260929-154118-v29_mapa_cf",
-  "config": {
-    "model": "stack_cf",
-    "base": "20260929-125421-base_ctx_por_apt",
-    "base_config": {
-      "model": "two_stage_nm",
-      "cls_rounds": 400,
-      "reg_rounds": 400,
-      "seed": 0,
-      "nm_split_ms": false,
-      "nm_min_ms": 21600.0,
-      "janela_lobt": true,
-      "reg_corte": 7200.0,
-      "base_ctx": true,
-      "base_por_apt": true
+  "base": "20260929-125421-base_ctx_por_apt",
+  "oof": "20260929-135844-h1h2_por_apt_ref",
+  "membros": [
+    {
+      "id": "20260929-154118-v29_mapa_cf",
+      "config": {
+        "model": "stack_cf",
+        "base": "20260929-125421-base_ctx_por_apt",
+        "base_config": {
+          "model": "two_stage_nm",
+          "cls_rounds": 400,
+          "reg_rounds": 400,
+          "seed": 0,
+          "nm_split_ms": false,
+          "nm_min_ms": 21600.0,
+          "janela_lobt": true,
+          "reg_corte": 7200.0,
+          "base_ctx": true,
+          "base_por_apt": true
+        },
+        "adsb": true,
+        "rounds": 500,
+        "seed": 0,
+        "corretor": "conjunto",
+        "externos": true,
+        "plano13": true,
+        "fila": "stand",
+        "dist_plano": true,
+        "mapa": true,
+        "ref_cel": true,
+        "reusar_oof": "20260929-135844-h1h2_por_apt_ref"
+      }
     },
-    "adsb": true,
-    "rounds": 500,
-    "seed": 0,
-    "corretor": "conjunto",
-    "externos": true,
-    "plano13": true,
-    "fila": "stand",
-    "dist_plano": true,
-    "mapa": true,
-    "ref_cel": true,
-    "reusar_oof": "20260929-135844-h1h2_por_apt_ref"
-  },
-  "best_iter": null,
-  "rmse_simulacao": 298.05,
-  "src_hash": "60cc0b5a6b04",
-  "git_commit": "3c6da0f"
+    {
+      "id": "20260929-220513-e2_fila_sup",
+      "config": {
+        "model": "stack_cf",
+        "base": "20260929-125421-base_ctx_por_apt",
+        "base_config": {
+          "model": "two_stage_nm",
+          "cls_rounds": 400,
+          "reg_rounds": 400,
+          "seed": 0,
+          "nm_split_ms": false,
+          "nm_min_ms": 21600.0,
+          "janela_lobt": true,
+          "reg_corte": 7200.0,
+          "base_ctx": true,
+          "base_por_apt": true
+        },
+        "adsb": true,
+        "rounds": 500,
+        "seed": 0,
+        "corretor": "conjunto",
+        "externos": true,
+        "plano13": true,
+        "fila": true,
+        "dist_plano": true,
+        "superficie": true,
+        "mapa": true,
+        "ref_cel": true,
+        "reusar_oof": "20260929-154118-v29_mapa_cf"
+      }
+    }
+  ],
+  "pos_regras": [
+    "roma"
+  ],
+  "rmse_simulacao": 297.67,
+  "sem_loteria": 232.35,
+  "enviada": {
+    "versao": 32,
+    "sem_loteria": 232.35
+  }
 }
