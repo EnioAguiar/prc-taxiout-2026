@@ -13,6 +13,7 @@ import json
 import re
 import subprocess
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -120,8 +121,25 @@ def checar_dados() -> None:
     ok("prc-" not in falhos, "nenhum serviço prc-* falhou" + (f": {falhos}" if "prc-" in falhos else ""))
 
 
+def checar_esteira() -> None:
+    import esteira
+
+    if not esteira.DB.exists():
+        ok(False, "esteira ainda não rodou (data/esteira.db ausente)")
+        return
+    f = esteira.Fila(esteira.DB)
+    ult = f.ultimos(1000)
+    dia = [c for c in ult if c["fim"] and time.time() - c["fim"] < 86400]
+    falhas = sum(c["estado"] == "falhou" for c in dia)
+    ok(len(dia) >= 24, f"esteira: {len(dia)} candidatos nas últimas 24 h (esperado ≥ 24)")
+    ok(falhas <= max(2, len(dia) // 10), f"esteira: {falhas} falhas nas últimas 24 h")
+    ok(int(f.meta("consultas_b") or 0) <= 50, f"esteira: {f.meta('consultas_b') or 0} consultas à metade B (≤ 50)")
+    ok(not esteira.PAUSA.exists(), "esteira: não está pausada")
+
+
 def main() -> int:
-    for f in (checar_placar_e_envios, checar_campea, checar_estrutura, checar_testes_e_git, checar_dados):
+    for f in (checar_placar_e_envios, checar_campea, checar_estrutura, checar_testes_e_git, checar_dados,
+              checar_esteira):
         try:
             f()
         except Exception as e:  # noqa: BLE001 — uma checagem quebrada vira item, não aborta
