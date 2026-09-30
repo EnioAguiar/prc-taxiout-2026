@@ -1,12 +1,12 @@
 {
-  "base": "20260929-125421-base_ctx_por_apt",
-  "oof": "20260929-135844-h1h2_por_apt_ref",
+  "base": "20260930-130008-e76_base",
+  "oof": "20260930-130921-e76_m0",
   "membros": [
     {
-      "id": "20260929-154118-v29_mapa_cf",
+      "id": "20260930-130921-e76_m0",
       "config": {
         "model": "stack_cf",
-        "base": "20260929-125421-base_ctx_por_apt",
+        "base": "20260930-130008-e76_base",
         "base_config": {
           "model": "two_stage_nm",
           "cls_rounds": 400,
@@ -17,6 +17,7 @@
           "janela_lobt": true,
           "reg_corte": 7200.0,
           "base_ctx": true,
+          "base_p13": true,
           "base_por_apt": true
         },
         "adsb": true,
@@ -28,15 +29,14 @@
         "fila": "stand",
         "dist_plano": true,
         "mapa": true,
-        "ref_cel": true,
-        "reusar_oof": "20260929-135844-h1h2_por_apt_ref"
+        "ref_cel": true
       }
     },
     {
-      "id": "20260930-061236-e30",
+      "id": "20260930-140011-e76_m1",
       "config": {
         "model": "stack_cf",
-        "base": "20260929-125421-base_ctx_por_apt",
+        "base": "20260930-130008-e76_base",
         "base_config": {
           "model": "two_stage_nm",
           "cls_rounds": 400,
@@ -47,6 +47,7 @@
           "janela_lobt": true,
           "reg_corte": 7200.0,
           "base_ctx": true,
+          "base_p13": true,
           "base_por_apt": true
         },
         "adsb": true,
@@ -63,15 +64,15 @@
         "corretor_params": {
           "num_leaves": 127
         },
-        "reusar_oof": "20260929-135844-h1h2_por_apt_ref"
+        "reusar_oof": "20260930-130921-e76_m0"
       }
     }
   ],
   "pos_regras": [
     "roma"
   ],
-  "rmse_simulacao": 297.49,
-  "sem_loteria": 232.15,
+  "rmse_simulacao": 296.76,
+  "sem_loteria": 230.7,
   "enviada": {
     "versao": 32,
     "sem_loteria": 232.35
