@@ -142,6 +142,31 @@ arquivo pronto (se houver), últimos 30 candidatos (receita, A, B, decisão, min
 fila, consultas a B, candidatos por hora nas últimas 24 h. Commit automático do relatório e da
 `champion.json` a cada promoção (mensagem `esteira: promove <id>`), sem push.
 
+## Supervisão: a esteira também é auditada (pedido do usuário, 30/09)
+
+A esteira é nova e fica sempre sujeita a melhoria. Quem audita é o agente (eu), em duas fases:
+
+1. **Estreia supervisionada:** os primeiros 10 candidatos e as primeiras 24 h são acompanhados de
+   perto: cada decisão da régua é conferida contra o `compare.py` manual, cada falha é lida, e o
+   tempo por candidato é comparado ao medido à mão (~10 min). Só depois disso a esteira roda
+   sozinha à noite.
+2. **Revisão periódica:** uma vez por dia (junto da auditoria diária, `ferramentas/auditoria.py`)
+   e a cada envio oficial, uma seção "Esteira" no relatório da auditoria com números que dizem se
+   o automatizador está bom:
+   - vazão: candidatos por hora, minutos por candidato, tempo parado (pausa, espera de RAM, falha);
+   - desperdício: falhas, duplicados pulados, candidatos que não mudaram a previsão;
+   - rendimento do gerador: fração de candidatos promovidos por tipo de vizinho (blocos, rodadas,
+     parâmetros), para cortar o que nunca rende;
+   - calibração da régua: para cada envio, ganho previsto (A, B, sem loteria) × ganho oficial; se
+     a régua errar o sinal em 2 envios seguidos, os limiares são revistos;
+   - desgaste de B: consultas acumuladas; acima de 50, as metades são sorteadas de novo e o fato é
+     registrado.
+
+Cada revisão termina em uma de três saídas, registrada em `docs/esteira.md` ("Revisões"):
+nada a mudar; ajuste de parâmetro da própria esteira (limiar, prioridade, espaço do gerador);
+ou mudança de código (nova spec curta ou item no plano). A revisão é ponto fixo do bloco
+"Retomar" do `CONTEXTO.md`, para que um chat novo também a faça.
+
 ## Erros e bordas
 
 - PC cai: o serviço volta (`Restart=on-failure`); `rodando` → `fila`.
