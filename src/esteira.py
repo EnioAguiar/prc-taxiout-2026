@@ -30,6 +30,12 @@ ROUNDS = ()
 PARAMS_GRADE = {"num_leaves": (63, 127, 255), "learning_rate": (0.03, 0.05)}
 BLOCOS = ("--superficie", "--mapa", "--corretor-ref", "--dist-plano", "--corretor-sem-ctx")
 GANHO_ENVIO_S, ENVIO_INTERVALO_S = 0.5, 6 * 3600
+FILA_FLAGS = ("--fila", "--stand-prefixo")
+N_MIN = 3    # abaixo disso a família é nova: prioridade de exploração
+N_CORTE = 10  # daí em diante uma família só de prejuízo é cortada
+# Corridas de onde saiu boa parte da fila antiga; servem de referência para rotular as famílias.
+MEMBROS_HISTORICOS = ("20260929-154118-v29_mapa_cf", "20260929-220513-e2_fila_sup",
+                      "20260930-061236-e30")
 
 # config da corrida → flag do stack.py (booleanas)
 FLAGS = {"externos": "--externos", "plano13": "--plano13", "dist_plano": "--dist-plano",
@@ -55,6 +61,11 @@ def receita_de_config(cfg: dict) -> dict:
     return {k: v for k, v in r.items() if v}
 
 
+def receitas_membros(champ: dict) -> list[dict]:
+    """As receitas dos membros da campeã, base de comparação para a família."""
+    return [receita_de_config(m["config"]) for m in champ["membros"]]
+
+
 def argv_corretor(receita: dict, base: str, oof: str | None) -> list[str]:
     """Argumentos do `stack.py`; `oof=None` (base nova) calcula o oof fora do bloco do zero."""
     argv = ["--base", base, "--crossfit", *(["--reusar-oof", oof] if oof else [])]
@@ -77,18 +88,22 @@ class Fila:
             create table if not exists candidatos (
               id integer primary key, criado real, origem text, tipo text, receita text,
               hash text, prioridade integer, estado text, campea text, run_id text,
-              resultado text, motivo text, inicio real, fim real);
+              resultado text, motivo text, inicio real, fim real, familia text);
             create unique index if not exists dedup on candidatos(hash, campea);
             create table if not exists meta (chave text primary key, valor text);""")
+        colunas = {r["name"] for r in self.db.execute("pragma table_info(candidatos)")}
+        if "familia" not in colunas:  # bancos criados antes da prioridade por família
+            self.db.execute("alter table candidatos add column familia text")
+            self.db.commit()
 
     def add(self, tipo: str, receita: dict, origem: str, prioridade: int = 0,
-            campea: str = "") -> int | None:
+            campea: str = "", familia: str = "") -> int | None:
         try:
             cur = self.db.execute(
-                "insert into candidatos (criado, origem, tipo, receita, hash, prioridade, estado, campea)"
-                " values (?,?,?,?,?,?, 'fila', ?)",
+                "insert into candidatos (criado, origem, tipo, receita, hash, prioridade, estado,"
+                " campea, familia) values (?,?,?,?,?,?, 'fila', ?,?)",
                 (time.time(), origem, tipo, json.dumps(receita, sort_keys=True),
-                 hash_receita(tipo, receita), prioridade, campea))
+                 hash_receita(tipo, receita), prioridade, campea, familia))
         except sqlite3.IntegrityError:
             return None
         self.db.commit()
@@ -127,6 +142,94 @@ class Fila:
         return row[0] if row else None
 
 
+def familia(receita: dict, base: dict) -> str:
+    """Rótulo da única diferença entre a receita e aquela de onde ela saiu.
+
+    `bloco:<flag>`, `fila:<estado>`, `param:<nome>`, `rodadas`; `outro` quando muda
+    mais de uma coisa (ou nada)."""
+    dif = {k for k in set(receita) | set(base) if receita.get(k) != base.get(k)}
+    if not dif:
+        return "outro"
+    if dif <= set(FILA_FLAGS):  # trocar de estado mexe em duas chaves de uma vez
+        ligada = [f for f in FILA_FLAGS if receita.get(f)]
+        return f"fila:{ligada[0]}" if ligada else "fila:nenhum"
+    if len(dif) > 1:
+        return "outro"
+    chave = dif.pop()
+    if chave == "--corretor-rounds":
+        return "rodadas"
+    if chave == "--corretor-params":
+        a, b = receita.get(chave) or {}, base.get(chave) or {}
+        mudados = [p for p in set(a) | set(b) if a.get(p) != b.get(p)]
+        return f"param:{mudados[0]}" if len(mudados) == 1 else "outro"
+    return f"bloco:{chave}"
+
+
+def familia_proxima(receita: dict, bases: list[dict]) -> str:
+    """Família contra a receita de membro mais parecida (menos chaves diferentes)."""
+    if not bases:
+        return "outro"
+    perto = min(bases, key=lambda b: len({k for k in set(b) | set(receita)
+                                          if b.get(k) != receita.get(k)}))
+    return familia(receita, perto)
+
+
+def preencher_familias(fila: Fila, receitas_membros: list[dict]) -> int:
+    """Retroalimenta as linhas antigas, sem família, com a família mais provável."""
+    n = 0
+    for r in fila.db.execute("select id, tipo, receita from candidatos"
+                             " where familia is null or familia=''").fetchall():
+        rotulo = "base" if r["tipo"] == "base" else familia_proxima(
+            json.loads(r["receita"]), receitas_membros)
+        fila.db.execute("update candidatos set familia=? where id=?", (rotulo, r["id"]))
+        n += 1
+    fila.db.commit()
+    return n
+
+
+def notas(fila: Fila) -> dict[str, dict]:
+    """Rendimento de cada família nos candidatos já terminados com metade A medida."""
+    saida: dict[str, dict] = {}
+    for r in fila.db.execute("select familia, estado, resultado from candidatos"
+                             " where estado in ('feito','pulado') and familia is not null"
+                             " and familia<>''"):
+        a = (json.loads(r["resultado"]) if r["resultado"] else {}).get("a")
+        if not a:
+            continue
+        d = saida.setdefault(r["familia"], {"n": 0, "media": 0.0, "melhor": None, "promovidos": 0})
+        d["n"] += 1
+        d["media"] += a["ganho"]
+        d["melhor"] = a["ganho"] if d["melhor"] is None else max(d["melhor"], a["ganho"])
+        d["promovidos"] += r["estado"] == "feito"
+    for d in saida.values():
+        d["media"] = round(d["media"] / d["n"], 6)
+    return saida
+
+
+def repriorizar(fila: Fila) -> set[str]:
+    """Ajusta a prioridade dos candidatos do gerador pelo rendimento da família.
+
+    Devolve as famílias cortadas (muito testadas, média negativa e sem promoção); os
+    candidatos vindos da mão (`usuario`/`agente`) e os de tipo `base` ficam como estão."""
+    resumo, cortadas = notas(fila), set()
+    for nome, d in resumo.items():
+        if d["n"] >= N_CORTE and d["media"] < 0 and not d["promovidos"]:
+            cortadas.add(nome)
+    for r in fila.db.execute("select id, familia from candidatos where estado='fila'"
+                             " and origem='gerador' and tipo<>'base'").fetchall():
+        d = resumo.get(r["familia"]) or {"n": 0, "media": 0.0}
+        if r["familia"] in cortadas:
+            fila.marcar(r["id"], "pulado", fim=time.time(),
+                        motivo=f"família sem rendimento (n={d['n']}, média={d['media']:+.2f})")
+        elif d["n"] < N_MIN:
+            fila.db.execute("update candidatos set prioridade=1 where id=?", (r["id"],))
+        else:
+            p = max(-5, min(5, round(10 * d["media"])))
+            fila.db.execute("update candidatos set prioridade=? where id=?", (p, r["id"]))
+    fila.db.commit()
+    return cortadas
+
+
 def relatorio(fila: Fila, champ: dict) -> str:
     agora = time.time()
     feitos24 = [c for c in fila.ultimos(1000) if c["fim"] and agora - c["fim"] < 86400]
@@ -156,6 +259,19 @@ def relatorio(fila: Fila, champ: dict) -> str:
         fmt = lambda d: f"{d['ganho']:+.2f}" if d else "—"  # noqa: E731
         linhas.append(f"| {c['id']} | {c['origem']} | `{c['receita']}` | {c['motivo'] or c['estado']} | "
                       f"{fmt(a)} | {fmt(b)} | {minutos} |")
+    resumo = notas(fila)
+    linhas += ["", "## Famílias", "",
+               "| família | n | média A | melhor | promovidos | situação |",
+               "|---|---|---|---|---|---|"]
+    for nome, d in sorted(resumo.items(), key=lambda kv: -kv[1]["media"]):
+        if d["n"] < N_MIN:
+            situacao = "explorando"
+        elif d["n"] >= N_CORTE and d["media"] < 0 and not d["promovidos"]:
+            situacao = "cortada"
+        else:
+            situacao = "ativa"
+        linhas.append(f"| {nome} | {d['n']} | {d['media']:+.3f} | {d['melhor']:+.2f} | "
+                      f"{d['promovidos']} | {situacao} |")
     revisoes = fila.meta("revisoes") or ""
     return "\n".join(linhas + ["", "## Revisões", "", revisoes, ""])
 
@@ -200,10 +316,10 @@ def memoria_livre_gb() -> float:
     return 0.0
 
 
-def vizinhos(champ: dict) -> list[dict]:
-    """Receitas a um passo da campeã: liga/desliga um bloco, troca o bloco de fila,
-    ou varia um parâmetro do corretor por vez."""
-    saida = []
+def vizinhos(champ: dict, cortadas: set[str] | tuple = ()) -> list[tuple[str, dict]]:
+    """Pares (família, receita) a um passo da campeã: liga/desliga um bloco, troca o bloco
+    de fila, ou varia um parâmetro do corretor por vez. As famílias cortadas ficam de fora."""
+    saida: list[dict] = []
     for m in champ["membros"]:
         r = receita_de_config(m["config"])
         for b in BLOCOS:
@@ -214,7 +330,7 @@ def vizinhos(champ: dict) -> list[dict]:
                 v[b] = True
             saida.append(v)
         for alt in ("--stand-prefixo", "--fila", None):  # três estados do bloco fila
-            v = {k: x for k, x in r.items() if k not in ("--stand-prefixo", "--fila")}
+            v = {k: x for k, x in r.items() if k not in FILA_FLAGS}
             if alt:
                 v[alt] = True
             saida.append(v)
@@ -225,9 +341,11 @@ def vizinhos(champ: dict) -> list[dict]:
             for x in valores:
                 if atual.get(p) != x:
                     saida.append(r | {"--corretor-params": atual | {p: x}})
-    atuais = {json.dumps(receita_de_config(m["config"]), sort_keys=True) for m in champ["membros"]}
+    membros = [receita_de_config(m["config"]) for m in champ["membros"]]
+    atuais = {json.dumps(b, sort_keys=True) for b in membros}
     unicos = {json.dumps(v, sort_keys=True): v for v in saida}
-    return [v for k, v in unicos.items() if k not in atuais]
+    pares = [(familia_proxima(v, membros), v) for k, v in unicos.items() if k not in atuais]
+    return [(f, v) for f, v in pares if f not in cortadas]
 
 
 def executar(c: dict, champ: dict, rodar=subprocess.run) -> str | list[str]:
@@ -256,10 +374,12 @@ def passo(fila: Fila, rodar=subprocess.run, avaliar=regua.avaliar,
     if PAUSA.exists():
         return False
     champ = carregar_campea()
+    cortadas = repriorizar(fila)  # a fila se reordena pelo rendimento de cada família
     c = fila.proximo()
     if c is None:
-        for v in vizinhos(champ):
-            fila.add("corretor", v, "gerador", 0, id_campea(champ))
+        for fam, v in vizinhos(champ, cortadas):
+            fila.add("corretor", v, "gerador", 0, id_campea(champ), fam)
+        repriorizar(fila)
         c = fila.proximo()
         if c is None:
             talvez_enviar(fila, champ, rodar)
@@ -337,7 +457,7 @@ def main(argv: list[str] | None = None) -> None:
     a.add_argument("--receita", required=True, help="JSON da receita")
     a.add_argument("--prioridade", type=int, default=0)
     a.add_argument("--origem", default="usuario")
-    for nome in ("fila", "status", "pausar", "retomar", "gerar", "trabalhar"):
+    for nome in ("fila", "status", "pausar", "retomar", "gerar", "familias", "trabalhar"):
         sub.add_parser(nome)
     sub.add_parser("semente").add_argument("n", type=int)
     sub.add_parser("revisao").add_argument("texto")
@@ -346,9 +466,11 @@ def main(argv: list[str] | None = None) -> None:
 
     fila = Fila()
     if args.cmd == "add":
-        campea = id_campea(carregar_campea())
-        cid = fila.add(args.tipo, json.loads(args.receita), args.origem, args.prioridade, campea)
-        print(f"candidato {cid}" if cid else "já estava na fila para esta campeã")
+        champ = carregar_campea()
+        receita = json.loads(args.receita)
+        fam = "base" if args.tipo == "base" else familia_proxima(receita, receitas_membros(champ))
+        cid = fila.add(args.tipo, receita, args.origem, args.prioridade, id_campea(champ), fam)
+        print(f"candidato {cid} (família {fam})" if cid else "já estava na fila para esta campeã")
     elif args.cmd == "fila":
         for c in fila.db.execute("select * from candidatos where estado='fila'"
                                  " order by prioridade desc, id asc"):
@@ -364,9 +486,18 @@ def main(argv: list[str] | None = None) -> None:
         print("retomada")
     elif args.cmd == "gerar":
         champ = carregar_campea()
-        n = sum(fila.add("corretor", v, "gerador", 0, id_campea(champ)) is not None
-                for v in vizinhos(champ))
+        n = sum(fila.add("corretor", v, "gerador", 0, id_campea(champ), fam) is not None
+                for fam, v in vizinhos(champ, repriorizar(fila)))
         print(f"{n} vizinhos novos na fila")
+    elif args.cmd == "familias":
+        champ = carregar_campea()
+        n = preencher_familias(fila, receitas_membros(champ) + [
+            receita_de_config(campeao.registro(i)["config"]) for i in MEMBROS_HISTORICOS])
+        cortadas = repriorizar(fila)
+        print(f"{n} candidatos rotulados; cortadas: {', '.join(sorted(cortadas)) or 'nenhuma'}")
+        for nome, d in sorted(notas(fila).items(), key=lambda kv: -kv[1]["media"]):
+            print(f"{nome:<26} n={d['n']:<4} média={d['media']:+.3f} "
+                  f"melhor={d['melhor']:+.2f} promovidos={d['promovidos']}")
     elif args.cmd == "semente":
         fila.meta("semente", str(args.n))
         fila.meta("consultas_b", "0")

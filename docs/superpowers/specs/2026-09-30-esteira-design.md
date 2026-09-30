@@ -143,6 +143,23 @@ rodadas saíram da grade (`ROUNDS = ()`) junto com `lambda_l2` e `min_data_in_le
 Vizinhos = mudar **uma** coisa em relação a cada membro da campeã. Receitas já feitas contra a
 campeã atual são puladas (hash). Prioridade: vizinhos de membro recém-promovido primeiro.
 
+**Revisão 30/09 — prioridade por rendimento**: cada candidato guarda a **família** (coluna
+`familia`), o rótulo da única diferença contra o membro de onde saiu: `bloco:<flag>`,
+`fila:--fila`/`fila:--stand-prefixo`/`fila:nenhum`, `param:<nome>`, `rodadas`, `base`, ou
+`outro` quando muda mais de uma coisa. `notas(fila)` resume cada família (n, média do ganho
+em A, melhor, promovidos) sobre os candidatos já terminados, e `repriorizar(fila)` roda antes
+de cada `proximo()`:
+
+- família com `n < N_MIN` (**3**): prioridade 1, para explorar;
+- família com `n ≥ N_MIN`: prioridade `round(10 × média)`, presa em [−5, 5];
+- família com `n ≥ N_CORTE` (**10**), média < 0 e nenhuma promoção: **cortada** — os
+  candidatos dela na fila viram `pulado` com motivo `família sem rendimento (n=…, média=…)`
+  e `vizinhos` para de gerá-la.
+
+Só mexe no que veio do `gerador`; `usuario`/`agente` e os candidatos de tipo `base` ficam com
+a prioridade dada à mão. `esteira familias` rotula as linhas antigas (comparando com as
+receitas dos membros conhecidos) e imprime o quadro.
+
 ### 7. Relatório — `docs/esteira.md` (regravado a cada candidato)
 
 Campeã atual (membros, simulação completa/sem loteria), ganho acumulado desde o último envio,

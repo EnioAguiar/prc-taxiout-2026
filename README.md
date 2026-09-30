@@ -612,6 +612,7 @@ bin/run src/esteira.py fila       # só o que está na fila (o que já rodou sai
 bin/run src/esteira.py status     # vazão, falhas, consultas à metade B, pausa
 bin/run src/esteira.py pausar | retomar     # trava data/esteira.pausa
 bin/run src/esteira.py gerar      # enfileira vizinhos da campeã (grade de parâmetros e blocos)
+bin/run src/esteira.py familias   # rotula as linhas antigas e mostra o rendimento por família
 bin/run src/esteira.py semente N  # sorteia de novo as metades A/B com a semente N e zera as consultas à metade B (usar quando passar de 50)
 bin/run src/esteira.py revisao "<texto>"    # registra a revisão do agente (com data)
 bin/run src/esteira.py enviado N  # marca a versão N como enviada
@@ -636,6 +637,15 @@ Grade do gerador (revisão 30/09): blocos, bloco de fila e `num_leaves`/`learnin
 Dos 53 testes da estreia (madrugada de 30/09) os parâmetros deram média −0,10 s e as
 rodadas −0,11 s, com uma única promoção (`num_leaves` 127) — as rodadas, `lambda_l2` e
 `min_data_in_leaf` saíram da grade.
+
+**Prioridade por família** (revisão 30/09): cada candidato leva o rótulo da única diferença
+que o separa do membro de onde saiu — `bloco:--superficie`, `fila:--fila`, `param:num_leaves`,
+`rodadas`, `base`, ou `outro` quando muda mais de uma coisa. A cada passo a esteira recalcula
+a média de ganho em A de cada família e reordena a fila do gerador: família com menos de
+**N_MIN = 3** resultados fica com prioridade 1 (explorar), as demais com `10 × média` limitado
+a [−5, 5]. Família com **N_CORTE = 10** resultados, média negativa e nenhuma promoção é
+cortada: os candidatos dela na fila viram `pulado` e o gerador para de produzi-la. O que foi
+enfileirado à mão (`--origem usuario`/`agente`) e os candidatos de base não são mexidos.
 
 Guardas do trabalhador: ≥ 8 GB de RAM livre (ajustado na estreia, 30/09) para começar um candidato, uma corrida por vez
 e `data/esteira.pausa` para parar sem matar o serviço.

@@ -44,7 +44,7 @@ def test_receita_de_config_e_argv_ida_e_volta():
 def test_vizinhos_mudam_uma_coisa_por_vez():
     champ = {"membros": [{"id": "m", "config": {"corretor": "conjunto", "fila": "stand", "rounds": 500,
                                                "mapa": True}}]}
-    vs = esteira.vizinhos(champ)
+    vs = [r for _, r in esteira.vizinhos(champ)]
     base = esteira.receita_de_config(champ["membros"][0]["config"])
     for v in vs:
         dif = {k for k in set(base) | set(v) if base.get(k) != v.get(k)}
@@ -55,7 +55,7 @@ def test_vizinhos_mudam_uma_coisa_por_vez():
 
 def test_vizinhos_nao_variam_rodadas_nem_params_cortados():
     champ = {"membros": [{"id": "m", "config": {"rounds": 500, "corretor_params": {"num_leaves": 63}}}]}
-    vs = esteira.vizinhos(champ)
+    vs = [r for _, r in esteira.vizinhos(champ)]
     assert all(v.get("--corretor-rounds") == 500 for v in vs)
     params = [v.get("--corretor-params", {}) for v in vs]
     assert all("lambda_l2" not in p and "min_data_in_leaf" not in p for p in params)
@@ -305,3 +305,139 @@ def test_relatorio_mostra_os_erros_de_envio_e_commit(tmp_path):
     texto = esteira.relatorio(f, champ)
     assert "- Último erro de envio: submit v33: código 1" in texto
     assert "- Último erro de commit: git falhou (código 128)" in texto
+
+
+def test_familia_rotula_a_unica_diferenca():
+    base = {"--conjunto": True, "--fila": True, "--corretor-params": {"num_leaves": 63}}
+    assert esteira.familia(base | {"--superficie": True}, base) == "bloco:--superficie"
+    assert esteira.familia({k: v for k, v in base.items() if k != "--conjunto"},
+                           base) == "bloco:--conjunto"
+    assert esteira.familia(base | {"--corretor-rounds": 900}, base) == "rodadas"
+    assert esteira.familia(base | {"--corretor-params": {"num_leaves": 127}}, base) == "param:num_leaves"
+    assert esteira.familia(base | {"--corretor-params": {"num_leaves": 63, "learning_rate": 0.03}},
+                           base) == "param:learning_rate"
+
+
+def test_familia_dos_tres_estados_do_bloco_fila():
+    base = {"--conjunto": True, "--fila": True}
+    sem = {"--conjunto": True}
+    assert esteira.familia(sem | {"--stand-prefixo": True}, base) == "fila:--stand-prefixo"
+    assert esteira.familia(sem, base) == "fila:nenhum"
+    assert esteira.familia(base, sem) == "fila:--fila"
+
+
+def test_familia_outro_quando_muda_nada_ou_muita_coisa():
+    base = {"--conjunto": True}
+    assert esteira.familia(base, base) == "outro"
+    assert esteira.familia(base | {"--mapa": True, "--superficie": True}, base) == "outro"
+    assert esteira.familia({"--corretor-params": {"num_leaves": 127, "learning_rate": 0.03}},
+                           {"--corretor-params": {"num_leaves": 63}}) == "outro"
+
+
+_seq = iter(range(10_000))
+
+
+def _termina(f, familia, ganho, estado="pulado"):
+    i = f.add("corretor", {"x": next(_seq)}, "gerador", 0, "C", familia)
+    f.marcar(i, estado, fim=1.0, resultado={"a": {"ganho": ganho}})
+    return i
+
+
+def test_notas_resume_cada_familia(tmp_path):
+    f = esteira.Fila(tmp_path / "e.db")
+    _termina(f, "bloco:--mapa", -0.2)
+    _termina(f, "bloco:--mapa", 0.4, "feito")
+    _termina(f, "param:num_leaves", -0.1)
+    f.add("corretor", {"z": 1}, "gerador", 0, "C", "bloco:--mapa")  # ainda na fila, não conta
+    n = esteira.notas(f)
+    assert n["bloco:--mapa"] == {"n": 2, "media": 0.1, "melhor": 0.4, "promovidos": 1}
+    assert n["param:num_leaves"]["n"] == 1 and n["param:num_leaves"]["promovidos"] == 0
+
+
+def test_repriorizar_explora_familia_nova_e_pontua_a_conhecida(tmp_path):
+    f = esteira.Fila(tmp_path / "e.db")
+    for g in (0.2, 0.4, 0.3):
+        _termina(f, "bloco:--mapa", g)
+    nova = f.add("corretor", {"a": 1}, "gerador", 0, "C", "fila:--fila")
+    conhecida = f.add("corretor", {"b": 1}, "gerador", 0, "C", "bloco:--mapa")
+    esteira.repriorizar(f)
+    pri = lambda i: f.db.execute("select prioridade from candidatos where id=?", (i,)).fetchone()[0]  # noqa: E731
+    assert pri(nova) == 1 and pri(conhecida) == 3  # round(10 * 0,3)
+
+
+def test_repriorizar_corta_familia_sem_rendimento(tmp_path):
+    f = esteira.Fila(tmp_path / "e.db")
+    for _ in range(10):
+        _termina(f, "bloco:--mapa", -0.3)
+    alvo = f.add("corretor", {"b": 1}, "gerador", 0, "C", "bloco:--mapa")
+    assert esteira.repriorizar(f) == {"bloco:--mapa"}
+    c = dict(f.db.execute("select * from candidatos where id=?", (alvo,)).fetchone())
+    assert c["estado"] == "pulado" and c["motivo"].startswith("família sem rendimento (n=10")
+
+
+def test_repriorizar_nao_corta_familia_com_promocao(tmp_path):
+    f = esteira.Fila(tmp_path / "e.db")
+    for _ in range(9):
+        _termina(f, "bloco:--mapa", -0.4)
+    _termina(f, "bloco:--mapa", 0.1, "feito")
+    alvo = f.add("corretor", {"b": 1}, "gerador", 0, "C", "bloco:--mapa")
+    assert esteira.repriorizar(f) == set()
+    assert f.db.execute("select estado from candidatos where id=?", (alvo,)).fetchone()[0] == "fila"
+
+
+def test_repriorizar_nao_toca_no_que_veio_da_mao(tmp_path):
+    f = esteira.Fila(tmp_path / "e.db")
+    for _ in range(10):
+        _termina(f, "bloco:--mapa", -0.3)
+    mao = f.add("corretor", {"b": 1}, "agente", 9, "C", "bloco:--mapa")
+    base = f.add("base", {"base": []}, "gerador", 7, "C", "base")
+    esteira.repriorizar(f)
+    for i, p in ((mao, 9), (base, 7)):
+        c = dict(f.db.execute("select * from candidatos where id=?", (i,)).fetchone())
+        assert c["estado"] == "fila" and c["prioridade"] == p
+
+
+def test_vizinhos_devolve_familia_e_pula_as_cortadas():
+    champ = {"membros": [{"id": "m", "config": {"corretor": "conjunto", "fila": "stand"}}]}
+    vs = esteira.vizinhos(champ)
+    assert all(isinstance(fam, str) and isinstance(r, dict) for fam, r in vs)
+    assert {"bloco:--mapa", "fila:--fila", "param:num_leaves"} <= {fam for fam, _ in vs}
+    cortadas = {fam for fam, _ in esteira.vizinhos(champ, {"bloco:--mapa"})}
+    assert "bloco:--mapa" not in cortadas and "fila:--fila" in cortadas
+
+
+def test_preencher_familias_usa_o_membro_mais_proximo(tmp_path):
+    f = esteira.Fila(tmp_path / "e.db")
+    m1 = {"--conjunto": True, "--fila": True}
+    m2 = {"--conjunto": True, "--mapa": True, "--superficie": True}
+    a = f.add("corretor", m1 | {"--corretor-ref": True}, "gerador", 0, "C")
+    b = f.add("corretor", {"--conjunto": True, "--mapa": True}, "agente", 0, "C")
+    c = f.add("base", {"base": []}, "usuario", 0, "C")
+    assert esteira.preencher_familias(f, [m1, m2]) == 3
+    lido = lambda i: f.db.execute("select familia from candidatos where id=?", (i,)).fetchone()[0]  # noqa: E731
+    assert lido(a) == "bloco:--corretor-ref" and lido(b) == "bloco:--superficie" and lido(c) == "base"
+
+
+def test_coluna_familia_e_criada_num_banco_antigo(tmp_path):
+    import sqlite3
+    caminho = tmp_path / "velha.db"
+    db = sqlite3.connect(caminho)
+    db.executescript("""
+        create table candidatos (
+          id integer primary key, criado real, origem text, tipo text, receita text,
+          hash text, prioridade integer, estado text, campea text, run_id text,
+          resultado text, motivo text, inicio real, fim real);
+        create table meta (chave text primary key, valor text);""")
+    db.execute("insert into candidatos (id, origem, tipo, receita, hash, prioridade, estado, campea)"
+               " values (1, 'gerador', 'corretor', '{}', 'h', 0, 'fila', 'C')")
+    db.commit(); db.close()
+    f = esteira.Fila(caminho)
+    assert f.proximo()["familia"] is None
+    assert f.add("corretor", {"--mapa": True}, "gerador", 0, "C", "bloco:--mapa")
+
+
+def test_relatorio_traz_a_tabela_de_familias(tmp_path):
+    f = esteira.Fila(tmp_path / "e.db")
+    _termina(f, "bloco:--mapa", -0.2)
+    texto = esteira.relatorio(f, _champ())
+    assert "## Famílias" in texto and "| bloco:--mapa | 1 |" in texto and "explorando" in texto
