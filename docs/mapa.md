@@ -31,7 +31,7 @@ aeroporto); estudo da cauda; plano 11 (regressor limpo).
 
 | Item | Situação |
 |---|---|
-| Nota oficial | **247,76 s** (v30) |
+| Nota oficial | **247,11 s** (v32) |
 | Posição | 24º de 162 |
 | 1º colocado | 220,40 (faltam 27,4 s) |
 | 3º colocado | 224,50 (faltam 23,3 s) |

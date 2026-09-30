@@ -17,3 +17,4 @@
 {"versao": 28, "enviado_utc": "2026-09-29T13:38", "oficial": 249.1586, "simulacao": 299.41, "mudanca": "v26 + --stand-prefixo + --corretor-rounds 500 (laço fiel 2) + regra de Roma"}
 {"versao": 29, "enviado_utc": "2026-09-29T18:37", "oficial": 247.8308, "simulacao": 299.10, "mudanca": "v28 + --base-por-apt + --corretor-ref (id 20260929-135844-h1h2_por_apt_ref) + regra de Roma"}
 {"versao": 30, "enviado_utc": "2026-09-29T20:01", "oficial": 247.7565, "simulacao": 298.05, "mudanca": "v29 + --mapa no corretor (id 20260929-154118-v29_mapa_cf) + regra de Roma"}
+{"versao": 32, "enviado_utc": "2026-09-30T02:23", "oficial": 247.1069, "simulacao": null, "mudanca": "média de 2 corretores sobre a base da v30: v30 (20260929-154118-v29_mapa_cf) + fila+superficie (20260929-220513-e2_fila_sup) + regra de Roma"}
