@@ -31,8 +31,8 @@ aeroportos sem ADS-B (OPDI e meteorologia já dentro; OpenSky/Trino proibido); a
 
 | Item | Situação |
 |---|---|
-| Nota oficial | **247,11 s** (v32, 30/09 02h23 UTC) |
-| Posição | 22º de 159 |
+| Nota oficial | **244,89 s** (v33, 30/09 20h44 UTC) |
+| Posição | 20º de 154 |
 | 1º colocado | 220,40 (faltam 26,7 s) |
 | 3º colocado | 224,50 (faltam 22,6 s) |
 | 10º colocado | 236,71 (faltam 10,4 s) |
