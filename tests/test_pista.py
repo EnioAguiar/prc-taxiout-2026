@@ -9,14 +9,21 @@ T = pd.Timestamp("2025-01-15 10:00", tz="UTC")  # 10:00 em ponto: começo de um 
 BLOCK = "BLOCK_TIME_UTC_mvt"
 
 
-def _mov(fase, rwy, minuto, wk="M", apt="LIRF") -> dict:
+def _hora(minuto):
+    return None if minuto is None else T + pd.Timedelta(minutes=minuto)
+
+
+def _mov(fase, rwy, minuto, wk="M", apt="LIRF", aobt=None, eobt=None, sched=None) -> dict:
     """Uma linha de parquet bruto: movimento do aeroporto `apt` em `minuto` depois de T."""
     return {"PHASE_mvt": fase,
             "ADEP_mvt": apt if fase == "DEP" else "EDDF",
             "ADES_mvt": apt if fase == "ARR" else "EDDF",
             "RUNWAY_mvt": rwy,
-            P.TIME: T + pd.Timedelta(minutes=minuto),
+            P.TIME: _hora(minuto),
             P.WAKE: wk,
+            P.AOBT: _hora(aobt),
+            P.EOBT: _hora(eobt),
+            P.SCHED: _hora(sched),
             BLOCK: T - pd.Timedelta(hours=10)}  # off-block absurdo: nunca pode ser lido
 
 
@@ -212,3 +219,112 @@ def test_decolagem_sem_hora_fica_sem_valor(fila):
     out = P.colunas(df, fila)
     assert out.iloc[1].isna().all()
     assert out["pista_fila_peso"].iloc[0] == 4.6
+
+
+# ---------------------------------------------------------------- retenção no portão
+
+
+@pytest.fixture
+def portao(tmp_path):
+    """Voo do teste: push (AOBT) às 11:00, decolagem às 11:15, pista 25.
+
+    Os vizinhos cobrem todos os casos da fila de portão: retido, já empurrado, ainda no
+    prazo, espera longa demais, sem push e de outra pista.
+    """
+    return _dados(tmp_path, [
+        _mov("DEP", "25", 75, aobt=60, eobt=40, sched=50),    # o próprio voo
+        _mov("DEP", "25", 100, aobt=90, eobt=30, sched=30),   # retido: EOBT ≤ t < AOBT
+        _mov("DEP", "25", 70, aobt=55, eobt=30, sched=30),    # já empurrou
+        _mov("DEP", "25", 110, aobt=90, eobt=70, sched=70),   # ainda no prazo
+        _mov("DEP", "25", 110, aobt=90, eobt=-100, sched=-100),  # espera > 7200 s
+        _mov("DEP", "25", 110, aobt=None, eobt=30, sched=30),  # nunca empurrou
+        _mov("DEP", "16L", 100, aobt=90, eobt=30, sched=30),  # outra pista
+    ])
+
+
+def test_a_fila_de_portao_conta_quem_passou_do_eobt_e_nao_empurrou(portao):
+    out = P.colunas_retencao(_dep([75], aobt=[60]), portao)
+    assert out["ret_overdue_rwy"].tolist() == [1.0]
+    assert out["ret_overdue_apt"].tolist() == [2.0]  # soma a da 16L
+
+
+def test_as_partidas_ativas_usam_o_push_real_dos_vizinhos(tmp_path):
+    dados = _dados(tmp_path, [
+        _mov("DEP", "25", 75, aobt=60),    # o próprio voo: descontado
+        _mov("DEP", "25", 70, aobt=50),    # AOBT ≤ t < MVT
+        _mov("DEP", "25", 80, aobt=60),    # push exatamente em t: conta
+        _mov("DEP", "25", 60, aobt=30),    # decolou em t: não conta
+        _mov("DEP", "25", 90, aobt=61),    # empurrou depois de t
+        _mov("DEP", "16L", 70, aobt=50),   # outra pista
+    ])
+    out = P.colunas_retencao(_dep([75], aobt=[60]), dados)
+    assert out["ret_ativos_rwy"].tolist() == [2.0]
+
+
+def test_o_atraso_recente_e_a_media_dos_15_min_antes_do_push(tmp_path):
+    dados = _dados(tmp_path, [
+        _mov("DEP", "25", 75, aobt=60, sched=0),    # o próprio voo: fora da janela
+        _mov("DEP", "25", 70, aobt=50, sched=40),   # 600 s
+        _mov("DEP", "16L", 70, aobt=59, sched=29),  # 1800 s (qualquer pista do aeroporto)
+        _mov("DEP", "25", 70, aobt=45, sched=45),   # borda de 15 min: entra, 0 s
+        _mov("DEP", "25", 70, aobt=44, sched=0),    # velho demais
+        _mov("DEP", "25", 70, aobt=50, sched=40, apt="EDDF"),  # outro aeroporto
+    ])
+    out = P.colunas_retencao(_dep([75], aobt=[60]), dados)
+    np.testing.assert_allclose(out["ret_atraso_15m"], [800.0])
+
+
+def test_sem_vizinho_na_janela_o_atraso_fica_sem_valor(tmp_path):
+    dados = _dados(tmp_path, [_mov("DEP", "25", 75, aobt=60, sched=0)])
+    out = P.colunas_retencao(_dep([75], aobt=[60]), dados)
+    assert out["ret_atraso_15m"].isna().all()
+
+
+def _taxa(soma_decaida: float) -> float:
+    return soma_decaida * 3600.0 * np.log(2.0) / P.MEIA_VIDA
+
+
+def test_o_ewma_decai_com_meia_vida_de_10_min(tmp_path):
+    dados = _dados(tmp_path, [
+        _mov("DEP", "25", 75, aobt=60),   # o próprio voo decola depois de t: não conta
+        _mov("DEP", "25", 50),            # 10 min antes de t: pesa 1/2
+        _mov("DEP", "25", 40),            # 20 min antes: 1/4
+        _mov("DEP", "25", 65),            # depois de t
+        _mov("DEP", "25", -120),          # além do corte de 12 meias-vidas
+    ])
+    out = P.colunas_retencao(_dep([75], aobt=[60]), dados)
+    np.testing.assert_allclose(out["ret_ewma_dep"], [_taxa(0.75)])
+
+
+def test_o_ewma_atravessa_a_borda_do_pedaco_de_6_h(tmp_path):
+    # push às 12:00 em ponto (a origem local do pedaço) e decolagem vizinha às 11:50, no anterior
+    dados = _dados(tmp_path, [_mov("DEP", "25", 121, aobt=120), _mov("DEP", "25", 110)])
+    out = P.colunas_retencao(_dep([121], aobt=[120]), dados)
+    np.testing.assert_allclose(out["ret_ewma_dep"], [_taxa(0.5)])
+
+
+def test_sem_aobt_o_bloco_inteiro_fica_sem_valor(portao):
+    out = P.colunas_retencao(_dep([75]), portao)
+    assert out.isna().all(axis=None)
+
+
+def test_o_off_block_das_decolagens_nao_muda_a_retencao(portao):
+    df = _dep([75], aobt=[60])
+    com = P.colunas_retencao(df.assign(**{BLOCK: T}), portao)
+    sem = P.colunas_retencao(df.assign(**{BLOCK: pd.NaT}), portao)
+    pd.testing.assert_frame_equal(com, sem)
+
+
+def test_a_retencao_sai_na_ordem_e_no_indice_das_linhas(portao):
+    df = _dep([75, 75, 75], aobt=[60, 60, None]).set_index(pd.Index([7, 8, 9]))
+    out = P.colunas_retencao(df, portao)
+    assert out.index.tolist() == [7, 8, 9]
+    assert list(out.columns) == P.COLS_RET
+    assert out["ret_overdue_rwy"].tolist()[:2] == [1.0, 1.0]
+    assert out.iloc[2].isna().all()
+
+
+def test_retencao_de_quadro_vazio_sai_com_as_colunas(tmp_path):
+    out = P.colunas_retencao(_dep([]), _dados(tmp_path, [_mov("DEP", "25", 0)]))
+    assert list(out.columns) == P.COLS_RET
+    assert out.empty

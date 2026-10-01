@@ -1,4 +1,4 @@
-"""Configuração de pista, fila com peso de esteira e cadência (`--pista`).
+"""Estado da pista (`--pista`) e retenção no portão (`--retencao`).
 
 O que atrasa uma decolagem num aeroporto saturado não é só quanta gente está no solo
 (isso é o `--superficie`): é *como o aeroporto está operando* — quais pistas estão em uso
@@ -52,6 +52,42 @@ A janela de 60 min é discretizada em blocos de 10 min: o voo cai no bloco `b` e
 do bloco `b−3` ao `b+2` (dos 30 min antes aos 30 min depois do começo do bloco dele). Cada
 configuração vira uma soma acumulada por pista, e não uma varredura por voo; a "hora
 anterior" é a mesma janela seis blocos atrás.
+
+## Bloco `--retencao` (`colunas_retencao`, ideia de `docs/research/2026-10-01-repos-concorrentes.md`)
+
+O `--pista` e o `--superficie` olham o taxiway; este olha o **portão**, e com o relógio real
+do push (`t = AOBT_3` do voo, presente em 98,5 % das DEP do ranking) no lugar do push
+estimado `MVT − pred`. Sem `AOBT_3` as cinco colunas ficam NaN.
+
+- `ret_overdue_rwy` / `ret_overdue_apt`: no instante `t`, quantas partidas da mesma pista (e
+  do mesmo aeroporto) já passaram do `EOBT_1` e **ainda não empurraram** —
+  `|{EOBT ≤ t}| − |{AOBT ≤ t}|`, que telescopa para `{EOBT ≤ t < AOBT}`. Guardas do
+  unique-umbrella (`model.py:437-481`): só partidas com `EOBT ≤ AOBT`, espera < 7200 s
+  (acima disso é virada de data) e que chegaram a decolar (`MVT ≥ AOBT`, o que também
+  garante "ainda não decolou", já que `MVT ≥ AOBT > t`). O próprio voo se cancela nas duas
+  contagens. Placar deles: 307,01 → 304,95;
+- `ret_ativos_rwy`: partidas da mesma pista com `AOBT_3 ≤ t < MVT` — quem está mesmo no solo
+  rodando, pelo relógio real dos vizinhos e não pelo push estimado. O próprio voo é
+  descontado;
+- `ret_atraso_15m`: média de `AOBT_3 − SCHED` das partidas do aeroporto com `AOBT_3` em
+  `[t − 15 min, t)` — em colapso de capacidade o avião empurra cedo e segura o off-block;
+  15 min é o ótimo que os dois repositórios mediram. A própria linha fica fora;
+- `ret_ewma_dep`: decolagens por hora do aeroporto com EWMA de meia-vida 10 min no instante
+  `t`, só com `MVT < t` dos outros (o decaimento suave ganhou do boxcar na varredura deles).
+
+Repetições evitadas no `--retencao`:
+
+- `sup_dep_taxiando_push` (`--superficie`) é a mesma contagem de `ret_ativos_rwy` com o push
+  *estimado* (`MVT − pred`) nas duas pontas e sem separar por pista; é justamente a troca que
+  a pesquisa recomenda, então o `ret_ativos_rwy` fica por pista e com o relógio real e nenhuma
+  variante por aeroporto é acrescentada (a parcimoniosa ganhou na medição deles);
+- `ctx_viz_*` (`src/contexto.py`) é a média de `MVT − AOBT_3` dos vizinhos (proxy de táxi),
+  não o atraso de portão `AOBT_3 − SCHED`: `ret_atraso_15m` não repete nenhuma delas;
+- `apt_dep_prev_*m` (`--fila`) e `pista_dep_h30` contam decolagens em janela retangular em
+  volta do `MVT`; `ret_ewma_dep` é no instante do push, com decaimento exponencial — fica,
+  mas é a coluna deste bloco mais próxima de algo que já existe;
+- a fila de portão por aeroporto **e** por pista está nas duas colunas `ret_overdue_*`; a
+  terceira variante (as duas somadas) foi medida pelos outros e não ganhou nada.
 """
 
 from __future__ import annotations
@@ -67,9 +103,12 @@ from externos import TIME
 from plano13 import _brutos
 
 AOBT = "AOBT_3_flt"
+EOBT = "EOBT_1_flt"
+SCHED = "SCHED_TIME_UTC_mvt"
 WAKE = "WK_TBL_CAT_flt"
 RWY = "RUNWAY_mvt"
 MOV_COLS = ["PHASE_mvt", "ADEP_mvt", "ADES_mvt", RWY, TIME, WAKE]
+DEP_COLS = ["PHASE_mvt", "ADEP_mvt", RWY, TIME, AOBT, EOBT, SCHED]
 
 EPOCH = pd.Timestamp("1970-01-01", tz="UTC")
 MARGEM = pd.Timedelta("6h")       # movimento de fora do quadro ainda conta na janela
@@ -82,11 +121,19 @@ PESO = {"J": 2.0, "H": 1.6, "M": 1.0, "L": 0.7}
 PESO_PADRAO = 1.0                 # sem registro NM não há categoria: trata como média
 PESADAS = ("H", "J")
 
+MAX_RETIDO = 7200.0               # AOBT − EOBT maior que isso é artefato de virada de data
+JANELA_ATRASO = 900.0             # 15 min do `ret_atraso_15m` (o ótimo medido pelos outros)
+MEIA_VIDA = 600.0                 # meia-vida do EWMA de decolagens
+CORTE_EWMA = 7200.0               # 12 meias-vidas: o que é mais velho pesa < 0,03 %
+PEDACO_EWMA = 21600.0             # origem local a cada 6 h: expoentes pequenos, soma estável
+
 CAT = "pista_cfg"
 COLS_NUM = ["pista_cfg_mudou", "pista_cfg_dep", "pista_cfg_arr", "pista_dominante",
             "pista_parte_rwy", "pista_fila_peso", "pista_fila_pesadas", "pista_span20",
             "pista_dep_h30"]
 COLS = [CAT, *COLS_NUM]
+COLS_RET = ["ret_overdue_rwy", "ret_overdue_apt", "ret_ativos_rwy", "ret_atraso_15m",
+            "ret_ewma_dep"]
 
 
 def _segundos(s: pd.Series) -> np.ndarray:
@@ -301,3 +348,152 @@ def colunas(df: pd.DataFrame, dados: Path = DATA) -> pd.DataFrame:
               (mov["t"][d], mov["rwy"][d], mov["peso"][d], mov["pesada"][d]),
               peso_proprio[pos], pesada_propria[pos])
     return _quadro(cod, num, df.index)
+
+
+# ------------------------------------------------------------------ retenção no portão
+
+
+def _partidas(apts: set[str], t0: float, t1: float, dados: Path) -> dict:
+    """Partidas (só `PHASE_mvt == "DEP"`) com os três relógios que o ranking também traz.
+
+    `MVT_TIME_UTC_mvt`, `AOBT_3_flt`, `EOBT_1_flt` e `SCHED_TIME_UTC_mvt` — nunca o
+    `BLOCK_TIME_UTC_mvt`, que é o alvo e está apagado nas DEP do ranking.
+    """
+    vocab_apt = {a: i for i, a in enumerate(sorted(apts))}
+    vocab_rwy: dict[str, int] = {}
+    margem = MARGEM.total_seconds()
+    lim0 = EPOCH + pd.to_timedelta(t0 - margem, unit="s")
+    lim1 = EPOCH + pd.to_timedelta(t1 + margem, unit="s")
+    partes = []
+    for ini, fim, p in _brutos(dados):
+        if fim <= lim0 or ini > lim1:
+            continue
+        raw = pd.read_parquet(p, columns=DEP_COLS)
+        apt = raw["ADEP_mvt"].map(vocab_apt).to_numpy(float)
+        mvt = _segundos(raw[TIME])
+        ok = ((raw["PHASE_mvt"].to_numpy() == "DEP") & np.isfinite(apt) & np.isfinite(mvt)
+              & (mvt >= t0 - margem) & (mvt <= t1 + margem))
+        if ok.any():
+            codigos, nomes = pd.factorize(raw[RWY][ok].astype(str).to_numpy())
+            tabela = np.array([vocab_rwy.setdefault(n, len(vocab_rwy)) for n in nomes],
+                              dtype=np.int32)
+            partes.append({"apt": apt[ok].astype(np.int16), "rwy": tabela[codigos],
+                           "mvt": mvt[ok], "aobt": _segundos(raw[AOBT])[ok],
+                           "eobt": _segundos(raw[EOBT])[ok],
+                           "sched": _segundos(raw[SCHED])[ok]})
+        del raw
+    tipos = {"apt": np.int16, "rwy": np.int32, "mvt": float, "aobt": float, "eobt": float,
+             "sched": float}
+    junto = {c: (np.concatenate([p[c] for p in partes]) if partes else np.empty(0, dtype=tipo))
+             for c, tipo in tipos.items()}
+    junto["vocab_apt"], junto["vocab_rwy"] = vocab_apt, vocab_rwy
+    return junto
+
+
+def _retidas(par: dict, sel: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """EOBT e AOBT ordenados das partidas que servem para a fila de portão.
+
+    Guardas do `overdue_runway_queue`: os dois relógios existem, `EOBT ≤ AOBT`, a espera é
+    menor que `MAX_RETIDO` (acima disso é virada de data) e o voo chegou a decolar
+    (`MVT ≥ AOBT`). Com elas a diferença das duas contagens acumuladas sobra exatamente em
+    quem já passou do EOBT e ainda não empurrou — e `MVT ≥ AOBT > t` garante que ninguém
+    contado já decolou.
+    """
+    espera = par["aobt"] - par["eobt"]
+    bom = (sel & np.isfinite(espera) & (espera >= 0) & (espera < MAX_RETIDO)
+           & (par["mvt"] >= par["aobt"]))
+    return np.sort(par["eobt"][bom]), np.sort(par["aobt"][bom])
+
+
+def _ativas(par: dict, sel: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """AOBT e MVT ordenados das partidas que empurraram e decolaram."""
+    bom = sel & np.isfinite(par["aobt"]) & np.isfinite(par["mvt"]) & (par["aobt"] <= par["mvt"])
+    return np.sort(par["aobt"][bom]), np.sort(par["mvt"][bom])
+
+
+def _conta_ate(ordenado: np.ndarray, t: np.ndarray) -> np.ndarray:
+    """Quantos eventos acontecem até `t` (inclusive)."""
+    return np.searchsorted(ordenado, t, "right").astype(float)
+
+
+def _atraso_recente(par: dict, sel: np.ndarray, t: np.ndarray) -> np.ndarray:
+    """Média de `AOBT_3 − SCHED` das partidas do aeroporto nos 15 min antes de `t`.
+
+    A janela é `[t − 15 min, t)`: a própria linha (cujo `AOBT_3` é o próprio `t`) fica
+    fora, e com ela qualquer empate exato no instante.
+    """
+    bom = sel & np.isfinite(par["aobt"]) & np.isfinite(par["sched"])
+    ordem = np.argsort(par["aobt"][bom], kind="stable")
+    quando = par["aobt"][bom][ordem]
+    cs = np.concatenate([[0.0], np.cumsum((par["aobt"][bom] - par["sched"][bom])[ordem])])
+    hi = np.searchsorted(quando, t, "left")
+    lo = np.searchsorted(quando, t - JANELA_ATRASO, "left")
+    n = hi - lo
+    return np.where(n > 0, (cs[hi] - cs[lo]) / np.maximum(n, 1), np.nan)
+
+
+def _ewma(mvt: np.ndarray, t: np.ndarray) -> np.ndarray:
+    """Decolagens por hora com EWMA de meia-vida `MEIA_VIDA`, só com `MVT < t`.
+
+    `Σ 2^((MVT_j − t)/meia-vida)` vira, em cada pedaço de 6 h, uma soma acumulada com
+    origem local: os expoentes ficam entre −12 e 36 e a conta não estoura. O corte em
+    `CORTE_EWMA` (12 meias-vidas) joga fora o que pesaria menos de 0,03 %.
+    """
+    saida = np.zeros(t.size)
+    if not mvt.size:
+        return saida
+    for pedaco, linhas in _grupos(np.floor(t / PEDACO_EWMA)).items():
+        origem = pedaco * PEDACO_EWMA
+        ini = np.searchsorted(mvt, origem - CORTE_EWMA, "left")
+        fim = np.searchsorted(mvt, origem + PEDACO_EWMA, "left")
+        ev = mvt[ini:fim]
+        cs = np.concatenate([[0.0], np.cumsum(np.exp2((ev - origem) / MEIA_VIDA))])
+        tq = t[linhas]
+        hi = np.searchsorted(ev, tq, "left")   # só o passado estrito
+        lo = np.searchsorted(ev, tq - CORTE_EWMA, "left")
+        saida[linhas] = np.exp2((origem - tq) / MEIA_VIDA) * (cs[hi] - cs[lo])
+    return saida * (3600.0 * np.log(2.0) / MEIA_VIDA)
+
+
+def colunas_retencao(df: pd.DataFrame, dados: Path = DATA) -> pd.DataFrame:
+    """Colunas `ret_*` das linhas de `df`, na ordem delas (`corrector_frame`).
+
+    Tudo é medido no instante do push de verdade do voo, `t = AOBT_3` (presente em 98,5 %
+    das DEP do ranking); sem `AOBT_3` o bloco inteiro fica NaN.
+    """
+    n = len(df)
+    num = {c: np.full(n, np.nan) for c in COLS_RET}
+    if n == 0:
+        return pd.DataFrame(num, index=df.index)[COLS_RET]
+    t = _segundos(df[AOBT]) if AOBT in df else np.full(n, np.nan)
+    mvt = _segundos(df[TIME])
+    apt_nome = df[F.AIRPORT].astype(str).to_numpy()
+    rwy_nome = df[RWY].astype(str).to_numpy()
+    conhecido = np.isfinite(t)
+    if not conhecido.any():
+        return pd.DataFrame(num, index=df.index)[COLS_RET]
+
+    par = _partidas(set(apt_nome[conhecido]), float(np.nanmin(t)), float(np.nanmax(t)), dados)
+    rwy_cod = pd.Series(rwy_nome).map(par["vocab_rwy"]).fillna(-1).to_numpy(np.int64)
+    # a própria linha entra nas contagens de quem está taxiando: sai aqui
+    propria = (np.isfinite(mvt) & (mvt > t)).astype(float)
+    for nome, pos in _grupos(apt_nome).items():
+        pos = pos[conhecido[pos]]
+        codigo_apt = par["vocab_apt"].get(nome)
+        if not pos.size or codigo_apt is None:
+            continue
+        no_apt = par["apt"] == codigo_apt
+        tq = t[pos]
+        eobt_s, aobt_s = _retidas(par, no_apt)
+        num["ret_overdue_apt"][pos] = _conta_ate(eobt_s, tq) - _conta_ate(aobt_s, tq)
+        num["ret_atraso_15m"][pos] = _atraso_recente(par, no_apt, tq)
+        num["ret_ewma_dep"][pos] = _ewma(np.sort(par["mvt"][no_apt]), tq)
+        for cod_rwy, linhas in _grupos(rwy_cod[pos]).items():
+            na_pista = no_apt & (par["rwy"] == cod_rwy)
+            onde, quando = pos[linhas], tq[linhas]
+            eobt_r, aobt_r = _retidas(par, na_pista)
+            num["ret_overdue_rwy"][onde] = _conta_ate(eobt_r, quando) - _conta_ate(aobt_r, quando)
+            push, decola = _ativas(par, na_pista)
+            num["ret_ativos_rwy"][onde] = np.maximum(
+                _conta_ate(push, quando) - _conta_ate(decola, quando) - propria[onde], 0.0)
+    return pd.DataFrame(num, index=df.index)[COLS_RET]

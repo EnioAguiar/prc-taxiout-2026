@@ -77,6 +77,7 @@ from experiment import RUNS, metrics, rmse
 from models import janela_lobt, limitar_janela
 from dispositivo import lgb_params
 from pista import colunas as colunas_pista
+from pista import colunas_retencao
 from plano13 import colunas_p13, vocabulario
 from runlog import REGISTRY, ROOT, Run
 from superficie import contagens as contagens_superficie
@@ -141,7 +142,7 @@ def corrector_frame(df: pd.DataFrame, pred: np.ndarray, adsb: bool = True,
                     plano13: pd.DataFrame | None = None, dist_plano: bool = False,
                     sem_ctx: bool = False, superficie: bool = False,
                     mapa: bool = False, ref_cel: pd.DataFrame | None = None,
-                    pista: bool = False) -> pd.DataFrame:
+                    pista: bool = False, retencao: bool = False) -> pd.DataFrame:
     """Entradas do corretor: a previsão da base, o contexto do voo e o rastro ADS-B.
 
     `sem` tira as colunas com esses nomes (nome que não está no quadro é ignorado: a
@@ -172,6 +173,10 @@ def corrector_frame(df: pd.DataFrame, pred: np.ndarray, adsb: bool = True,
     `pista` (`src/pista.py`, `--pista`) soma as colunas `pista_*`: configuração de pista do
     aeroporto na hora do voo, fila com peso de esteira na mesma pista entre o `AOBT_3` e a
     decolagem e a cadência das últimas decolagens. Só colunas que o ranking também tem.
+
+    `retencao` (`src/pista.py`, `--retencao`) soma as colunas `ret_*`: no instante do push
+    real (`AOBT_3`), quantas partidas já passaram do `EOBT_1` sem empurrar, quantas estão
+    taxiando na mesma pista, o atraso de push recente do aeroporto e o EWMA de decolagens.
     """
     cols = [F.AIRPORT, "nm_missing", "hour", *[c for c in df if c.startswith("to_takeoff_from_")],
             *([] if sem_ctx else [c for c in contexto.COLS if c in df])]
@@ -207,6 +212,9 @@ def corrector_frame(df: pd.DataFrame, pred: np.ndarray, adsb: bool = True,
         quadro = colunas_pista(df)
         for nome in quadro.columns:
             X[nome] = quadro[nome].array  # posicional; `pista_cfg` continua categórica
+    if retencao:
+        for nome, valores in colunas_retencao(df).items():
+            X[nome] = np.asarray(valores, float)
     return X.drop(columns=[c for c in sem if c in X.columns])
 
 
@@ -338,10 +346,10 @@ def previsao_corrigida(model: lgb.Booster | Conjunto, df: pd.DataFrame, base: np
                        plano13: pd.DataFrame | None = None, dist_plano: bool = False,
                        sem_ctx: bool = False, superficie: bool = False,
                        mapa: bool = False, ref_cel: pd.DataFrame | None = None,
-                       pista: bool = False) -> np.ndarray:
+                       pista: bool = False, retencao: bool = False) -> np.ndarray:
     """Previsão dos voos de `df` corrigida: com `janela`, dentro da janela do LOBT."""
     X = corrector_frame(df, base, adsb, janela, sem, externos, plano13, dist_plano, sem_ctx,
-                        superficie, mapa, ref_cel, pista)
+                        superficie, mapa, ref_cel, pista, retencao)
     return apply_corrector(model, X, base, df if janela else None)
 
 
@@ -429,7 +437,7 @@ def simulacao_crossfit(
     fila: bool | str = False, dist_plano: bool = False, sem_ctx: bool = False,
     reusar_oof: str | None = None, corretor_xgb: bool = False, superficie: bool = False,
     rounds: int = ROUNDS, mapa: bool = False, ref_cel: bool = False, params: dict | None = None,
-    pista: bool = False,
+    pista: bool = False, retencao: bool = False,
 ) -> tuple[pd.DataFrame, pd.DataFrame, np.ndarray]:
     """Corretor treinado no ano fora do bloco; devolve (holdout, base, previsão).
 
@@ -485,7 +493,7 @@ def simulacao_crossfit(
             run.log(f"células: {cel_cegas['cel_p50'].notna().mean():.1%} das cegas · "
                     f"nível 0 em {(cel_hold['cel_nivel'] == 0).mean():.1%} do holdout")
         X_oof = corrector_frame(cegas, pred_oof, adsb, janela, sem, ext_cegas, p13_cegas,
-                                dist_plano, sem_ctx, superficie, mapa, cel_cegas, pista)
+                                dist_plano, sem_ctx, superficie, mapa, cel_cegas, pista, retencao)
         del cegas
         memoria.soltar()
         if adsb:
@@ -496,7 +504,7 @@ def simulacao_crossfit(
         memoria.soltar()
         pred_base = base["pred"].to_numpy(float)
         pred = previsao_corrigida(model, hold, pred_base, adsb, janela, sem, ext_hold, p13_hold,
-                                  dist_plano, sem_ctx, superficie, mapa, cel_hold, pista)
+                                  dist_plano, sem_ctx, superficie, mapa, cel_hold, pista, retencao)
     return hold, base, pred
 
 
@@ -532,6 +540,9 @@ def parser() -> argparse.ArgumentParser:
     ap.add_argument("--pista", action="store_true",
                     help="--crossfit: soma as colunas pista_* (configuração de pista, fila com "
                          "peso de esteira e cadência das decolagens, src/pista.py)")
+    ap.add_argument("--retencao", action="store_true",
+                    help="--crossfit: soma as colunas ret_* (fila de portão no AOBT_3: partidas "
+                         "vencidas sem push, ativas na pista, atraso recente e EWMA, src/pista.py)")
     ap.add_argument("--corretor-sem-ctx", action="store_true",
                     help="--crossfit: tira ctx_* do corretor (a base já usa, --base-ctx)")
     ap.add_argument("--reusar-oof", metavar="ID",
@@ -583,6 +594,8 @@ def config_da_corrida(a: argparse.Namespace, base_id: str) -> dict:
         cfg["superficie"] = True
     if a.pista:
         cfg["pista"] = True
+    if a.retencao:
+        cfg["retencao"] = True
     if a.mapa:
         cfg["mapa"] = True
     if a.corretor_sem_ctx:
@@ -627,6 +640,8 @@ def main() -> None:
         ap.error("--pista só vale com --crossfit (os folds não têm as cegas do ano)")
     if a.superficie and not a.crossfit:
         ap.error("--superficie só vale com --crossfit (os folds não têm as cegas do ano)")
+    if a.retencao and not a.crossfit:
+        ap.error("--retencao só vale com --crossfit (os folds não têm as cegas do ano)")
     if a.plano13 and not a.crossfit:
         ap.error("--plano13 só vale com --crossfit (os folds não têm vocabulário de treino)")
     if a.reusar_oof and not a.crossfit:
@@ -648,7 +663,7 @@ def main() -> None:
                                                   cfg.get("fila", False), a.dist_plano, a.corretor_sem_ctx,
                                                   a.reusar_oof, a.corretor_xgb, a.superficie,
                                                   a.corretor_rounds, a.mapa, a.corretor_ref,
-                                                  a.corretor_params, a.pista)
+                                                  a.corretor_params, a.pista, a.retencao)
         else:
             hold, base, pred = simulacao_folds(run, base_id, adsb, sem)
         with run.phase("métricas", 0.1):
