@@ -735,6 +735,7 @@ prc-taxiout-2026/
   src/pos_regras.py   # pós-regras aplicadas ao arquivo de envio (Roma)
   src/regua.py        # régua da esteira: seleção na metade A, confirmação cega na B
   src/esteira.py      # fila SQLite, trabalhador 24/7, gerador de vizinhos e relatório
+  src/memoria.py      # soltar(): gc.collect + malloc_trim depois de cada del grande (pico de RAM)
   ferramentas/projecao.py   # placar do dia e projeção até o prazo (docs/projecao.md)
   ferramentas/auditoria.py  # auditoria diária (docs/auditoria/)
   submissions.jsonl   # nossos envios com a nota oficial (versionado)
