@@ -1,4 +1,5 @@
 import json
+from functools import partial
 
 import numpy as np
 import pandas as pd
@@ -137,6 +138,9 @@ def _registro(tmp_path, monkeypatch, *ids) -> None:
     registro.write_text("\n".join(linhas) + "\n", encoding="utf-8")
     monkeypatch.setattr(campeao, "REGISTRY", registro)
     monkeypatch.setattr(campeao, "CAMPEA", tmp_path / "nao_existe.json")
+    # o Run do submit grava uma linha ao sair: fora do registro e dos logs de verdade
+    monkeypatch.setattr(train, "Run", partial(runlog.Run, registry=tmp_path / "corridas.jsonl",
+                                              logs=tmp_path / "logs"))
     monkeypatch.setenv("TEAM_NAME", "equipe")
 
 

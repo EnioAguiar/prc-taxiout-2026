@@ -81,7 +81,7 @@ Melhor nota oficial: **v33 = 244,89** (30/09 20h44 UTC) = base com plano 13 (`--
 `two_stage_nm` (`--nm-min-ms 21600 --janela-lobt`, features `adsb_*`) com corretor
 treinado fora do bloco por meses (`src/crossfit.py`, `stack.py --crossfit`); toda previsão é
 projetada em `MVT − LOBT ± 3606 s`. Promovida à mão com o ok do usuário ("não comprovado"
-na regra: ganho 6,3 s). Envio: `train.py submit N [--corrida <id>]` (~27 min por membro, pico 6,94 GB): lê a campeã v2, refaz cada membro, tira a média e aplica as pós-regras. Não há mais `--forcar` nem trava por `src_hash` (saíram em 30/09 com a campeã v2). Antes dela, a
+na regra: ganho 6,3 s). Envio: `train.py submit N [--corrida <id>]` (~38 min no total, pico 7,10 GB medido em 30/09; ver "RAM" em Uso): lê a campeã v2, refaz cada membro, tira a média e aplica as pós-regras. Não há mais `--forcar` nem trava por `src_hash` (saíram em 30/09 com a campeã v2). Antes dela, a
 v6 (id `20260926-223248-nm_retas_6h_adsb`, 314,76) foi promovida à mão com o ok do usuário
 depois do oficial: no `compare.py` o veredito foi "não comprovado" (ganho 9,4 s, IC
 7,5 a 11,7, abaixo dos 10 s; sem os 10 maiores 8,7; jan e jul > 0). As colunas
@@ -537,7 +537,7 @@ bin/run src/cache.py                      # features dos 5 splits (inclui ctx_* 
 bin/run src/experiment.py janela --model two_stage_nm --nm-min-ms 21600 --seed 0 --janela-lobt
 bin/run src/stack.py v12_cf --crossfit --conjunto --base <id da corrida janela>
 bin/run src/compare.py <id da v12_cf> --promover   # ou champion.json já versionado
-bin/run src/train.py submit 12            # submissions/<TEAM>_v12.parquet (~32 min, pico 7,5 GB)
+bin/run src/train.py submit 12            # submissions/<TEAM>_v12.parquet (~38 min, pico 7,1 GB)
 ```
 
 Seeds fixas (`deterministic`, `force_row_wise`): a mesma máquina reproduz o mesmo número no LightGBM; o CatBoost do `--conjunto` roda na GPU e pode variar na última casa.
@@ -567,6 +567,43 @@ bin/run src/mapa.py                               # apt.dat do X-Plane Gateway (
 .venv/bin/python ferramentas/auditoria.py         # docs/auditoria/AAAA-MM-DD.md
 .venv/bin/python -m pytest -q
 ```
+
+### RAM (medido em 30/09, máquina de 15 GB)
+
+Os três processos pesados cabiam mal na máquina: o `submit` levava o `systemd-oomd` a matar
+o processo duas vezes em 30/09. O corte de 30/09 mexeu só em cópias e em memória já solta —
+**nenhum número mudou** (provas no fim da seção):
+
+| Processo | Antes | Depois | Corrida |
+|---|---|---|---|
+| `experiment.py` (base da campeã) | 5,57 GB | **5,25 GB** | `e76_base` → `mem_base_depois` |
+| `stack.py --crossfit --reusar-oof --conjunto` (corretor da esteira) | 7,40 GB | **6,17 GB** | `e76_m1` → `mem_corr_depois2` |
+| o mesmo sem `--conjunto` (só LightGBM) | 7,09 GB | **6,74 GB** | `mem_lgb_antes` → `mem_lgb_depois` |
+| `train.py submit N` (campeã v2, 2 membros) | 8,72 GB | **7,10 GB** | `submit_v33` → `submit_v99` |
+
+De onde veio (todas mantêm o resultado bit a bit):
+
+- `adsb_events.add_features` escreve as nove colunas `adsb_*` no próprio quadro; o
+  `drop` + `merge` copiava o quadro inteiro duas vezes a cada `load_split`.
+- `cache._ler` lê o parquet com `split_blocks`/`self_destruct` do pyarrow: a tabela Arrow
+  é desmontada durante a conversão, em vez de conviver com o quadro pronto.
+- `crossfit.oof_base` não faz mais `.copy()` do recorte de meses — com copy-on-write o
+  recorte já é um quadro próprio, e a cópia só duplicava 1,4 GB por bloco.
+- `stack.na_ordem` põe as cegas na ordem do oof esvaziando a origem coluna a coluna, em vez
+  de manter o quadro velho e o novo vivos ao mesmo tempo (2 × 1,7 GB).
+- `stack.catboost_frame` faz cópia rasa: só as colunas categóricas são reescritas.
+- `stack.tabelas_celula` passa ao `refcel` só as três colunas da chave.
+- `models.colunas_do_treino` recorta o treino antes de filtrar as linhas normais, e todo
+  `Booster` solta o `Dataset` (`free_dataset`) assim que termina de treinar.
+- `memoria.soltar()` (`gc.collect` + `malloc_trim`) depois de cada `del` grande: sem ele o
+  glibc guardava ~1,4 GB do treino no heap até o fim do processo.
+
+Provas de que nada mudou: a base da campeã refeita dá previsões **bit a bit iguais**
+(`runs/20260930-130008-e76_base.parquet`, diferença máxima 0,0); a previsão fora do bloco do
+ano inteiro gravada pelo `submit` tem o **mesmo SHA-256** da gravada pelo código antigo; e o
+corretor sem `--conjunto` (caminho 100 % determinístico, sem o CatBoost da GPU) dá previsões
+bit a bit iguais. Com `--conjunto` só o CatBoost na GPU varia, como já variava entre duas
+corridas do mesmo código.
 
 GPU (medido em 28/09 no nosso dado; pesquisa em `../docs/pesquisa/2026-09-28-gpu-em-ml.md`):
 
@@ -649,7 +686,8 @@ a [−5, 5]. Família com **N_CORTE = 10** resultados, média negativa e nenhuma
 cortada: os candidatos dela na fila viram `pulado` e o gerador para de produzi-la. O que foi
 enfileirado à mão (`--origem usuario`/`agente`) e os candidatos de base não são mexidos.
 
-Guardas do trabalhador: ≥ 8 GB de RAM livre (ajustado na estreia, 30/09) para começar um candidato, uma corrida por vez
+Guardas do trabalhador: ≥ 6,7 GB de RAM livre (corretor com pico de 6,17 GB mais 0,5 de folga;
+era 8 GB antes do corte de RAM de 30/09) para começar um candidato, uma corrida por vez
 e `data/esteira.pausa` para parar sem matar o serviço.
 
 Relatório: `docs/esteira.md` (campeã, fila, últimos vereditos, consultas à metade B e as

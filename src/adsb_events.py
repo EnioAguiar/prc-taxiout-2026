@@ -35,12 +35,30 @@ MOVE_KT = 1.0  # acima disso o avião está andando (pushback/táxi)
 
 
 def add_features(df: pd.DataFrame, raiz: Path = RAIZ) -> pd.DataFrame:
-    """Junta as colunas FEATURES por MVT_ID_mvt (NaN sem evento ou sem events.parquet)."""
+    """Junta as colunas FEATURES por MVT_ID_mvt (NaN sem evento ou sem events.parquet).
+
+    Escreve as nove colunas no próprio `df`. O `drop` + `merge` de antes copiava o quadro
+    inteiro duas vezes (2 × 1,7 GB em full2025) só para acrescentá-las; como `MVT_ID_mvt` é
+    único nos eventos, o left join é uma busca posicional e o resultado é o mesmo.
+    """
+    sobrando = [c for c in FEATURES if c in df.columns]
+    if sobrando:
+        df.drop(columns=sobrando, inplace=True)
     path = raiz / "events.parquet"
-    if not path.exists():
-        return df.assign(**{c: np.nan for c in FEATURES})
-    ev = pd.read_parquet(path, columns=["MVT_ID_mvt", *FEATURES])
-    return df.drop(columns=[c for c in FEATURES if c in df]).merge(ev, on="MVT_ID_mvt", how="left")
+    ev = pd.read_parquet(path, columns=["MVT_ID_mvt", *FEATURES]) if path.exists() else None
+    if ev is None or ev.empty:
+        for c in FEATURES:
+            df[c] = np.nan
+        return df
+    chaves = pd.Index(ev["MVT_ID_mvt"])
+    if chaves.has_duplicates:
+        raise ValueError("events.parquet com MVT_ID_mvt repetido: o join duplicaria linhas")
+    onde = chaves.get_indexer(pd.Index(df["MVT_ID_mvt"]))
+    achou = onde >= 0
+    for c in FEATURES:
+        v = ev[c].to_numpy(float)
+        df[c] = np.where(achou, v[onde], np.nan)  # onde = −1 pega o último; a máscara descarta
+    return df
 
 
 def decolagens(cut: pd.DataFrame) -> pd.DataFrame:

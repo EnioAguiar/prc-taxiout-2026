@@ -19,6 +19,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import pyarrow.parquet as pq
 
 import contexto
 import features as F
@@ -31,6 +32,19 @@ HOLDOUT_MONTHS = {1, 7}
 TRUTH = "y_true"
 BLOCK = "BLOCK_TIME_UTC_mvt"
 SPLITS = ("train2025", "holdout2025", "blind2025", "full2025", "ranking2026")
+
+
+def _ler(path: Path) -> pd.DataFrame:
+    """Parquet em pandas gastando o mínimo de RAM.
+
+    `pd.read_parquet` mantém a tabela Arrow inteira viva enquanto monta o quadro (pico de
+    2 × o tamanho do split) e consolida as colunas em poucos blocos. Aqui a tabela é
+    desmontada durante a conversão (`self_destruct`) e cada coluna vira um bloco
+    (`split_blocks`), o que também deixa selecionar e soltar colunas depois sem cópia.
+    Os valores e os dtypes são exatamente os mesmos.
+    """
+    tabela = pq.read_table(path)
+    return tabela.to_pandas(split_blocks=True, self_destruct=True)
 
 
 def _month(p: Path) -> int:
@@ -80,7 +94,7 @@ def load_split(name: str) -> pd.DataFrame:
         raise SystemExit(f"Faltam dados de {name}. Rode: .venv/bin/python src/s3.py download")
     target = CACHE / f"{name}-{cache_key(paths)}.parquet"
     if target.exists():
-        return add_features(pd.read_parquet(target))
+        return add_features(_ler(target))
     raw = F.load(paths)
     df = build_blind(raw) if name in ("holdout2025", "blind2025") else F.build(raw)
     df = df.merge(contexto.contexto(raw), on=F.ID, how="left")

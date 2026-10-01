@@ -80,6 +80,7 @@ from plano13 import colunas_p13, vocabulario
 from runlog import REGISTRY, ROOT, Run
 from superficie import contagens as contagens_superficie
 import mapa as mapa_aeroporto
+import memoria
 import refcel
 
 FOLDS = 5
@@ -168,7 +169,7 @@ def corrector_frame(df: pd.DataFrame, pred: np.ndarray, adsb: bool = True,
     """
     cols = [F.AIRPORT, "nm_missing", "hour", *[c for c in df if c.startswith("to_takeoff_from_")],
             *([] if sem_ctx else [c for c in contexto.COLS if c in df])]
-    X = df[cols].copy()
+    X = df[cols].copy()  # cópia real: quem chama solta `df` logo depois
     X[F.AIRPORT] = X[F.AIRPORT].astype("category")
     X["pred"] = np.asarray(pred, float)
     if janela:
@@ -248,8 +249,13 @@ def colunas_cat(X: pd.DataFrame) -> list[str]:
 
 
 def catboost_frame(X: pd.DataFrame) -> pd.DataFrame:
-    """Entradas do CatBoost: as mesmas do LightGBM, com as categóricas em texto."""
-    Xc = X.copy()
+    """Entradas do CatBoost: as mesmas do LightGBM, com as categóricas em texto.
+
+    A cópia é rasa: só as duas ou três colunas categóricas são reescritas, e o
+    copy-on-write garante que `X` não muda. A cópia profunda de antes duplicava o quadro
+    inteiro do corretor (~1,4 GB nas cegas) para trocar duas colunas.
+    """
+    Xc = X.copy(deep=False)
     for col in colunas_cat(X):
         Xc[col] = Xc[col].astype(str)
     return Xc
@@ -295,6 +301,8 @@ def fit_corrector(X: pd.DataFrame, y: np.ndarray, base: np.ndarray,
     pg = lgb_params({**PARAMS, **(params or {})})
     pa = lgb_params({**PARAMS_AEROPORTO, **(params or {})})
     global_ = lgb.train(pg, lgb.Dataset(X, alvo), rounds)
+    global_.free_dataset()  # histograma binado: não serve para prever
+    memoria.soltar()
     if not conjunto:
         return global_
     aeroportos = {}
@@ -302,6 +310,8 @@ def fit_corrector(X: pd.DataFrame, y: np.ndarray, base: np.ndarray,
     for nome in np.unique(aero):
         sel = aero == nome
         aeroportos[nome] = lgb.train(pa, lgb.Dataset(X[sel], alvo[sel]), rounds)
+        aeroportos[nome].free_dataset()
+    memoria.soltar()  # o CatBoost monta a matriz dele do zero: entra com o heap limpo
     return Conjunto(global_, aeroportos, fit_catboost(X, alvo), fit_xgb(X, alvo) if xgb else None)
 
 
@@ -339,9 +349,26 @@ def oof_correction(X: pd.DataFrame, y: np.ndarray, base: np.ndarray, folds: np.n
     return out
 
 
+def na_ordem(df: pd.DataFrame, ids) -> pd.DataFrame:
+    """As linhas de `df` na ordem de `ids`, esvaziando `df` coluna a coluna.
+
+    Mesmo resultado de `df.set_index(ID).loc[ids].reset_index()` — que mantinha o quadro
+    original e a reordenação vivos ao mesmo tempo (2 × 1,7 GB nas cegas). Aqui só uma
+    coluna existe em duplicata por vez; `df` fica vazio no fim.
+    """
+    chaves = pd.Index(df[F.ID])
+    if chaves.has_duplicates:
+        raise ValueError(f"{F.ID} repetido no quadro a reordenar")
+    onde = chaves.get_indexer(pd.Index(np.asarray(ids)))
+    if (onde < 0).any():
+        raise KeyError(f"{int((onde < 0).sum())} ids fora do quadro a reordenar")
+    ordem = [F.ID, *[c for c in df.columns if c != F.ID]]  # como o set_index/reset_index
+    return pd.DataFrame({c: df.pop(c).array.take(onde) for c in ordem}, copy=False)
+
+
 def holdout_da_base(base: pd.DataFrame) -> pd.DataFrame:
     """Holdout na mesma ordem das previsões da corrida base."""
-    return load_split("holdout2025").set_index(F.ID).loc[base[F.ID]].reset_index()
+    return na_ordem(load_split("holdout2025"), base[F.ID].to_numpy())
 
 
 def simulacao_folds(
@@ -372,14 +399,17 @@ def tabelas_celula(train: pd.DataFrame, run: Run | None = None):
     meses_por_bloco: dict[int, list[int]] = {}
     for m, k in bloco_do_mes.items():
         meses_por_bloco.setdefault(k, []).append(m)
+    # `refcel.ajustar` só lê as três colunas da chave: recortar antes evita copiar o treino
+    # inteiro (10/12 das linhas, ~1,2 GB) uma vez por bloco.
+    chaves = train[list(dict.fromkeys(c for chave in refcel.CHAVES for c in chave))]
     tabs_bloco = {}
     for k, meses in sorted(meses_por_bloco.items()):
         fora = ~mes.isin(meses)
-        tabs_bloco[k] = refcel.ajustar(train[fora], train.loc[fora, F.TARGET])
+        tabs_bloco[k] = refcel.ajustar(chaves[fora], train.loc[fora, F.TARGET])
     if run:
         run.log(f"células: {len(tabs_bloco)} blocos · "
                 f"{len(tabs_bloco[0][0]):,} (aeroporto, stand, pista) no bloco 1")
-    return tabs_bloco, refcel.ajustar(train, train[F.TARGET]), bloco_do_mes
+    return tabs_bloco, refcel.ajustar(chaves, train[F.TARGET]), bloco_do_mes
 
 
 def simulacao_crossfit(
@@ -414,12 +444,14 @@ def simulacao_crossfit(
             caminho_oof = RUNS / f"{run.id}_oof.parquet"
             oof.to_parquet(caminho_oof, index=False)
         del train, rk
+        memoria.soltar()  # ~1,4 GB do treino: sai do heap antes do pico do corretor
         run.set(oof=str(caminho_oof.relative_to(ROOT)))
         run.log(f"fora do bloco: {len(oof):,} previsões · rmse {rmse(oof[TRUTH], oof['pred']):.2f}")
     with run.phase("corretor", 0.1):
         pred_oof = oof["pred"].to_numpy(float)
-        cegas = blind.set_index(F.ID).loc[oof[F.ID]].reset_index()  # mesma ordem do oof
+        cegas = na_ordem(blind, oof[F.ID].to_numpy())  # mesma ordem do oof; esvazia `blind`
         del blind
+        memoria.soltar()
         ext_cegas = ext_hold = None
         if externos:
             # meses do oof: os 10 do treino, nunca jan/jul — nem as cegas nem o holdout
@@ -443,11 +475,13 @@ def simulacao_crossfit(
         X_oof = corrector_frame(cegas, pred_oof, adsb, janela, sem, ext_cegas, p13_cegas,
                                 dist_plano, sem_ctx, superficie, mapa, cel_cegas)
         del cegas
+        memoria.soltar()
         if adsb:
             run.log(f"adsb no treino do corretor: {X_oof['adsb_taxi'].notna().mean():.1%}")
         model = fit_corrector(X_oof, oof[TRUTH].to_numpy(float), pred_oof, conjunto, corretor_xgb,
                               rounds, params)
         del X_oof
+        memoria.soltar()
         pred_base = base["pred"].to_numpy(float)
         pred = previsao_corrigida(model, hold, pred_base, adsb, janela, sem, ext_hold, p13_hold,
                                   dist_plano, sem_ctx, superficie, mapa, cel_hold)

@@ -24,6 +24,7 @@ import numpy as np
 import pandas as pd
 
 import features as F
+import memoria
 from cache import TRUTH, load_split
 from models import MODELS, build_model, leaky_columns, prepare
 from runlog import ROOT, Run
@@ -177,6 +178,7 @@ def main() -> None:
             drop = leaky_columns(train, rk, cols)
             cols = [c for c in cols if c not in drop]
             del rk
+            memoria.soltar()  # o ranking sai do heap antes do treino, não só da variável
             run.log(
                 f"treino {len(train):,} · holdout {len(hold):,} · {len(cols)} features"
                 f" · ignoradas: {drop or 'nenhuma'}"

@@ -23,7 +23,7 @@ DB = ROOT / "data" / "esteira.db"
 PAUSA = ROOT / "data" / "esteira.pausa"
 RELATORIO = ROOT / "docs" / "esteira.md"
 
-MEMORIA_MIN_GB = 8.0  # pico do corretor 7,8 GB; o envio (9,5 GB) usa o swap, como em 29/09
+MEMORIA_MIN_GB = 6.7  # pico do corretor 6,17 GB depois do corte de RAM de 30/09 (+0,5 de folga)
 # Grade enxuta em 30/09: dos 53 testes da estreia (madrugada de 30/09) os params deram média
 # −0,10 s e as rodadas −0,11 s; a única promoção veio de `num_leaves` 127. Sem variar rodadas.
 ROUNDS = ()

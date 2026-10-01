@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -282,7 +284,7 @@ def _treina_capturando(cfg: dict, df: pd.DataFrame, monkeypatch) -> list:
 
     def falso(params, dataset, rounds, callbacks=None):
         vistos.append((dataset.data, np.asarray(dataset.label, float)))
-        return object()
+        return SimpleNamespace(free_dataset=lambda: None)
 
     monkeypatch.setattr(models.lgb, "train", falso)
     models.TwoStage(cfg).fit(df, ["x"])
@@ -380,7 +382,7 @@ def test_por_apt_so_treina_aeroporto_com_linhas_bastantes(monkeypatch):
 
     def falso(params, dataset, rounds, callbacks=None):
         vistos.append(len(dataset.data))
-        return object()
+        return SimpleNamespace(free_dataset=lambda: None)
 
     monkeypatch.setattr(models.lgb, "train", falso)
     modelo = models.TwoStage({"base_por_apt": True}).fit(df, ["x"])

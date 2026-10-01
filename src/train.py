@@ -42,6 +42,7 @@ from dotenv import load_dotenv
 
 import campeao
 import features as F
+import memoria
 import pos_regras
 import refcel
 import runlog
@@ -52,7 +53,7 @@ from externos import MESES_2025, CopiaCia, colunas_ext, copia_cia_2025
 from models import build_model, leaky_columns, prepare
 from plano13 import colunas_p13, vocabulario
 from runlog import ROOT, Run
-from stack import (ROUNDS as ROUNDS_CORRETOR, corrector_frame, fit_corrector,
+from stack import (ROUNDS as ROUNDS_CORRETOR, corrector_frame, fit_corrector, na_ordem,
                    previsao_corrigida, tabelas_celula)
 
 OUT = ROOT / "submissions"
@@ -163,8 +164,9 @@ def corretor_final(cfg_bloco: dict, adsb: bool, full: pd.DataFrame, rk: pd.DataF
         oof.to_parquet(caminho_oof, index=False)
         run.log(f"fora do bloco: {len(oof):,} previsões em {caminho_oof.name}")
     pred_oof = oof["pred"].to_numpy(float)
-    cegas = blind.set_index(F.ID).loc[oof[F.ID]].reset_index()  # mesma ordem do oof
+    cegas = na_ordem(blind, oof[F.ID].to_numpy())  # mesma ordem do oof; esvazia `blind`
     del blind
+    memoria.soltar()
     ext = colunas_ext(cegas, copia, MESES_2025) if copia else None
     p13 = colunas_p13(cegas, cias, com_fila=fila) if cias is not None else None
     cel_cegas = None
@@ -175,6 +177,7 @@ def corretor_final(cfg_bloco: dict, adsb: bool, full: pd.DataFrame, rk: pd.DataF
     X = corrector_frame(cegas, pred_oof, adsb, bool(cfg_bloco.get("janela_lobt")), sem, ext, p13,
                         dist_plano, sem_ctx, superficie, mapa, cel_cegas)
     del cegas
+    memoria.soltar()
     if adsb:
         run.log(f"adsb no treino do corretor: {X['adsb_taxi'].notna().mean():.1%}")
     return fit_corrector(X, oof[TRUTH].to_numpy(float), pred_oof, conjunto, xgb, rounds, params)

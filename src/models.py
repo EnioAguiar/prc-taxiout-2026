@@ -24,6 +24,7 @@ from cache import TRUTH
 from dispositivo import DEVICE, lgb_params
 from plano13 import colunas_p13, vocabulario
 import mapa as mapa_aeroporto
+import memoria
 
 PARAMS = dict(
     objective="regression",  # L2 no alvo bruto, alinhado ao RMSE
@@ -109,6 +110,15 @@ def sem_colunas(cols: list[str], sem: Iterable[str]) -> list[str]:
     return [c for c in cols if c not in set(sem)]
 
 
+def colunas_do_treino(cols: list[str]) -> list[str]:
+    """As colunas que o segundo estágio lê do quadro de treino, sem repetir.
+
+    Recortar o treino nelas antes de filtrar as linhas normais evita copiar as ~20 colunas
+    que ninguém usa (horários, callsign, destino do plano) em cada `two_stage`.
+    """
+    return list(dict.fromkeys([*cols, F.AIRPORT, "nm_missing", F.TARGET]))
+
+
 def leaky_columns(train: pd.DataFrame, ranking: pd.DataFrame, cols: list[str]) -> list[str]:
     """Colunas preenchidas no treino mas apagadas no ranking: o modelo não pode usá-las."""
     return [
@@ -139,6 +149,8 @@ class SingleLGBM:
             valid_names=["holdout"] if valid_sets else None,
             callbacks=callbacks,
         )
+        del data, valid_sets
+        self.model.free_dataset()  # os histogramas binados não servem para prever
         if curve:
             self.best_iter = int(np.argmin(curve["holdout"]["rmse"])) + 1
         return self
@@ -261,7 +273,9 @@ class TwoStage:
             cls_params, lgb.Dataset(train[cols], copied.astype("int8")), self.cls_rounds,
             callbacks=cb(self.cls_rounds, "classificador", 0.0),
         )
-        normal = train[~copied]
+        self.cls.free_dataset()  # o histograma binado do treino não serve para prever
+        memoria.soltar()  # o regressor monta a matriz dele a seguir: heap limpo antes
+        normal = train[colunas_do_treino(cols)][~copied]  # sem as colunas que o modelo não vê
         if self.reg_sem_lirf_nm:  # Roma sem NM: a reta cuida dela, o regressor só se distorce
             roma = (normal[F.AIRPORT].astype(str) == ROMA) & (normal["nm_missing"] == 1)
             normal = normal[~roma]
@@ -272,6 +286,8 @@ class TwoStage:
             self.params, lgb.Dataset(normal[cols], alvo), self.reg_rounds,
             callbacks=cb(self.reg_rounds, "regressor", 0.5),
         )
+        self.reg.free_dataset()
+        memoria.soltar()
         if self.por_apt:
             self.regs_apt = self._regressores_por_apt(normal, alvo, cols)
         return self
@@ -284,13 +300,15 @@ class TwoStage:
         de `MIN_LINHAS_APT` linhas normais continua só com o global.
         """
         apt = normal[F.AIRPORT].astype(str).to_numpy()
+        x = normal[cols]  # uma seleção só, reusada por todos os aeroportos
         regs = {}
         for nome in np.unique(apt):
             sel = apt == nome
             if sel.sum() < MIN_LINHAS_APT:
                 continue
-            regs[nome] = lgb.train(self.params, lgb.Dataset(normal[sel][cols], alvo[sel]),
-                                   self.reg_rounds)
+            regs[nome] = lgb.train(self.params, lgb.Dataset(x[sel], alvo[sel]), self.reg_rounds)
+            regs[nome].free_dataset()
+        memoria.soltar()
         return regs
 
     def _normais(self, train: pd.DataFrame, copied: pd.Series) -> tuple[pd.DataFrame, pd.Series]:

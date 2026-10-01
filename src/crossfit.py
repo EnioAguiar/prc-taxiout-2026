@@ -13,6 +13,7 @@ from __future__ import annotations
 import pandas as pd
 
 import features as F
+import memoria
 from cache import TRUTH
 from models import build_model, leaky_columns, prepare
 
@@ -40,8 +41,10 @@ def oof_base(
     for k, meses in sorted(blocos.items()):
         if run:
             run.log(f"bloco {k + 1}/{len(blocos)} meses {meses}")
-        tr = train[~train_mes.isin(meses)].copy()  # prepare muta os frames: cópias por bloco
-        te = blind[blind_mes.isin(meses) & blind[TRUTH].notna()].copy()
+        # filtrar por linhas já devolve quadros próprios; com copy-on-write o `prepare`
+        # pode mutá-los sem tocar em `train`/`blind`, e o `.copy()` de antes só duplicava.
+        tr = train[~train_mes.isin(meses)]
+        te = blind[blind_mes.isin(meses) & blind[TRUTH].notna()]
         cols = prepare(tr, [te], cfg.get("sem_features", ()),
                    cfg.get("base_ctx", False), cfg.get("base_p13", False),
                    int(cfg.get("cat_max", 0)), cfg.get("base_mapa", False))
@@ -56,6 +59,7 @@ def oof_base(
             "pred": model.predict(te),
         }))
         del tr, te, model  # RSS: um bloco de cada vez
+        memoria.soltar()
 
     out = pd.concat(partes, ignore_index=True)
     return out.sort_values(F.ID, ignore_index=True)
