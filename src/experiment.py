@@ -116,6 +116,10 @@ def config(a: argparse.Namespace) -> dict:
         cfg["base_p13"] = True
     if a.base_mapa:  # idem
         cfg["base_mapa"] = True
+    if a.base_ret:  # idem
+        cfg["base_ret"] = True
+    if a.base_ext:  # idem
+        cfg["base_ext"] = True
     if a.base_por_apt:  # idem
         cfg["base_por_apt"] = True
     if a.cls_peso:  # idem
@@ -155,6 +159,11 @@ def main() -> None:
                     help="a base também usa as colunas do plano 13 (METAR, rotação, consistência NM, cia)")
     ap.add_argument("--base-mapa", action="store_true",
                     help="a base também usa as colunas map_* (distância stand → cabeceira, src/mapa.py)")
+    ap.add_argument("--base-ret", action="store_true",
+                    help="a base também usa as colunas ret_* (fila de portão no AOBT_3, src/pista.py)")
+    ap.add_argument("--base-ext", action="store_true",
+                    help="a base também usa as colunas ext_* (taxa de cópia por companhia só com os "
+                         "meses de treino, séries diárias e OPDI; src/externos.py)")
     ap.add_argument("--base-por-apt", action="store_true",
                     help="two_stage*: soma ao regressor global um regressor por aeroporto (média)")
     ap.add_argument("--cls-peso", choices=["abs", "quad"],
@@ -178,7 +187,8 @@ def main() -> None:
             rk = load_split("ranking2026")
             cols = prepare(train, [hold], cfg.get("sem_features", ()),
                    cfg.get("base_ctx", False), cfg.get("base_p13", False),
-                   int(cfg.get("cat_max", 0)), cfg.get("base_mapa", False))
+                   int(cfg.get("cat_max", 0)), cfg.get("base_mapa", False),
+                   cfg.get("base_ret", False), cfg.get("base_ext", False))
             drop = leaky_columns(train, rk, cols)
             cols = [c for c in cols if c not in drop]
             del rk

@@ -22,6 +22,8 @@ import pandas as pd
 import features as F
 from cache import TRUTH
 from dispositivo import DEVICE, lgb_params
+from externos import TIME as TEMPO_MVT, colunas_ext, copia_cia_2025
+from pista import colunas_retencao
 from plano13 import colunas_p13, vocabulario
 import mapa as mapa_aeroporto
 import memoria
@@ -50,7 +52,8 @@ def params_for(cfg: dict) -> dict:
 
 def prepare(train: pd.DataFrame, others: list[pd.DataFrame],
             sem: Iterable[str] = (), ctx: bool = False, p13: bool = False,
-            cat_max: int = 0, mapa: bool = False) -> list[str]:
+            cat_max: int = 0, mapa: bool = False, ret: bool = False,
+            ext: bool = False, copia=None) -> list[str]:
     """Referência P10 (só do treino) e o mesmo vocabulário de categorias em todos.
 
     `sem` tira nomes da lista de colunas (nome que não é candidato é erro). `ctx` (config
@@ -62,6 +65,14 @@ def prepare(train: pd.DataFrame, others: list[pd.DataFrame],
     mais de 256 bins (STAND, ADES, operador e tipo de aeronave passam disso).
     `mapa` (config `base_mapa`) soma as colunas `map_*` de `src/mapa.py` (distância de táxi
     do stand à cabeceira pelo grafo do `apt.dat` do X-Plane).
+    `ret` (config `base_ret`) soma as colunas `ret_*` de `src/pista.py` (fila de portão no
+    instante do `AOBT_3`): saem dos parquets brutos e não leem o `BLOCK_TIME_UTC_mvt`.
+    `ext` (config `base_ext`) soma as colunas `ext_*` de `src/externos.py`. A taxa de cópia
+    (`ext_taxa_cia*`) é a única que olha o BLOCK de outros voos, então os meses que podem
+    contar são **os meses presentes em `train`** — num bloco do `crossfit` o mês previsto
+    fica de fora porque não está no treino daquele bloco — e o `CopiaCia.transform` ainda
+    tira o mês da própria linha. `copia` evita reajustar a tabela a cada bloco; sem ela,
+    `copia_cia_2025()` devolve a do módulo (ajustada uma vez por processo).
     """
     ref = F.fit_reference(train)
     for df in (train, *others):
@@ -82,6 +93,20 @@ def prepare(train: pd.DataFrame, others: list[pd.DataFrame],
             for c in extra.columns:
                 df[c] = extra[c].array
         cols += list(extra.columns)
+    if ret:
+        for df in (train, *others):
+            extra_ret = colunas_retencao(df)
+            for c in extra_ret.columns:
+                df[c] = extra_ret[c].to_numpy(float)
+        cols += list(extra_ret.columns)
+    if ext:
+        meses = sorted({int(m) for m in train[TEMPO_MVT].dt.month.dropna().unique()})
+        copia = copia or copia_cia_2025()
+        for df in (train, *others):
+            extra_ext = colunas_ext(df, copia, meses)
+            for c, v in extra_ext.items():
+                df[c] = v
+        cols += list(extra_ext)
     if mapa:
         for df in (train, *others):
             for c, v in mapa_aeroporto.colunas(df).items():

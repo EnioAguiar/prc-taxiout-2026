@@ -256,16 +256,28 @@ def colunas_ext(df: pd.DataFrame, copia: CopiaCia, meses_treino,
     return {c: p[c].to_numpy(float) for p in partes for c in p.columns}
 
 
+_COPIA_2025: CopiaCia | None = None
+
+
 def copia_cia_2025(run=None) -> CopiaCia:
-    """`CopiaCia` ajustada nas DEP brutas de 2025, um mês por vez (um parquet na RAM)."""
-    copia = CopiaCia()
-    for p in split_paths("full2025"):
-        raw = F.load([p])
-        copia.fit(raw[raw["PHASE_mvt"] == "DEP"])
-        del raw
+    """`CopiaCia` ajustada nas DEP brutas de 2025, um mês por vez (um parquet na RAM).
+
+    O resultado é guardado no módulo: ele só depende dos parquets de 2025, e no mesmo
+    processo a base (`--base-ext`) e o corretor (`--externos`) pedem a mesma tabela — ler
+    os 12 meses de novo custaria minutos à toa. Quem filtra o que pode ser usado é o
+    `transform(df, meses_treino)`, nunca o ajuste.
+    """
+    global _COPIA_2025
+    if _COPIA_2025 is None:
+        copia = CopiaCia()
+        for p in split_paths("full2025"):
+            raw = F.load([p])
+            copia.fit(raw[raw["PHASE_mvt"] == "DEP"])
+            del raw
+        _COPIA_2025 = copia
     if run:
-        run.log(f"taxa de cópia: {len(copia.contagens):,} grupos (aeroporto, cia, NM, mês)")
-    return copia
+        run.log(f"taxa de cópia: {len(_COPIA_2025.contagens):,} grupos (aeroporto, cia, NM, mês)")
+    return _COPIA_2025
 
 
 if __name__ == "__main__":

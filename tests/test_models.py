@@ -262,6 +262,101 @@ def test_sem_features_com_nome_inexistente_e_erro():
         models.prepare(_frame_prepare(), [_frame_prepare()], sem=("nao_existe",))
 
 
+def _frame_base(mes: int, voo: str = "AZ100", atraso_h: float = 2.0) -> pd.DataFrame:
+    """`_frame_prepare` com os relógios que `--base-ret` e `--base-ext` pedem."""
+    import features as F
+
+    df = _frame_prepare()
+    t = pd.Timestamp(f"2025-{mes:02d}-05 08:00", tz="UTC")
+    df["MVT_TIME_UTC_mvt"] = [t + pd.Timedelta(minutes=i) for i in range(len(df))]
+    df["FLIGHT_mvt"] = voo
+    df["SCHED_TIME_UTC_mvt"] = df["MVT_TIME_UTC_mvt"] - pd.Timedelta(hours=atraso_h)
+    df["AOBT_3_flt"] = df["MVT_TIME_UTC_mvt"] - pd.Timedelta(minutes=15)
+    df[F.AIRPORT] = "LIRF"
+    return df
+
+
+def _bruto_dep(mes: int, n: int, copias: int) -> pd.DataFrame:
+    """DEP brutas de um mês: `copias` delas com BLOCK colado no SCHED (atraso > 1 h)."""
+    import features as F
+
+    t = pd.Timestamp(f"2025-{mes:02d}-05 08:00", tz="UTC")
+    sched = [t - pd.Timedelta(hours=2) + pd.Timedelta(minutes=i) for i in range(n)]
+    block = [s if i < copias else s + pd.Timedelta(hours=1, minutes=50)
+             for i, s in enumerate(sched)]
+    return pd.DataFrame({
+        "PHASE_mvt": "DEP",
+        F.AIRPORT: "LIRF",
+        "FLIGHT_mvt": "AZ100",
+        "FLIGHT_ID_mvt": 1.0,
+        "MVT_TIME_UTC_mvt": [s + pd.Timedelta(hours=2) for s in sched],
+        "SCHED_TIME_UTC_mvt": sched,
+        "BLOCK_TIME_UTC_mvt": block,
+    })
+
+
+def test_base_ext_so_aprende_a_taxa_de_copia_nos_meses_de_treino(monkeypatch):
+    """A taxa de um voo nunca vê o BLOCK do mês dele nem o do mês previsto."""
+    from externos import CopiaCia
+
+    copia = CopiaCia(k=0.0)  # sem suavização: a taxa é a do próprio grupo
+    copia.fit(_bruto_dep(1, 10, copias=0))    # janeiro: nenhuma cópia
+    copia.fit(_bruto_dep(2, 10, copias=10))   # fevereiro: tudo cópia
+    copia.fit(_bruto_dep(7, 10, copias=10))   # julho: o mês previsto, tudo cópia
+    monkeypatch.setattr(models, "colunas_ext", lambda df, c, meses: {
+        nome: valores.to_numpy(float) for nome, valores in c.transform(df, meses).items()})
+
+    train = pd.concat([_frame_base(1), _frame_base(2)], ignore_index=True)
+    hold = _frame_base(7)
+    cols = models.prepare(train, [hold], ext=True, copia=copia)
+
+    assert "ext_taxa_cia" in cols and "ext_taxa_cia_ms" in cols
+    # julho não está no treino: a taxa dele vem de jan + fev (10 cópias em 20 voos)
+    np.testing.assert_allclose(hold["ext_taxa_cia"].to_numpy(float), 0.5)
+    # cada mês de treino só enxerga o outro: janeiro vê fevereiro (1,0) e vice-versa (0,0)
+    mes = train["MVT_TIME_UTC_mvt"].dt.month.to_numpy()
+    np.testing.assert_allclose(train["ext_taxa_cia"].to_numpy(float)[mes == 1], 1.0)
+    np.testing.assert_allclose(train["ext_taxa_cia"].to_numpy(float)[mes == 2], 0.0)
+
+
+def test_base_ext_sem_tabela_pronta_usa_a_do_modulo(monkeypatch):
+    from externos import CopiaCia
+
+    copia = CopiaCia(k=0.0).fit(_bruto_dep(1, 10, copias=10)).fit(_bruto_dep(2, 10, copias=10))
+    chamadas = []
+    monkeypatch.setattr(models, "copia_cia_2025", lambda: chamadas.append(1) or copia)
+    monkeypatch.setattr(models, "colunas_ext", lambda df, c, meses: {
+        nome: valores.to_numpy(float) for nome, valores in c.transform(df, meses).items()})
+
+    train = pd.concat([_frame_base(1), _frame_base(2)], ignore_index=True)
+    models.prepare(train, [_frame_base(7)], ext=True)
+
+    assert chamadas == [1]
+
+
+def test_base_ret_grava_as_colunas_de_retencao_em_todos_os_frames(tmp_path, monkeypatch):
+    import features as F
+    import pista
+
+    t = pd.Timestamp("2025-03-05 08:00", tz="UTC")
+    bruto = pd.DataFrame([{
+        "PHASE_mvt": "DEP", "ADEP_mvt": "LIRF", "RUNWAY_mvt": "25",
+        "MVT_TIME_UTC_mvt": t + pd.Timedelta(minutes=i),
+        "AOBT_3_flt": t + pd.Timedelta(minutes=i - 15),
+        "EOBT_1_flt": t + pd.Timedelta(minutes=i - 20),
+        "SCHED_TIME_UTC_mvt": t + pd.Timedelta(minutes=i - 10),
+    } for i in range(12)])
+    bruto.to_parquet(tmp_path / "training_2025-03-01_2025-04-01.parquet", index=False)
+    monkeypatch.setattr(models, "colunas_retencao", lambda df: pista.colunas_retencao(df, tmp_path))
+
+    train, outro = _frame_base(3), _frame_base(3)
+    cols = models.prepare(train, [outro], ret=True)
+
+    assert [c for c in pista.COLS_RET if c not in cols] == []
+    assert train["ret_ativos_rwy"].notna().all() and outro["ret_ativos_rwy"].notna().all()
+    assert F.TARGET not in cols  # o alvo nunca entra como feature
+
+
 def _treino_regressor() -> pd.DataFrame:
     """Voos sintéticos: uma cópia do SCHED, cauda em LIRF sem NM e voos normais."""
     import features as F

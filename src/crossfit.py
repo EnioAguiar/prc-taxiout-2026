@@ -47,7 +47,8 @@ def oof_base(
         te = blind[blind_mes.isin(meses) & blind[TRUTH].notna()]
         cols = prepare(tr, [te], cfg.get("sem_features", ()),
                    cfg.get("base_ctx", False), cfg.get("base_p13", False),
-                   int(cfg.get("cat_max", 0)), cfg.get("base_mapa", False))
+                   int(cfg.get("cat_max", 0)), cfg.get("base_mapa", False),
+                   cfg.get("base_ret", False), cfg.get("base_ext", False))
         drop = leaky_columns(tr, ranking_cols_ref, cols)
         cols = [c for c in cols if c not in drop]
         model = build_model(cfg).fit(tr, cols, run=run)

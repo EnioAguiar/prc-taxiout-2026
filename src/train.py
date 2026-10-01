@@ -130,7 +130,8 @@ def base_final(cfg: dict, full: pd.DataFrame, rk: pd.DataFrame, run: Run) -> np.
     """Base treinada no ano inteiro (muta `full` e `rk`), prevendo o ranking."""
     cols = prepare(full, [rk], cfg.get("sem_features", ()),
                    cfg.get("base_ctx", False), cfg.get("base_p13", False),
-                   int(cfg.get("cat_max", 0)), cfg.get("base_mapa", False))
+                   int(cfg.get("cat_max", 0)), cfg.get("base_mapa", False),
+                   cfg.get("base_ret", False), cfg.get("base_ext", False))
     drop = leaky_columns(full, rk, cols)
     cols = [c for c in cols if c not in drop]
     run.log(f"treino {len(full):,} · ranking {len(rk):,} · ignoradas: {drop or 'nenhuma'}")

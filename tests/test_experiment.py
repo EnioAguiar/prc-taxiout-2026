@@ -61,7 +61,8 @@ def _args(**kw) -> argparse.Namespace:
     padrao = dict(model="two_stage_nm", rounds=400, cls_rounds=400, reg_rounds=400,
                   nm_split_ms=False, nm_min_ms=21600.0, seed=0, seeds=1, janela_lobt=False,
                   sem_feature=[], reg_corte=0.0, reg_sem_lirf_nm=False, base_ctx=False,
-                  base_p13=False, base_mapa=False, base_por_apt=False, cat_max=0, motor="lgb")
+                  base_p13=False, base_mapa=False, base_ret=False, base_ext=False,
+                  base_por_apt=False, cls_peso=None, cat_max=0, motor="lgb")
     return argparse.Namespace(**{**padrao, **kw})
 
 
@@ -84,6 +85,12 @@ def test_config_so_registra_a_janela_quando_ligada():
     assert "janela_lobt" not in config(_args())
     assert config(_args(janela_lobt=True))["janela_lobt"] is True
     assert config(_args(model="single", janela_lobt=True))["janela_lobt"] is True
+
+
+def test_config_so_registra_os_blocos_novos_da_base_quando_ligados():
+    assert "base_ret" not in config(_args()) and "base_ext" not in config(_args())
+    assert config(_args(base_ret=True))["base_ret"] is True
+    assert config(_args(base_ext=True))["base_ext"] is True
 
 
 def test_config_so_registra_sem_features_com_a_flag():

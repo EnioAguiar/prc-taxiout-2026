@@ -552,7 +552,7 @@ cp .env.example .env                              # chaves e TEAM_NAME
 .venv/bin/python src/s3.py download               # dados em data/
 bin/run src/cache.py                              # features em cache (uma vez, sozinho)
 bin/run src/experiment.py <nome> --model two_stage [--seed N] [--seeds N]
-bin/run src/experiment.py <nome> --model two_stage_nm [--nm-split-ms] [--nm-min-ms 21600] [--janela-lobt] [--reg-corte 7200] [--reg-sem-lirf-nm] [--base-ctx] [--base-p13] [--base-por-apt] [--cat-max 256] [--motor lgb|xgb] [--seed N] [--seeds N] [--sem-feature COLUNA]
+bin/run src/experiment.py <nome> --model two_stage_nm [--nm-split-ms] [--nm-min-ms 21600] [--janela-lobt] [--reg-corte 7200] [--reg-sem-lirf-nm] [--base-ctx] [--base-p13] [--base-mapa] [--base-ret] [--base-ext] [--base-por-apt] [--cat-max 256] [--motor lgb|xgb] [--seed N] [--seeds N] [--sem-feature COLUNA]   # --base-ret = a base também usa as colunas ret_* de src/pista.py (fila de portão no AOBT_3; mesma função do corretor --retencao); --base-ext = a base também usa as colunas ext_* de src/externos.py (taxa de cópia por companhia, séries diárias e OPDI). A taxa de cópia é a única que olha o BLOCK de outros voos: na base ela só conta os meses presentes no treino daquele quadro (no crossfit, os meses fora do bloco) e nunca o mês da própria linha, e a tabela de 2025 é ajustada uma vez por processo (~1 min lendo os 12 parquets)
 bin/run src/compare.py <id> --promover            # decide contra o campeão (FRÁGIL não promove)
 bin/run src/compare.py <id> --promover --aceitar-fragil   # só após teto.py e ok do usuário
 bin/run src/teto.py <base.parquet> <novo.parquet> --oficial-base <RMSE> [--min-ms 21600] [--salvar submissions/<TEAM>_vN.parquet]
