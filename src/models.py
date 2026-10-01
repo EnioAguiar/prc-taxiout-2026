@@ -27,6 +27,7 @@ from pista import colunas_retencao
 from plano13 import colunas_p13, vocabulario
 import mapa as mapa_aeroporto
 import memoria
+import pos_regras
 
 PARAMS = dict(
     objective="regression",  # L2 no alvo bruto, alinhado ao RMSE
@@ -444,6 +445,27 @@ def line_rows(nm, ms, line_pred, min_ms: float) -> np.ndarray:
     return nm & ~np.isnan(line_pred) & over
 
 
+def linhas_de_regra(df: pd.DataFrame, min_ms: float, lines: dict | None = None,
+                    fallback: tuple[float, float] | None = None,
+                    split_ms: bool = False) -> np.ndarray:
+    """Linhas cuja previsão final vem de uma regra fixa, não do modelo aprendido.
+
+    São duas: as que o `TwoStageNM` entrega à reta por aeroporto (`line_rows`: sem NM e
+    atraso acima de `nm_min_ms`) e as da regra de Roma (`pos_regras.roma_linhas`). Treinar
+    nelas só distorce o modelo, já que na previsão ele é ignorado ali
+    (`--treino-sem-regra`, `--corretor-sem-regra`; ideia do `route_train_exclude` do
+    genuine-cabbage e do MB3 do kind-mango).
+
+    Sem `lines` (antes de as retas existirem, ou no corretor, que não as tem), a previsão
+    da reta é trocada pelo próprio atraso: `apply_lines` só devolve NaN onde o atraso é
+    NaN, então o `~isnan` de `line_rows` dá o mesmo resultado.
+    """
+    nm = (df["nm_missing"] == 1).to_numpy()
+    ms = df[SCHED_GAP].to_numpy(float)
+    prev = ms if lines is None else apply_lines(ms, nm_groups(df, split_ms), lines, fallback)
+    return line_rows(nm, ms, prev, min_ms) | pos_regras.roma_linhas(df)
+
+
 class TwoStageNM(TwoStage):
     """Dois estágios para voos com NM; reta por aeroporto no atraso para voos sem NM."""
 
@@ -451,9 +473,11 @@ class TwoStageNM(TwoStage):
         super().__init__(cfg)
         self.split_ms = bool(cfg.get("nm_split_ms", False))
         self.min_ms = float(cfg.get("nm_min_ms", 0))
+        self.sem_regra = bool(cfg.get("treino_sem_regra", False))
 
     def fit(self, train, cols, run=None, valid=None) -> "TwoStageNM":
-        super().fit(train, cols, run=run, valid=valid)
+        # as retas vêm primeiro: são ajustadas em todas as linhas sem NM, como sempre, e
+        # é com elas que se sabe quais linhas a previsão entrega à regra.
         nm = train[train["nm_missing"] == 1]
         self.lines, self.fallback = fit_lines(
             nm[SCHED_GAP], nm[F.TARGET], nm_groups(nm, self.split_ms)
@@ -463,6 +487,12 @@ class TwoStageNM(TwoStage):
                 f"retas NM ausente: {len(self.lines)} grupos"
                 f" · global a={self.fallback[0]:.0f} b={self.fallback[1]:.3f}"
             )
+        if self.sem_regra:  # classificador e regressor sem as linhas de regra
+            fora = linhas_de_regra(train, self.min_ms, self.lines, self.fallback, self.split_ms)
+            if run:
+                run.log(f"treino sem regra: {int(fora.sum()):,} de {len(train):,} linhas fora")
+            train = train[~fora]
+        super().fit(train, cols, run=run, valid=valid)
         return self
 
     def predict(self, df: pd.DataFrame) -> np.ndarray:

@@ -74,7 +74,7 @@ from cache import TRUTH, load_split
 from crossfit import month_blocks, oof_base
 from externos import colunas_ext, copia_cia_2025
 from experiment import RUNS, metrics, rmse
-from models import janela_lobt, limitar_janela
+from models import janela_lobt, limitar_janela, linhas_de_regra as models_linhas_de_regra
 from dispositivo import lgb_params
 from pista import colunas as colunas_pista
 from pista import colunas_retencao
@@ -340,17 +340,36 @@ def apply_corrector(model: lgb.Booster | Conjunto, X: pd.DataFrame, base: np.nda
     return limitar_janela(pred, df) if df is not None else np.clip(pred, 0, None)
 
 
+def linhas_de_regra(df: pd.DataFrame, cfg_base: dict) -> np.ndarray:
+    """As linhas de `df` que a base entrega a uma regra fixa, pelos limiares da própria base.
+
+    Hoje o corretor trata essas linhas como qualquer outra: ele aprende nelas e corrige a
+    previsão da reta, e só depois — no envio — a regra de Roma reescreve as dela
+    (`train.media_membros` → `pos_regras.aplicar`). Com `--corretor-sem-regra` elas saem do
+    treino e ficam com a previsão da base intacta.
+    """
+    return models_linhas_de_regra(df, float(cfg_base.get("nm_min_ms", 0) or 0))
+
+
 def previsao_corrigida(model: lgb.Booster | Conjunto, df: pd.DataFrame, base: np.ndarray,
                        adsb: bool, janela: bool, sem: Iterable[str] = (),
                        externos: dict | None = None,
                        plano13: pd.DataFrame | None = None, dist_plano: bool = False,
                        sem_ctx: bool = False, superficie: bool = False,
                        mapa: bool = False, ref_cel: pd.DataFrame | None = None,
-                       pista: bool = False, retencao: bool = False) -> np.ndarray:
-    """Previsão dos voos de `df` corrigida: com `janela`, dentro da janela do LOBT."""
+                       pista: bool = False, retencao: bool = False,
+                       regra: np.ndarray | None = None) -> np.ndarray:
+    """Previsão dos voos de `df` corrigida: com `janela`, dentro da janela do LOBT.
+
+    `regra` (de `linhas_de_regra`, `--corretor-sem-regra`) marca as linhas em que a
+    previsão da base é mantida como está, sem correção.
+    """
     X = corrector_frame(df, base, adsb, janela, sem, externos, plano13, dist_plano, sem_ctx,
                         superficie, mapa, ref_cel, pista, retencao)
-    return apply_corrector(model, X, base, df if janela else None)
+    pred = apply_corrector(model, X, base, df if janela else None)
+    if regra is not None:
+        pred[regra] = np.asarray(base, float)[regra]
+    return pred
 
 
 def day_folds(days: np.ndarray, k: int = FOLDS) -> np.ndarray:
@@ -437,7 +456,7 @@ def simulacao_crossfit(
     fila: bool | str = False, dist_plano: bool = False, sem_ctx: bool = False,
     reusar_oof: str | None = None, corretor_xgb: bool = False, superficie: bool = False,
     rounds: int = ROUNDS, mapa: bool = False, ref_cel: bool = False, params: dict | None = None,
-    pista: bool = False, retencao: bool = False,
+    pista: bool = False, retencao: bool = False, sem_regra: bool = False,
 ) -> tuple[pd.DataFrame, pd.DataFrame, np.ndarray]:
     """Corretor treinado no ano fora do bloco; devolve (holdout, base, previsão).
 
@@ -492,19 +511,27 @@ def simulacao_crossfit(
             cel_hold = refcel.aplicar(hold, tabs_todos)
             run.log(f"células: {cel_cegas['cel_p50'].notna().mean():.1%} das cegas · "
                     f"nível 0 em {(cel_hold['cel_nivel'] == 0).mean():.1%} do holdout")
+        regra_cegas = linhas_de_regra(cegas, cfg_base) if sem_regra else None
         X_oof = corrector_frame(cegas, pred_oof, adsb, janela, sem, ext_cegas, p13_cegas,
                                 dist_plano, sem_ctx, superficie, mapa, cel_cegas, pista, retencao)
         del cegas
         memoria.soltar()
         if adsb:
             run.log(f"adsb no treino do corretor: {X_oof['adsb_taxi'].notna().mean():.1%}")
-        model = fit_corrector(X_oof, oof[TRUTH].to_numpy(float), pred_oof, conjunto, corretor_xgb,
+        alvo_oof, treino_oof = oof[TRUTH].to_numpy(float), pred_oof
+        if regra_cegas is not None:
+            run.log(f"corretor sem regra: {int(regra_cegas.sum()):,} de {len(X_oof):,} cegas fora")
+            X_oof, alvo_oof, treino_oof = (X_oof[~regra_cegas], alvo_oof[~regra_cegas],
+                                           pred_oof[~regra_cegas])
+        model = fit_corrector(X_oof, alvo_oof, treino_oof, conjunto, corretor_xgb,
                               rounds, params)
         del X_oof
         memoria.soltar()
         pred_base = base["pred"].to_numpy(float)
+        regra_hold = linhas_de_regra(hold, cfg_base) if sem_regra else None
         pred = previsao_corrigida(model, hold, pred_base, adsb, janela, sem, ext_hold, p13_hold,
-                                  dist_plano, sem_ctx, superficie, mapa, cel_hold, pista, retencao)
+                                  dist_plano, sem_ctx, superficie, mapa, cel_hold, pista, retencao,
+                                  regra_hold)
     return hold, base, pred
 
 
@@ -537,6 +564,10 @@ def parser() -> argparse.ArgumentParser:
                     help="soma ao corretor a distância de táxi stand → cabeceira (src/mapa.py)")
     ap.add_argument("--superficie", action="store_true",
                     help="--crossfit: soma as colunas sup_* (aviões no solo no push estimado)")
+    ap.add_argument("--corretor-sem-regra", action="store_true",
+                    help="--crossfit: o corretor não treina nas linhas que a base entrega a uma "
+                         "regra fixa (reta dos sem NM e regra de Roma) e deixa a previsão da base "
+                         "intacta nelas")
     ap.add_argument("--pista", action="store_true",
                     help="--crossfit: soma as colunas pista_* (configuração de pista, fila com "
                          "peso de esteira e cadência das decolagens, src/pista.py)")
@@ -592,6 +623,8 @@ def config_da_corrida(a: argparse.Namespace, base_id: str) -> dict:
         cfg["dist_plano"] = True
     if a.superficie:
         cfg["superficie"] = True
+    if a.corretor_sem_regra:
+        cfg["corretor_sem_regra"] = True
     if a.pista:
         cfg["pista"] = True
     if a.retencao:
@@ -640,6 +673,8 @@ def main() -> None:
         ap.error("--pista só vale com --crossfit (os folds não têm as cegas do ano)")
     if a.superficie and not a.crossfit:
         ap.error("--superficie só vale com --crossfit (os folds não têm as cegas do ano)")
+    if a.corretor_sem_regra and not a.crossfit:
+        ap.error("--corretor-sem-regra só vale com --crossfit (os folds não têm as cegas do ano)")
     if a.retencao and not a.crossfit:
         ap.error("--retencao só vale com --crossfit (os folds não têm as cegas do ano)")
     if a.plano13 and not a.crossfit:
@@ -663,7 +698,8 @@ def main() -> None:
                                                   cfg.get("fila", False), a.dist_plano, a.corretor_sem_ctx,
                                                   a.reusar_oof, a.corretor_xgb, a.superficie,
                                                   a.corretor_rounds, a.mapa, a.corretor_ref,
-                                                  a.corretor_params, a.pista, a.retencao)
+                                                  a.corretor_params, a.pista, a.retencao,
+                                                  a.corretor_sem_regra)
         else:
             hold, base, pred = simulacao_folds(run, base_id, adsb, sem)
         with run.phase("métricas", 0.1):

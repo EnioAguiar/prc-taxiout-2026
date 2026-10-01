@@ -16,10 +16,20 @@ ROMA_A, ROMA_B = 54310.76, 0.38
 ROMA_MIN_S, ROMA_MAX_S = 15 * 3600, 30 * 3600
 
 
+def roma_linhas(df: pd.DataFrame) -> np.ndarray:
+    """As linhas que a regra de Roma reescreve: LIRF sem NM com MVT − SCHED em (15 h, 30 h].
+
+    Separada da regra para que o treino possa tirar essas linhas (`--treino-sem-regra` e
+    `--corretor-sem-regra`) usando exatamente o mesmo critério, sem repetir os limiares.
+    """
+    ms = df[MS].to_numpy(float)
+    return ((df[F.AIRPORT].astype(str) == "LIRF").to_numpy() & df["FLIGHT_ID_mvt"].isna().to_numpy()
+            & (ms > ROMA_MIN_S) & (ms <= ROMA_MAX_S))
+
+
 def roma(df: pd.DataFrame, pred: np.ndarray) -> np.ndarray:
     ms = df[MS].to_numpy(float)
-    sel = ((df[F.AIRPORT].astype(str) == "LIRF").to_numpy() & df["FLIGHT_ID_mvt"].isna().to_numpy()
-           & (ms > ROMA_MIN_S) & (ms <= ROMA_MAX_S))
+    sel = roma_linhas(df)
     out = np.asarray(pred, float).copy()
     out[sel] = ROMA_A + ROMA_B * ms[sel]
     return out

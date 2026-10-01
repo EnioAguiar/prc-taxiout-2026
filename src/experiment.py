@@ -120,6 +120,8 @@ def config(a: argparse.Namespace) -> dict:
         cfg["base_ret"] = True
     if a.base_ext:  # idem
         cfg["base_ext"] = True
+    if a.treino_sem_regra:  # idem
+        cfg["treino_sem_regra"] = True
     if a.base_por_apt:  # idem
         cfg["base_por_apt"] = True
     if a.cls_peso:  # idem
@@ -164,6 +166,10 @@ def main() -> None:
     ap.add_argument("--base-ext", action="store_true",
                     help="a base também usa as colunas ext_* (taxa de cópia por companhia só com os "
                          "meses de treino, séries diárias e OPDI; src/externos.py)")
+    ap.add_argument("--treino-sem-regra", action="store_true",
+                    help="two_stage_nm: tira do treino do classificador e do regressor as linhas "
+                         "que a previsão entrega à reta (sem NM, atraso > --nm-min-ms) e à regra "
+                         "de Roma; as retas continuam ajustadas em todas as linhas sem NM")
     ap.add_argument("--base-por-apt", action="store_true",
                     help="two_stage*: soma ao regressor global um regressor por aeroporto (média)")
     ap.add_argument("--cls-peso", choices=["abs", "quad"],
@@ -178,6 +184,8 @@ def main() -> None:
         ap.error("--nm-split-ms e --nm-min-ms só valem com --model two_stage_nm")
     if a.model == "single" and (a.reg_corte or a.reg_sem_lirf_nm):
         ap.error("--reg-corte e --reg-sem-lirf-nm não valem com --model single")
+    if a.treino_sem_regra and a.model != "two_stage_nm":
+        ap.error("--treino-sem-regra só vale com --model two_stage_nm (só ele tem as retas)")
     cfg = config(a)
 
     with Run(a.nome, cfg) as run:

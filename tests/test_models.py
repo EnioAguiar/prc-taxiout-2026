@@ -417,6 +417,83 @@ def test_reg_sem_lirf_nm_tira_so_as_linhas_de_roma_sem_nm(monkeypatch):
     assert reg_y.tolist() == [9000.0, 30_000.0, 600.0]
 
 
+def _treino_regra() -> pd.DataFrame:
+    """Voos sintéticos com os dois tipos de linha de regra e três linhas comuns."""
+    import features as F
+
+    t = pd.Timestamp("2025-07-01 10:00", tz="UTC")
+    h = 3600.0
+    return pd.DataFrame({
+        "x": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+        "SCHED_TIME_UTC_mvt": [t] * 6,
+        "BLOCK_TIME_UTC_mvt": [t + pd.Timedelta(seconds=900)] * 6,
+        F.AIRPORT: pd.Categorical(["EDDF", "LIRF", "LIRF", "EDDF", "LIRF", "EDDF"]),
+        "FLIGHT_ID_mvt": [np.nan, np.nan, np.nan, 1.0, 1.0, np.nan],
+        "nm_missing": [1, 1, 1, 0, 0, 1],
+        models.SCHED_GAP: [10 * h, 20 * h, 2 * h, 20 * h, 20 * h, np.nan],
+        F.TARGET: [1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000.0],
+    })
+
+
+def test_linhas_de_regra_pega_a_reta_e_roma_e_mais_nada():
+    df = _treino_regra()
+
+    fora = models.linhas_de_regra(df, min_ms=6 * 3600.0)
+
+    # x=1: sem NM e atraso 10 h > 6 h (reta); x=2: idem, e também é Roma (LIRF, 20 h);
+    # x=3: sem NM mas atraso 2 h; x=4 e x=5: com NM; x=6: sem atraso.
+    assert fora.tolist() == [True, True, False, False, False, False]
+    assert models.linhas_de_regra(df, min_ms=0.0).tolist() == [True, True, True, False, False, False]
+
+
+def test_linhas_de_regra_pega_roma_mesmo_abaixo_do_limiar_da_reta():
+    import features as F
+
+    df = _treino_regra()
+    df.loc[1, models.SCHED_GAP] = 16 * 3600.0  # Roma (15 h a 30 h), abaixo do limiar de 18 h
+
+    fora = models.linhas_de_regra(df, min_ms=18 * 3600.0)
+
+    assert fora.tolist() == [False, True, False, False, False, False]
+    assert df.loc[1, F.AIRPORT] == "LIRF"
+
+
+def test_treino_sem_regra_tira_as_linhas_de_regra_dos_dois_estagios(monkeypatch):
+    df = _treino_regra()
+    vistos = []
+
+    def falso(params, dataset, rounds, callbacks=None):
+        vistos.append(dataset.data["x"].tolist())
+        return SimpleNamespace(free_dataset=lambda: None)
+
+    monkeypatch.setattr(models.lgb, "train", falso)
+    cfg = {"model": "two_stage_nm", "nm_min_ms": 6 * 3600.0, "treino_sem_regra": True}
+    modelo = models.TwoStageNM(cfg).fit(df, ["x"])
+
+    assert vistos == [[3.0, 4.0, 5.0, 6.0], [3.0, 4.0, 5.0, 6.0]]  # classificador e regressor
+    # as retas continuam ajustadas em todas as linhas sem NM, inclusive as de regra
+    import features as F
+
+    nm = df[df["nm_missing"] == 1]
+    esperado = models.fit_lines(nm[models.SCHED_GAP], nm[F.TARGET],
+                                models.nm_groups(nm, False))[1]
+    assert modelo.fallback == esperado
+
+
+def test_sem_a_flag_o_treino_continua_com_todas_as_linhas(monkeypatch):
+    df = _treino_regra()
+    vistos = []
+
+    def falso(params, dataset, rounds, callbacks=None):
+        vistos.append(dataset.data["x"].tolist())
+        return SimpleNamespace(free_dataset=lambda: None)
+
+    monkeypatch.setattr(models.lgb, "train", falso)
+    models.TwoStageNM({"model": "two_stage_nm", "nm_min_ms": 6 * 3600.0}).fit(df, ["x"])
+
+    assert vistos == [[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]] * 2
+
+
 class _Const:
     """Regressor falso que devolve sempre o mesmo valor, para checar o roteamento."""
 

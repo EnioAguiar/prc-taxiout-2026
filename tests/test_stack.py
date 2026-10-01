@@ -455,3 +455,65 @@ def test_corretor_params_sem_crossfit_e_recusado(monkeypatch, capsys):
         stack.main()
 
     assert "--corretor-params só vale com --crossfit" in capsys.readouterr().err
+
+
+def _voos_regra() -> pd.DataFrame:
+    """Três voos: um de reta (sem NM, atraso 10 h), um de Roma (LIRF sem NM, 20 h) e um comum."""
+    t = pd.Timestamp("2025-01-15 10:00", tz="UTC")
+    h = 3600.0
+    df = _voos()
+    df[F.AIRPORT] = ["EDDF", "LIRF", "LIRF"]
+    df["nm_missing"] = [1, 1, 0]
+    df["FLIGHT_ID_mvt"] = [np.nan, np.nan, 1.0]
+    df["to_takeoff_from_SCHED_TIME_UTC_mvt"] = [10 * h, 20 * h, 900.0]
+    df["MVT_TIME_UTC_mvt"] = [t, t, t]
+    return df
+
+
+def test_linhas_de_regra_segue_o_limiar_da_base():
+    df = _voos_regra()
+
+    com_limiar = stack.linhas_de_regra(df, {"nm_min_ms": 21600.0})
+    sem_limiar = stack.linhas_de_regra(df, {})
+
+    assert com_limiar.tolist() == [True, True, False]
+    assert sem_limiar.tolist() == [True, True, False]  # as duas sem NM entram com min_ms 0
+    acima = stack.linhas_de_regra(df, {"nm_min_ms": 15 * 3600.0})
+    assert acima.tolist() == [False, True, False]  # a de 10 h sai; a de Roma fica
+
+
+def test_o_corretor_nao_corrige_as_linhas_de_regra_quando_pedido():
+    df = _voos_regra()
+    base = np.array([1000.0, 2000.0, 3000.0])
+    regra = stack.linhas_de_regra(df, {"nm_min_ms": 21600.0})
+
+    com = previsao_corrigida(_Corretor(120.0), df, base, adsb=False, janela=False, regra=regra)
+    sem = previsao_corrigida(_Corretor(120.0), df, base, adsb=False, janela=False)
+
+    np.testing.assert_allclose(com, [1000.0, 2000.0, 3120.0])
+    np.testing.assert_allclose(sem, base + 120.0)
+
+
+def test_a_config_do_crossfit_so_tem_corretor_sem_regra_com_a_flag(tmp_path, monkeypatch):
+    registro = tmp_path / "experiments.jsonl"
+    registro.write_text(json.dumps(
+        {"id": "20260101-a", "config": {"model": "two_stage_nm", "seed": 0}}
+    ) + "\n", encoding="utf-8")
+    monkeypatch.setattr(stack, "REGISTRY", registro)
+
+    com = stack.config_da_corrida(
+        stack.parser().parse_args(["v34", "--crossfit", "--corretor-sem-regra"]), "20260101-a")
+    sem = stack.config_da_corrida(
+        stack.parser().parse_args(["v34", "--crossfit"]), "20260101-a")
+
+    assert com["corretor_sem_regra"] is True
+    assert "corretor_sem_regra" not in sem
+
+
+def test_corretor_sem_regra_sem_crossfit_e_recusado(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["stack.py", "v34", "--corretor-sem-regra"])
+
+    with pytest.raises(SystemExit):
+        stack.main()
+
+    assert "--corretor-sem-regra só vale com --crossfit" in capsys.readouterr().err

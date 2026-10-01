@@ -62,7 +62,8 @@ def _args(**kw) -> argparse.Namespace:
                   nm_split_ms=False, nm_min_ms=21600.0, seed=0, seeds=1, janela_lobt=False,
                   sem_feature=[], reg_corte=0.0, reg_sem_lirf_nm=False, base_ctx=False,
                   base_p13=False, base_mapa=False, base_ret=False, base_ext=False,
-                  base_por_apt=False, cls_peso=None, cat_max=0, motor="lgb")
+                  treino_sem_regra=False, base_por_apt=False, cls_peso=None, cat_max=0,
+                  motor="lgb")
     return argparse.Namespace(**{**padrao, **kw})
 
 
@@ -91,6 +92,11 @@ def test_config_so_registra_os_blocos_novos_da_base_quando_ligados():
     assert "base_ret" not in config(_args()) and "base_ext" not in config(_args())
     assert config(_args(base_ret=True))["base_ret"] is True
     assert config(_args(base_ext=True))["base_ext"] is True
+
+
+def test_config_so_registra_o_treino_sem_regra_com_a_flag():
+    assert "treino_sem_regra" not in config(_args())
+    assert config(_args(treino_sem_regra=True))["treino_sem_regra"] is True
 
 
 def test_config_so_registra_sem_features_com_a_flag():
