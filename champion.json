@@ -3,7 +3,7 @@
   "oof": "20260930-130921-e76_m0",
   "membros": [
     {
-      "id": "20260930-130921-e76_m0",
+      "id": "20261001-052828-e86",
       "config": {
         "model": "stack_cf",
         "base": "20260930-130008-e76_base",
@@ -26,10 +26,10 @@
         "corretor": "conjunto",
         "externos": true,
         "plano13": true,
-        "fila": "stand",
         "dist_plano": true,
         "mapa": true,
-        "ref_cel": true
+        "ref_cel": true,
+        "reusar_oof": "20260930-130921-e76_m0"
       }
     },
     {
@@ -71,8 +71,8 @@
   "pos_regras": [
     "roma"
   ],
-  "rmse_simulacao": 296.76,
-  "sem_loteria": 230.7,
+  "rmse_simulacao": 296.45,
+  "sem_loteria": 230.37,
   "enviada": {
     "versao": 33,
     "sem_loteria": 230.7
