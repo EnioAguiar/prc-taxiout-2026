@@ -1,22 +1,24 @@
 # Esteira de experimentos
 
-Atualizado em 2026-09-30 14:12. Spec: `docs/superpowers/specs/2026-09-30-esteira-design.md`.
+Atualizado em 2026-09-30 21:20. Spec: `docs/superpowers/specs/2026-09-30-esteira-design.md`.
 
 ## Campeã
 
-- Membros: 20260929-154118-v29_mapa_cf, 20260930-061236-e30
-- Simulação: completo 297.49 · sem loteria 232.15
-- Última enviada: {"versao": 32, "sem_loteria": 232.35}
+- Membros: 20260930-130921-e76_m0, 20260930-140011-e76_m1
+- Simulação: completo 296.76 · sem loteria 230.7
+- Última enviada: {"versao": 33, "sem_loteria": 230.7}
 - Arquivo pronto esperando ok: nenhum
 
 ## Vazão
 
-- Fila: 20 · rodando: 0 · feitos nas últimas 24 h: 57 · consultas à metade B: 2
+- Fila: 20 · rodando: 0 · feitos nas últimas 24 h: 59 · consultas à metade B: 2
 
 ## Últimos candidatos
 
 | id | origem | receita | decisão | A sem lot. | B sem lot. | min |
 |---|---|---|---|---|---|---|
+| 78 | agente | `{"base": ["--model", "two_stage_nm", "--nm-min-ms", "21600", "--janela-lobt", "--reg-corte", "7200", "--base-ctx", "--base-por-apt", "--base-p13", "--seeds", "3"]}` | A: não seleciona | -0.47 | — | 192.3 |
+| 77 | agente | `{"base": ["--model", "two_stage_nm", "--nm-min-ms", "21600", "--janela-lobt", "--reg-corte", "7200", "--base-ctx", "--base-por-apt", "--seeds", "3"]}` | cancelado: receita sem --base-p13 (campeã mudou para a v33) | — | — | 8.4 |
 | 76 | agente | `{"base": ["--model", "two_stage_nm", "--nm-min-ms", "21600", "--janela-lobt", "--reg-corte", "7200", "--base-ctx", "--base-por-apt", "--base-p13"]}` | B: não confirma | +2.37 | +0.50 | 72.8 |
 | 75 | agente | `{"base": ["--model", "two_stage_nm", "--nm-min-ms", "21600", "--janela-lobt", "--reg-corte", "7200", "--base-ctx", "--base-por-apt", "--base-mapa"]}` | A: não seleciona | -0.12 | — | 73.2 |
 | 55 | gerador | `{"--conjunto": true, "--corretor-params": {"min_data_in_leaf": 100}, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--mapa": true, "--plano13": true, "--stand-prefixo": true}` | A: não seleciona | +0.01 | — | 9.7 |
@@ -45,8 +47,24 @@ Atualizado em 2026-09-30 14:12. Spec: `docs/superpowers/specs/2026-09-30-esteira
 | 31 | gerador | `{"--conjunto": true, "--corretor-params": {"num_leaves": 255}, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--fila": true, "--mapa": true, "--plano13": true, "--superficie": true}` | A: não seleciona | +0.26 | — | 15.6 |
 | 30 | gerador | `{"--conjunto": true, "--corretor-params": {"num_leaves": 127}, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--fila": true, "--mapa": true, "--plano13": true, "--superficie": true}` | aprovado | +0.30 | +0.11 | 12.9 |
 | 29 | gerador | `{"--conjunto": true, "--corretor-params": {"num_leaves": 63}, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--fila": true, "--mapa": true, "--plano13": true, "--superficie": true}` | A: não seleciona | +0.03 | — | 11.5 |
-| 28 | gerador | `{"--conjunto": true, "--corretor-params": {"learning_rate": 0.05}, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--fila": true, "--mapa": true, "--plano13": true, "--superficie": true}` | A: não seleciona | +0.04 | — | 11.6 |
-| 27 | gerador | `{"--conjunto": true, "--corretor-params": {"learning_rate": 0.03}, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--fila": true, "--mapa": true, "--plano13": true, "--superficie": true}` | A: não seleciona | -0.13 | — | 11.9 |
+
+## Famílias
+
+| família | n | média A | melhor | promovidos | situação |
+|---|---|---|---|---|---|
+| base | 3 | +0.591 | +2.37 | 0 | ativa |
+| fila:nenhum | 3 | +0.010 | +0.07 | 0 | ativa |
+| outro | 9 | -0.034 | +0.30 | 1 | ativa |
+| param:num_leaves | 8 | -0.037 | +0.26 | 0 | ativa |
+| bloco:--superficie | 4 | -0.045 | +0.19 | 0 | ativa |
+| param:min_data_in_leaf | 3 | -0.055 | +0.11 | 0 | ativa |
+| bloco:--mapa | 3 | -0.108 | +0.06 | 0 | ativa |
+| rodadas | 6 | -0.110 | +0.13 | 0 | ativa |
+| bloco:--corretor-sem-ctx | 3 | -0.140 | +0.18 | 0 | ativa |
+| bloco:--corretor-ref | 3 | -0.157 | -0.08 | 0 | ativa |
+| param:learning_rate | 4 | -0.214 | +0.00 | 0 | ativa |
+| param:lambda_l2 | 6 | -0.226 | +0.00 | 0 | ativa |
+| bloco:--dist-plano | 3 | -0.504 | +0.00 | 0 | ativa |
 
 ## Revisões
 
