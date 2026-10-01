@@ -3,7 +3,7 @@
   "oof": "20260930-130921-e76_m0",
   "membros": [
     {
-      "id": "20261001-131030-e117",
+      "id": "20261001-185827-e122",
       "config": {
         "model": "stack_cf",
         "base": "20260930-130008-e76_base",
@@ -27,6 +27,7 @@
         "externos": true,
         "plano13": true,
         "dist_plano": true,
+        "corretor_sem_regra": true,
         "retencao": true,
         "mapa": true,
         "ref_cel": true,
@@ -72,8 +73,8 @@
   "pos_regras": [
     "roma"
   ],
-  "rmse_simulacao": 295.86,
-  "sem_loteria": 229.58,
+  "rmse_simulacao": 295.81,
+  "sem_loteria": 228.97,
   "enviada": {
     "versao": 34,
     "sem_loteria": 229.58
