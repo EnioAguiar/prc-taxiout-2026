@@ -118,6 +118,8 @@ def config(a: argparse.Namespace) -> dict:
         cfg["base_mapa"] = True
     if a.base_por_apt:  # idem
         cfg["base_por_apt"] = True
+    if a.cls_peso:  # idem
+        cfg["cls_peso"] = a.cls_peso
     if a.cat_max:  # idem
         cfg["cat_max"] = a.cat_max
     if a.motor != "lgb":  # idem
@@ -155,6 +157,8 @@ def main() -> None:
                     help="a base também usa as colunas map_* (distância stand → cabeceira, src/mapa.py)")
     ap.add_argument("--base-por-apt", action="store_true",
                     help="two_stage*: soma ao regressor global um regressor por aeroporto (média)")
+    ap.add_argument("--cls-peso", choices=["abs", "quad"],
+                    help="two_stage*: pesa o classificador pelo custo de errar p (|MVT−SCHED−900| ou ²)")
     ap.add_argument("--cat-max", type=int, default=0, metavar="N",
                     help="limita cada categórica às N−1 mais frequentes (GPU exige N ≤ 256)")
     ap.add_argument("--motor", choices=["lgb", "xgb"], default="lgb",

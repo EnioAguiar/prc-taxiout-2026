@@ -500,7 +500,7 @@ Pesquisa de 25/09 (Discord do desafio), para não repetir:
 
 ## Dados externos
 
-Condição do prêmio (`eligibility.html`): todo dado externo aberto e documentado. Usamos quatro:
+Condição do prêmio (`eligibility.html`): todo dado externo aberto e documentado. Usamos cinco:
 
 | Fonte | O que é | Licença | Como obter |
 |---|---|---|---|
@@ -508,6 +508,7 @@ Condição do prêmio (`eligibility.html`): todo dado externo aberto e documenta
 | Séries diárias da EUROCONTROL (<https://ansperformance.eu/csv/>): `atfm_slot_adherence`, `all_pre_departure_delays` e `atc_pre_departure_delays` de 2025 e 2026 | por aeroporto e dia: voos regulados, saídas fora do slot, atraso pré-partida total e de ATC por voo | dados públicos da EUROCONTROL (uso livre com atribuição) | `bin/run src/externos.py baixar` → `data/externo/*.csv` (~33 MB) |
 | OPDI v0.0.2 (EUROCONTROL/OpenSky, <https://www.opdi.aero/>), flight lists de 2025-01…2025-12, 2026-01 e 2026-07 | um voo por linha: `icao24`, `adep`, `ades`, `first_seen`, `last_seen` (ADS-B tratado) | open data, "freely used … provided that the data source is attributed" | `bin/run src/externos.py baixar` → `data/externo/opdi/flight_list_AAAAMM.parquet` (~30–55 MB/mês) |
 | METAR do IEM ASOS (Iowa State University, <https://mesonet.agron.iastate.edu/request/download.phtml>), 2025-01-01…2026-08-01 dos 10 aeroportos | observação de superfície a cada 30 min: temperatura, ponto de orvalho, vento, rajada, visibilidade, fenômenos (`wxcodes`) e teto | dados públicos do IEM/NOAA (uso livre com atribuição) | `bin/run src/plano13.py baixar` → `data/externo/metar/<ICAO>.csv` (~1,5 MB/aeroporto) |
+| `apt.dat` do X-Plane Airport Scenery Gateway (<https://gateway.x-plane.com/api>), os 10 aeroportos | stands, taxiways e cabeceiras de cada aeroporto | **GNU GPL**: "The GNU GPL (general public License) under which this data is released…" (especificação oficial do formato, <https://developer.x-plane.com/article/airport-data-apt-dat-file-format-specification/>); manter o aviso de copyright ao redistribuir | `src/mapa.py` baixa para `data/mapa/` e gera `distancias.parquet` (colunas `map_*`) |
 
 Do adsb.lol só saem features derivadas por voo (`adsb_*`, `src/adsb_events.py` →
 `PRC_ADSB_RAIZ/events.parquet`): off-block e decolagem observados, velocidade no 1º ponto,

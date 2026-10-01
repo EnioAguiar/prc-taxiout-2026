@@ -179,6 +179,23 @@ def combine(p, ms, reg) -> np.ndarray:
     return np.clip(mix, 0, None)
 
 
+TAXI_TIPICO_S = 900  # μ0 aproximado do regressor ao pesar o classificador
+
+
+def peso_classificador(ms, modo: str) -> np.ndarray:
+    """Peso de cada linha no classificador: quanto custa errar p nela (`--cls-peso`).
+
+    Na mistura, errar p por ε custa ε²·(μ1 − μ0)² com μ1 = MVT − SCHED e μ0 ≈ táxi típico;
+    o logloss trata igual um voo com SCHED a 15 min e outro a 10 h. Sem SCHED p não entra
+    em `combine`: peso 0. `abs` usa |Δ|, `quad` usa Δ². Média 1 nas linhas com SCHED.
+    """
+    ms = np.asarray(ms, float)
+    delta = np.clip(np.abs(ms - TAXI_TIPICO_S), 60.0, None)
+    w = delta if modo == "abs" else delta ** 2
+    w = np.where(np.isnan(ms), 0.0, w)
+    return w / w[w > 0].mean()
+
+
 # |BLOCK − LOBT| nunca passou disto em 2025: docs/research/2026-09-27-janela-lobt.md
 JANELA_LOBT_S = 3606
 
@@ -258,6 +275,7 @@ class TwoStage:
         self.motor = cfg.get("motor", "lgb")
         self.xgb_params = {**XGB_PARAMS, "seed": int(cfg.get("seed", 0))}
         self.por_apt = bool(cfg.get("base_por_apt", False))
+        self.cls_peso = cfg.get("cls_peso")
 
     def fit(self, train, cols, run=None, valid=None) -> "TwoStage":
         if self.motor == "xgb":
@@ -269,8 +287,9 @@ class TwoStage:
         def cb(rounds: int, label: str, start: float) -> list:
             return [run.lgb_callback(rounds, label, start=start, span=0.5)] if run else []
 
+        peso = peso_classificador(train[SCHED_GAP], self.cls_peso) if self.cls_peso else None
         self.cls = lgb.train(
-            cls_params, lgb.Dataset(train[cols], copied.astype("int8")), self.cls_rounds,
+            cls_params, lgb.Dataset(train[cols], copied.astype("int8"), weight=peso), self.cls_rounds,
             callbacks=cb(self.cls_rounds, "classificador", 0.0),
         )
         self.cls.free_dataset()  # o histograma binado do treino não serve para prever
