@@ -1,71 +1,74 @@
 # Esteira de experimentos
 
-Atualizado em 2026-10-01 05:36. Spec: `docs/superpowers/specs/2026-09-30-esteira-design.md`.
+Atualizado em 2026-10-01 14:51. Spec: `docs/superpowers/specs/2026-09-30-esteira-design.md`.
 
 ## Campeã
 
-- Membros: 20261001-052828-e86, 20260930-140011-e76_m1
-- Simulação: completo 296.45 · sem loteria 230.37
+- Membros: 20261001-131030-e117, 20260930-140011-e76_m1
+- Simulação: completo 295.86 · sem loteria 229.58
 - Última enviada: {"versao": 33, "sem_loteria": 230.7}
-- Arquivo pronto esperando ok: nenhum
+- Arquivo pronto esperando ok: submissions/outgoing-boat_v34.parquet (campeã 20261001-131030-e117, 20260930-140011-e76_m1)
 
 ## Vazão
 
-- Fila: 14 · rodando: 0 · feitos nas últimas 24 h: 57 · consultas à metade B: 3
+- Fila: 4 · rodando: 0 · feitos nas últimas 24 h: 58 · consultas à metade B: 4
 
 ## Últimos candidatos
 
 | id | origem | receita | decisão | A sem lot. | B sem lot. | min |
 |---|---|---|---|---|---|---|
-| 86 | gerador | `{"--conjunto": true, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--mapa": true, "--plano13": true}` | aprovado | +0.30 | +0.36 | 8.4 |
-| 84 | gerador | `{"--conjunto": true, "--corretor-ref": true, "--corretor-rounds": 500, "--corretor-sem-ctx": true, "--dist-plano": true, "--externos": true, "--mapa": true, "--plano13": true, "--stand-prefixo": true}` | A: não seleciona | +0.12 | — | 8.1 |
-| 80 | gerador | `{"--conjunto": true, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--mapa": true, "--plano13": true, "--stand-prefixo": true, "--superficie": true}` | A: não seleciona | +0.01 | — | 9.5 |
-| 85 | gerador | `{"--conjunto": true, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--fila": true, "--mapa": true, "--plano13": true}` | A: não seleciona | -0.16 | — | 9.7 |
-| 60 | gerador | `{"--conjunto": true, "--corretor-params": {"num_leaves": 127}, "--corretor-ref": true, "--corretor-rounds": 500, "--externos": true, "--fila": true, "--mapa": true, "--plano13": true, "--superficie": true}` | A: não seleciona | +0.06 | — | 11.4 |
-| 72 | gerador | `{"--conjunto": true, "--corretor-params": {"lambda_l2": 50, "num_leaves": 127}, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--fila": true, "--mapa": true, "--plano13": true, "--superficie": true}` | A: não seleciona | +0.22 | — | 12.1 |
-| 71 | gerador | `{"--conjunto": true, "--corretor-params": {"lambda_l2": 10, "num_leaves": 127}, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--fila": true, "--mapa": true, "--plano13": true, "--superficie": true}` | A: não seleciona | -0.00 | — | 11.8 |
-| 70 | gerador | `{"--conjunto": true, "--corretor-params": {"lambda_l2": 0, "num_leaves": 127}, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--fila": true, "--mapa": true, "--plano13": true, "--superficie": true}` | A: não seleciona | +0.10 | — | 11.7 |
-| 67 | gerador | `{"--conjunto": true, "--corretor-params": {"learning_rate": 0.05, "num_leaves": 127}, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--fila": true, "--mapa": true, "--plano13": true, "--superficie": true}` | A: não seleciona | +0.07 | — | 11.9 |
-| 66 | gerador | `{"--conjunto": true, "--corretor-params": {"learning_rate": 0.03, "num_leaves": 127}, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--fila": true, "--mapa": true, "--plano13": true, "--superficie": true}` | A: não seleciona | -0.03 | — | 12.1 |
-| 59 | gerador | `{"--conjunto": true, "--corretor-params": {"num_leaves": 127}, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--fila": true, "--mapa": true, "--plano13": true, "--superficie": true}` | A: não seleciona | -0.18 | — | 10.7 |
-| 65 | gerador | `{"--conjunto": true, "--corretor-params": {"num_leaves": 127}, "--corretor-ref": true, "--corretor-rounds": 700, "--dist-plano": true, "--externos": true, "--fila": true, "--mapa": true, "--plano13": true, "--superficie": true}` | A: não seleciona | +0.19 | — | 13.3 |
-| 64 | gerador | `{"--conjunto": true, "--corretor-params": {"num_leaves": 127}, "--corretor-ref": true, "--corretor-rounds": 300, "--dist-plano": true, "--externos": true, "--fila": true, "--mapa": true, "--plano13": true, "--superficie": true}` | A: não seleciona | -0.09 | — | 9.9 |
-| 61 | gerador | `{"--conjunto": true, "--corretor-params": {"num_leaves": 127}, "--corretor-ref": true, "--corretor-rounds": 500, "--corretor-sem-ctx": true, "--dist-plano": true, "--externos": true, "--fila": true, "--mapa": true, "--plano13": true, "--superficie": true}` | A: não seleciona | +0.39 | — | 10.5 |
-| 58 | gerador | `{"--conjunto": true, "--corretor-params": {"num_leaves": 127}, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--fila": true, "--plano13": true, "--superficie": true}` | A: não seleciona | -0.03 | — | 11.2 |
-| 74 | gerador | `{"--conjunto": true, "--corretor-params": {"min_data_in_leaf": 200, "num_leaves": 127}, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--fila": true, "--mapa": true, "--plano13": true, "--superficie": true}` | A: não seleciona | +0.04 | — | 11.9 |
-| 73 | gerador | `{"--conjunto": true, "--corretor-params": {"min_data_in_leaf": 100, "num_leaves": 127}, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--fila": true, "--mapa": true, "--plano13": true, "--superficie": true}` | A: não seleciona | +0.10 | — | 11.5 |
-| 56 | gerador | `{"--conjunto": true, "--corretor-params": {"min_data_in_leaf": 200}, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--mapa": true, "--plano13": true, "--stand-prefixo": true}` | A: não seleciona | +0.02 | — | 9.0 |
-| 69 | gerador | `{"--conjunto": true, "--corretor-params": {"num_leaves": 255}, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--fila": true, "--mapa": true, "--plano13": true, "--superficie": true}` | A: não seleciona | +0.16 | — | 14.2 |
-| 68 | gerador | `{"--conjunto": true, "--corretor-params": {"num_leaves": 63}, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--fila": true, "--mapa": true, "--plano13": true, "--superficie": true}` | A: não seleciona | -0.04 | — | 10.4 |
-| 63 | gerador | `{"--conjunto": true, "--corretor-params": {"num_leaves": 127}, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--mapa": true, "--plano13": true, "--superficie": true}` | A: não seleciona | -0.04 | — | 10.4 |
-| 62 | gerador | `{"--conjunto": true, "--corretor-params": {"num_leaves": 127}, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--mapa": true, "--plano13": true, "--stand-prefixo": true, "--superficie": true}` | A: não seleciona | +0.34 | — | 10.8 |
-| 57 | gerador | `{"--conjunto": true, "--corretor-params": {"num_leaves": 127}, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--fila": true, "--mapa": true, "--plano13": true}` | A: não seleciona | +0.36 | — | 11.1 |
-| 79 | agente | `{"base": ["--model", "two_stage_nm", "--nm-min-ms", "21600", "--janela-lobt", "--reg-corte", "7200", "--base-ctx", "--base-por-apt", "--base-p13", "--base-mapa"]}` | A: não seleciona | -1.26 | — | 74.5 |
-| 78 | agente | `{"base": ["--model", "two_stage_nm", "--nm-min-ms", "21600", "--janela-lobt", "--reg-corte", "7200", "--base-ctx", "--base-por-apt", "--base-p13", "--seeds", "3"]}` | A: não seleciona | -0.47 | — | 192.3 |
-| 77 | agente | `{"base": ["--model", "two_stage_nm", "--nm-min-ms", "21600", "--janela-lobt", "--reg-corte", "7200", "--base-ctx", "--base-por-apt", "--seeds", "3"]}` | cancelado: receita sem --base-p13 (campeã mudou para a v33) | — | — | 8.4 |
-| 76 | agente | `{"base": ["--model", "two_stage_nm", "--nm-min-ms", "21600", "--janela-lobt", "--reg-corte", "7200", "--base-ctx", "--base-por-apt", "--base-p13"]}` | B: não confirma | +2.37 | +0.50 | 72.8 |
-| 75 | agente | `{"base": ["--model", "two_stage_nm", "--nm-min-ms", "21600", "--janela-lobt", "--reg-corte", "7200", "--base-ctx", "--base-por-apt", "--base-mapa"]}` | A: não seleciona | -0.12 | — | 73.2 |
-| 55 | gerador | `{"--conjunto": true, "--corretor-params": {"min_data_in_leaf": 100}, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--mapa": true, "--plano13": true, "--stand-prefixo": true}` | A: não seleciona | +0.01 | — | 9.7 |
-| 54 | gerador | `{"--conjunto": true, "--corretor-params": {"lambda_l2": 50}, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--mapa": true, "--plano13": true, "--stand-prefixo": true}` | A: não seleciona | -0.25 | — | 10.1 |
+| 117 | agente | `{"--conjunto": true, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--mapa": true, "--plano13": true, "--retencao": true}` | aprovado | +0.64 | +0.94 | 9.8 |
+| 116 | agente | `{"--conjunto": true, "--corretor-params": {"num_leaves": 127}, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--fila": true, "--mapa": true, "--pista": true, "--plano13": true, "--superficie": true}` | A: não seleciona | +0.07 | — | 13.6 |
+| 115 | agente | `{"--conjunto": true, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--mapa": true, "--pista": true, "--plano13": true}` | A: não seleciona | -0.15 | — | 9.6 |
+| 112 | agente | `{"base": ["--model", "two_stage_nm", "--nm-min-ms", "21600", "--janela-lobt", "--reg-corte", "7200", "--base-ctx", "--base-por-apt", "--base-p13", "--cls-peso", "abs"]}` | A: não seleciona | -2.35 | — | 70.6 |
+| 108 | gerador | `{"--conjunto": true, "--corretor-params": {"num_leaves": 127}, "--corretor-ref": true, "--corretor-rounds": 500, "--externos": true, "--fila": true, "--mapa": true, "--plano13": true, "--superficie": true}` | A: não seleciona | -0.04 | — | 11.3 |
+| 101 | gerador | `{"--conjunto": true, "--corretor-ref": true, "--corretor-rounds": 500, "--externos": true, "--mapa": true, "--plano13": true}` | A: não seleciona | -0.27 | — | 8.3 |
+| 107 | gerador | `{"--conjunto": true, "--corretor-params": {"num_leaves": 127}, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--fila": true, "--mapa": true, "--plano13": true, "--superficie": true}` | A: não seleciona | -0.23 | — | 10.9 |
+| 106 | gerador | `{"--conjunto": true, "--corretor-params": {"num_leaves": 127}, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--fila": true, "--plano13": true, "--superficie": true}` | A: não seleciona | -0.14 | — | 11.6 |
+| 100 | gerador | `{"--conjunto": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--mapa": true, "--plano13": true}` | A: não seleciona | -0.35 | — | 7.6 |
+| 99 | gerador | `{"--conjunto": true, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--plano13": true}` | A: não seleciona | -0.28 | — | 8.1 |
+| 111 | gerador | `{"--conjunto": true, "--corretor-params": {"num_leaves": 127}, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--mapa": true, "--plano13": true, "--superficie": true}` | A: não seleciona | -0.09 | — | 10.4 |
+| 105 | gerador | `{"--conjunto": true, "--corretor-params": {"num_leaves": 127}, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--fila": true, "--mapa": true, "--plano13": true}` | A: não seleciona | -0.07 | — | 11.4 |
+| 109 | gerador | `{"--conjunto": true, "--corretor-params": {"num_leaves": 127}, "--corretor-ref": true, "--corretor-rounds": 500, "--corretor-sem-ctx": true, "--dist-plano": true, "--externos": true, "--fila": true, "--mapa": true, "--plano13": true, "--superficie": true}` | A: não seleciona | +0.26 | — | 10.7 |
+| 102 | gerador | `{"--conjunto": true, "--corretor-ref": true, "--corretor-rounds": 500, "--corretor-sem-ctx": true, "--dist-plano": true, "--externos": true, "--mapa": true, "--plano13": true}` | A: não seleciona | +0.25 | — | 7.8 |
+| 98 | gerador | `{"--conjunto": true, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--mapa": true, "--plano13": true, "--superficie": true}` | A: não seleciona | -0.23 | — | 9.4 |
+| 110 | gerador | `{"--conjunto": true, "--corretor-params": {"num_leaves": 127}, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--mapa": true, "--plano13": true, "--stand-prefixo": true, "--superficie": true}` | A: não seleciona | +0.25 | — | 11.1 |
+| 104 | gerador | `{"--conjunto": true, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--fila": true, "--mapa": true, "--plano13": true}` | A: não seleciona | -0.23 | — | 9.8 |
+| 103 | gerador | `{"--conjunto": true, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--mapa": true, "--plano13": true, "--stand-prefixo": true}` | A: não seleciona | -0.30 | — | 9.1 |
+| 92 | gerador | `{"--conjunto": true, "--corretor-params": {"num_leaves": 127}, "--corretor-ref": true, "--corretor-rounds": 500, "--externos": true, "--fila": true, "--mapa": true, "--plano13": true, "--superficie": true}` | A: não seleciona | -0.04 | — | 11.4 |
+| 83 | gerador | `{"--conjunto": true, "--corretor-ref": true, "--corretor-rounds": 500, "--externos": true, "--mapa": true, "--plano13": true, "--stand-prefixo": true}` | A: não seleciona | -0.33 | — | 8.6 |
+| 97 | gerador | `{"--conjunto": true, "--corretor-params": {"learning_rate": 0.05, "num_leaves": 127}, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--fila": true, "--mapa": true, "--plano13": true, "--superficie": true}` | A: não seleciona | -0.00 | — | 11.8 |
+| 96 | gerador | `{"--conjunto": true, "--corretor-params": {"learning_rate": 0.03, "num_leaves": 127}, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--fila": true, "--mapa": true, "--plano13": true, "--superficie": true}` | A: não seleciona | -0.19 | — | 12.0 |
+| 91 | gerador | `{"--conjunto": true, "--corretor-params": {"num_leaves": 127}, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--fila": true, "--mapa": true, "--plano13": true, "--superficie": true}` | A: não seleciona | -0.28 | — | 10.9 |
+| 90 | gerador | `{"--conjunto": true, "--corretor-params": {"num_leaves": 127}, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--fila": true, "--plano13": true, "--superficie": true}` | A: não seleciona | -0.15 | — | 11.5 |
+| 88 | gerador | `{"--conjunto": true, "--corretor-params": {"learning_rate": 0.05}, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--mapa": true, "--plano13": true, "--stand-prefixo": true}` | A: não seleciona | -0.22 | — | 9.0 |
+| 82 | gerador | `{"--conjunto": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--mapa": true, "--plano13": true, "--stand-prefixo": true}` | A: não seleciona | -0.43 | — | 8.1 |
+| 87 | gerador | `{"--conjunto": true, "--corretor-params": {"learning_rate": 0.03}, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--mapa": true, "--plano13": true, "--stand-prefixo": true}` | A: não seleciona | -0.41 | — | 9.1 |
+| 81 | gerador | `{"--conjunto": true, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--plano13": true, "--stand-prefixo": true}` | A: não seleciona | -0.59 | — | 8.4 |
+| 94 | gerador | `{"--conjunto": true, "--corretor-params": {"num_leaves": 127}, "--corretor-ref": true, "--corretor-rounds": 500, "--dist-plano": true, "--externos": true, "--mapa": true, "--plano13": true, "--stand-prefixo": true, "--superficie": true}` | A: não seleciona | +0.25 | — | 10.9 |
+| 93 | gerador | `{"--conjunto": true, "--corretor-params": {"num_leaves": 127}, "--corretor-ref": true, "--corretor-rounds": 500, "--corretor-sem-ctx": true, "--dist-plano": true, "--externos": true, "--fila": true, "--mapa": true, "--plano13": true, "--superficie": true}` | A: não seleciona | +0.18 | — | 10.7 |
 
 ## Famílias
 
 | família | n | média A | melhor | promovidos | situação |
 |---|---|---|---|---|---|
-| base | 4 | +0.129 | +2.37 | 0 | ativa |
-| fila:nenhum | 5 | +0.059 | +0.30 | 1 | ativa |
-| bloco:--superficie | 6 | +0.030 | +0.36 | 0 | ativa |
-| bloco:--corretor-sem-ctx | 5 | +0.018 | +0.39 | 0 | ativa |
-| outro | 10 | +0.004 | +0.34 | 1 | ativa |
+| bloco:--retencao | 1 | +0.641 | +0.64 | 1 | explorando |
+| bloco:--corretor-sem-ctx | 8 | +0.096 | +0.39 | 0 | ativa |
+| outro | 11 | +0.026 | +0.34 | 1 | ativa |
+| fila:nenhum | 7 | +0.016 | +0.30 | 1 | ativa |
 | param:min_data_in_leaf | 6 | -0.000 | +0.11 | 0 | ativa |
+| bloco:--superficie | 9 | -0.011 | +0.36 | 0 | ativa |
 | param:num_leaves | 10 | -0.018 | +0.26 | 0 | cortada |
+| fila:--stand-prefixo | 2 | -0.027 | +0.25 | 0 | explorando |
+| bloco:--pista | 2 | -0.043 | +0.07 | 0 | explorando |
 | rodadas | 8 | -0.070 | +0.19 | 0 | ativa |
-| bloco:--mapa | 4 | -0.088 | +0.06 | 0 | ativa |
 | param:lambda_l2 | 9 | -0.115 | +0.22 | 0 | ativa |
-| param:learning_rate | 6 | -0.136 | +0.07 | 0 | ativa |
-| fila:--fila | 1 | -0.162 | -0.16 | 0 | explorando |
-| bloco:--corretor-ref | 4 | -0.164 | -0.08 | 0 | ativa |
-| bloco:--dist-plano | 4 | -0.362 | +0.06 | 0 | ativa |
+| param:learning_rate | 10 | -0.164 | +0.07 | 0 | cortada |
+| bloco:--mapa | 8 | -0.189 | +0.06 | 0 | ativa |
+| fila:--fila | 2 | -0.198 | -0.16 | 0 | explorando |
+| bloco:--corretor-ref | 8 | -0.243 | -0.08 | 0 | ativa |
+| bloco:--dist-plano | 8 | -0.266 | +0.06 | 0 | ativa |
+| base | 5 | -0.366 | +2.37 | 0 | ativa |
 
 ## Revisões
 
