@@ -142,7 +142,8 @@ def corretor_final(cfg_bloco: dict, adsb: bool, full: pd.DataFrame, rk: pd.DataF
                    copia: CopiaCia | None = None, cias: list[str] | None = None,
                    fila: bool | str = False, dist_plano: bool = False, sem_ctx: bool = False,
                    xgb: bool = False, superficie: bool = False, rounds: int = ROUNDS_CORRETOR,
-                   mapa: bool = False, cel: tuple | None = None, params: dict | None = None):
+                   mapa: bool = False, cel: tuple | None = None, params: dict | None = None,
+                   pista: bool = False):
     """Corretor treinado nas cegas com a previsão de uma base que não viu o mês delas.
 
     A previsão fora do bloco sai de `caminho_oof` quando ele já existe (ver `chave_oof`);
@@ -175,7 +176,7 @@ def corretor_final(cfg_bloco: dict, adsb: bool, full: pd.DataFrame, rk: pd.DataF
         bloco = pd.Series(oof["mes"].to_numpy()).map(bloco_do_mes).to_numpy()
         cel_cegas = refcel.aplicar_por_bloco(cegas, bloco, tabs_bloco)
     X = corrector_frame(cegas, pred_oof, adsb, bool(cfg_bloco.get("janela_lobt")), sem, ext, p13,
-                        dist_plano, sem_ctx, superficie, mapa, cel_cegas)
+                        dist_plano, sem_ctx, superficie, mapa, cel_cegas, pista)
     del cegas
     memoria.soltar()
     if adsb:
@@ -189,13 +190,13 @@ def corrigir_ranking(corretor, cfg_bloco: dict, adsb: bool, rk: pd.DataFrame,
                      cias: list[str] | None = None, fila: bool | str = False,
                      dist_plano: bool = False, sem_ctx: bool = False,
                      superficie: bool = False, mapa: bool = False,
-                     tabs_cel: list | None = None) -> np.ndarray:
+                     tabs_cel: list | None = None, pista: bool = False) -> np.ndarray:
     """Previsão final do ranking: na janela do LOBT quando os blocos da base usam."""
     ext = colunas_ext(rk, copia, MESES_2025) if copia else None
     p13 = colunas_p13(rk, cias, com_fila=fila) if cias is not None else None
     cel = refcel.aplicar(rk, tabs_cel) if tabs_cel is not None else None
     return previsao_corrigida(corretor, rk, pred, adsb, bool(cfg_bloco.get("janela_lobt")),
-                              sem, ext, p13, dist_plano, sem_ctx, superficie, mapa, cel)
+                              sem, ext, p13, dist_plano, sem_ctx, superficie, mapa, cel, pista)
 
 
 def prever_membros(membros: list[dict], full, rk, run) -> list[tuple[dict, object, dict]]:
@@ -217,7 +218,7 @@ def prever_membros(membros: list[dict], full, rk, run) -> list[tuple[dict, objec
             run, c.get("corretor") == "conjunto", c.get("sem_features", ()), copia, cias,
             c.get("fila", False), bool(c.get("dist_plano")), bool(c.get("corretor_sem_ctx")),
             bool(c.get("corretor_xgb")), bool(c.get("superficie")), c.get("rounds", ROUNDS_CORRETOR),
-            bool(c.get("mapa")), cel, c.get("corretor_params"),
+            bool(c.get("mapa")), cel, c.get("corretor_params"), bool(c.get("pista")),
         )
         saida.append((c, corretor, {"copia": copia, "cias": cias, "tabs_cel": tabs_cel}))
     return saida
@@ -234,7 +235,7 @@ def media_membros(membros, rk, pred_base, full, run, regras, prontos=None) -> np
             corretor, c["base_config"], c["adsb"], rk, pred_base, c.get("sem_features", ()),
             ex.get("copia"), ex.get("cias"), c.get("fila", False), bool(c.get("dist_plano")),
             bool(c.get("corretor_sem_ctx")), bool(c.get("superficie")), bool(c.get("mapa")),
-            ex.get("tabs_cel")))
+            ex.get("tabs_cel"), bool(c.get("pista"))))
     return pos_regras.aplicar(rk, np.mean(preds, axis=0), regras)
 
 
