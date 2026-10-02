@@ -28,10 +28,11 @@ membro medido e o membro enviado serem o mesmo objeto.
    - `campea`: a previsão da campeã no último arquivo de `submissions/` (hoje
      `outgoing-boat_v37.parquet`). Aquele modelo treinou no `full2025`, **com** jan e jul.
 3. **Filtro do corpo** (`pseudo.corpo`): entram só alvo ≤ 3.600 s, voo com plano NM
-   (`nm_missing == 0`) e — quando a receita tem `--corretor-sem-regra` — fora das linhas
-   que a base entrega à reta dos sem-NM. A cauda é onde o pseudo-rótulo é pior (ali a
-   previsão já é hedge entre táxi e cópia do planejado) e é dona de metade do erro²;
-   pseudo-rotulá-la só reforçaria o hedge.
+   (`nm_missing == 0`), previsão da base guardada para aquele voo (sem ela o corretor
+   aprenderia `alvo − NaN` e levaria o ajuste inteiro junto) e — quando a receita tem
+   `--corretor-sem-regra` — fora das linhas que a base entrega à reta dos sem-NM. A cauda
+   é onde o pseudo-rótulo é pior (ali a previsão já é hedge entre táxi e cópia do
+   planejado) e é dona de metade do erro²; pseudo-rotulá-la só reforçaria o hedge.
 4. **Peso e junção** (`pseudo.juntar`): as linhas de 2026 vão para o fim do quadro com
    peso 0,3 (as de 2025 ficam com 1) e o `fit_corrector` passa esses pesos aos quatro
    motores (LightGBM global, LightGBM por aeroporto, CatBoost, XGBoost). As categóricas de

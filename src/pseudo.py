@@ -126,14 +126,20 @@ def alvo_da_submissao(ids, caminho: Path | None = None) -> np.ndarray:
     return pd.Series(np.asarray(ids)).map(por_id).to_numpy(float)
 
 
-def corpo(alvo, nm_missing, regra=None, corte: float = CORTE) -> np.ndarray:
+def corpo(alvo, nm_missing, regra=None, corte: float = CORTE, base=None) -> np.ndarray:
     """Linhas de 2026 que viram treino: alvo finito, até `corte` e voo com plano NM.
 
     `regra` (de `stack.linhas_de_regra`, só com `--corretor-sem-regra`) tira as linhas que
     a base entrega à reta dos sem-NM: lá o corretor nem treina nem corrige em 2025.
+
+    `base` é a previsão da base nessas linhas: sem ela finita o corretor aprenderia
+    `alvo − NaN` e o ajuste inteiro iria junto. Um voo do ranking sem previsão guardada
+    simplesmente não entra.
     """
     alvo = np.asarray(alvo, float)
     ok = np.isfinite(alvo) & (alvo <= corte) & (np.asarray(nm_missing, float) == 0)
+    if base is not None:
+        ok &= np.isfinite(np.asarray(base, float))
     if regra is not None:
         ok &= ~np.asarray(regra, bool)
     return ok

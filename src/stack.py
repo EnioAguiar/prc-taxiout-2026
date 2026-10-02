@@ -552,12 +552,14 @@ def pseudo_2026(model, rk: pd.DataFrame, pred_rk: np.ndarray, X_rk: pd.DataFrame
             alvo[regra_rk] = np.asarray(pred_rk, float)[regra_rk]
     else:
         alvo = pseudo_mod.alvo_da_submissao(rk[F.ID].to_numpy())
-    corpo = pseudo_mod.corpo(alvo, rk["nm_missing"], regra_rk, corte)
+    pred_rk = np.asarray(pred_rk, float)
+    corpo = pseudo_mod.corpo(alvo, rk["nm_missing"], regra_rk, corte, pred_rk)
     if run:
+        medio = float(np.mean(alvo[corpo])) if corpo.any() else float("nan")
         run.log(f"pseudo ({fonte}): {int(corpo.sum()):,} de {len(rk):,} partidas de 2026 no "
-                f"corpo (alvo ≤ {corte:.0f} s e com plano NM) · alvo médio "
-                f"{np.nanmean(alvo[corpo]):.1f} s")
-    return X_rk[corpo], alvo[corpo], np.asarray(pred_rk, float)[corpo]
+                f"corpo (alvo ≤ {corte:.0f} s, com plano NM e com base) · alvo médio "
+                f"{medio:.1f} s")
+    return X_rk[corpo], alvo[corpo], pred_rk[corpo]
 
 
 def simulacao_crossfit(

@@ -27,6 +27,14 @@ def test_corpo_tira_as_linhas_que_a_base_entrega_a_regra():
     assert pseudo.corpo(alvo, np.zeros(3), regra, corte=1000).tolist() == [True, False, False]
 
 
+def test_corpo_exige_previsao_da_base_no_voo_de_2026():
+    """Sem base finita o corretor aprenderia `alvo − NaN` e o ajuste inteiro iria junto."""
+    alvo = np.array([900.0, 1000.0])
+    base = np.array([800.0, np.nan])
+
+    assert pseudo.corpo(alvo, np.zeros(2), base=base).tolist() == [True, False]
+
+
 def test_juntar_poe_2026_no_fim_com_peso_menor_e_mantem_2025_com_peso_1():
     X = pd.DataFrame({"pred": [100.0, 200.0]})
     X_ps = pd.DataFrame({"pred": [300.0]})
