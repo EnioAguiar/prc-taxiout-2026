@@ -461,7 +461,10 @@ def transferencia_ok(champ: dict) -> tuple[bool, str]:
         return False, "`enviada` sem `membros`: rode `esteira.py enviado <versão>` de novo"
     if sorted(antes) == sorted(agora):
         return False, "campeã igual à última enviada"
-    rel = transferencia.relatorio(agora, list(antes))
+    try:
+        rel = transferencia.relatorio(agora, list(antes))
+    except (SystemExit, Exception) as e:  # noqa: B014 — o trabalhador 24/7 não pode morrer aqui
+        return False, f"{type(e).__name__}: {e}"
     return rel["veredito"]["passa"], rel["veredito"]["motivo"]
 
 

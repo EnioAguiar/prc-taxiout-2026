@@ -372,6 +372,17 @@ def test_transferencia_ok_reprova_campea_igual_a_enviada_e_enviada_sem_membros()
     assert not passa and "membros" in motivo
 
 
+def test_transferencia_ok_nao_derruba_o_trabalhador_quando_o_relatorio_estoura(monkeypatch):
+    champ = _champ(["m", "n"], enviada={"versao": 32, "sem_loteria": 233.0, "membros": ["m"]})
+
+    def explode(novos, contra):
+        raise SystemExit("m+n não cobre o mesmo holdout da referência")
+
+    monkeypatch.setattr(esteira.transferencia, "relatorio", explode)
+    passa, motivo = esteira.transferencia_ok(champ)
+    assert not passa and "holdout" in motivo
+
+
 def test_falha_no_submit_respeita_a_trava_de_seis_horas(tmp_path, monkeypatch):
     import subprocess
 
