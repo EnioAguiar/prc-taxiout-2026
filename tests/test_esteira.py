@@ -1,4 +1,5 @@
 import json
+import time
 
 import esteira
 
@@ -54,7 +55,7 @@ def test_receita_com_lista_vira_flag_repetida():
 def test_vizinhos_mudam_uma_coisa_por_vez():
     champ = {"membros": [{"id": "m", "config": {"corretor": "conjunto", "fila": "stand", "rounds": 500,
                                                "mapa": True}}]}
-    vs = [r for _, r in esteira.vizinhos(champ)]
+    vs = [r for _, r, _ in esteira.vizinhos(champ)]
     base = esteira.receita_de_config(champ["membros"][0]["config"])
     for v in vs:
         dif = {k for k in set(base) | set(v) if base.get(k) != v.get(k)}
@@ -65,7 +66,7 @@ def test_vizinhos_mudam_uma_coisa_por_vez():
 
 def test_vizinhos_nao_variam_rodadas_nem_params_cortados():
     champ = {"membros": [{"id": "m", "config": {"rounds": 500, "corretor_params": {"num_leaves": 63}}}]}
-    vs = [r for _, r in esteira.vizinhos(champ)]
+    vs = [r for _, r, _ in esteira.vizinhos(champ)]
     assert all(v.get("--corretor-rounds") == 500 for v in vs)
     params = [v.get("--corretor-params", {}) for v in vs]
     assert all("lambda_l2" not in p and "min_data_in_leaf" not in p for p in params)
@@ -109,6 +110,68 @@ def test_executar_corretor_usa_a_base_do_membro_de_onde_a_receita_saiu(monkeypat
     esteira.executar(c, champ, rodar=rodar)
     assert cmds[1][cmds[1].index("--base") + 1] == "B1"
     assert cmds[1][cmds[1].index("--reusar-oof") + 1] == "O1"
+
+
+def _champ_duas_bases():
+    """O caso do champion.json de 02/10: mesma receita de corretor em duas bases."""
+    cfg = {"corretor": "conjunto", "mapa": True}
+    return {"membros": [
+        {"id": "e76_m1", "config": cfg | {"base": "B76", "reusar_oof": "O76"}},
+        {"id": "e113_m1", "config": cfg | {"base": "B113", "reusar_oof": "O113"}}]}
+
+
+def test_vizinhos_de_membros_de_mesma_receita_viram_candidatos_por_base(tmp_path):
+    champ = _champ_duas_bases()
+    vs = esteira.vizinhos(champ)
+    sup = [(fam, v, mid) for fam, v, mid in vs if v.get("--superficie")]
+    assert {mid for _, _, mid in sup} == {"e76_m1", "e113_m1"}  # um por membro, não um só
+
+    f = esteira.Fila(tmp_path / "e.db")
+    postos = [f.add("corretor", v, "gerador", 0, "C", fam, mid) for fam, v, mid in sup]
+    assert all(postos) and len(set(postos)) == len(sup)  # a dedup separa por membro
+
+
+def test_executar_corretor_segue_o_membro_gravado_e_nao_a_semelhanca(monkeypatch):
+    import campeao
+    champ = _champ_duas_bases()
+    monkeypatch.setattr(campeao, "ultimo_por_nome", lambda n: {"id": f"ID:{n}"})
+    cmds = []
+    receita = json.dumps({"--conjunto": True, "--mapa": True, "--superficie": True})
+
+    for i, (mid, base, oof) in enumerate([("e113_m1", "B113", "O113"), ("e76_m1", "B76", "O76")]):
+        c = {"id": 20 + i, "tipo": "corretor", "receita": receita, "membro": mid}
+        esteira.executar(c, champ, rodar=lambda *a, **k: cmds.append(a[0]))
+        assert cmds[i][cmds[i].index("--base") + 1] == base
+        assert cmds[i][cmds[i].index("--reusar-oof") + 1] == oof
+
+
+def test_executar_corretor_sem_membro_gravado_cai_na_semelhanca(monkeypatch):
+    """Linha antiga da fila, posta antes da coluna `membro`: continua rodando."""
+    import campeao
+    champ = _champ_duas_bases()
+    monkeypatch.setattr(campeao, "ultimo_por_nome", lambda n: {"id": f"ID:{n}"})
+    cmds = []
+    c = {"id": 30, "tipo": "corretor", "membro": "",
+         "receita": json.dumps({"--conjunto": True, "--mapa": True, "--superficie": True})}
+    esteira.executar(c, champ, rodar=lambda *a, **k: cmds.append(a[0]))
+    assert cmds[0][cmds[0].index("--base") + 1] == "B76"
+
+
+def test_executar_base_nao_refaz_membros_de_receita_igual(monkeypatch):
+    import campeao
+    champ = _champ_duas_bases()  # duas bases, uma receita só: sobre a base nova é um corretor
+    monkeypatch.setattr(campeao, "ultimo_por_nome", lambda n: {"id": f"ID:{n}"})
+    cmds = []
+    c = {"id": 40, "tipo": "base", "receita": json.dumps({"base": ["--superficie"]})}
+    ids = esteira.executar(c, champ, rodar=lambda *a, **k: cmds.append(a[0]))
+    assert ids == ["ID:e40_m0"] and len(cmds) == 2  # experiment.py + um stack.py
+
+
+def test_candidato_antigo_sem_membro_segura_o_vizinho_equivalente(tmp_path):
+    f = esteira.Fila(tmp_path / "e.db")
+    receita = {"--conjunto": True, "--mapa": True}
+    assert f.add("corretor", receita, "gerador", 0, "C", "bloco:--mapa")  # fila de antes
+    assert f.add("corretor", receita, "gerador", 0, "C", "bloco:--mapa", "e76_m1") is None
 
 
 def test_passo_usa_avaliar_conjunto_quando_executar_devolve_lista(tmp_path, monkeypatch):
@@ -247,13 +310,13 @@ def test_id_campea_soma_os_membros_e_solta_a_dedup(tmp_path):
     assert f.add("corretor", receita, "gerador", 0, esteira.id_campea(c2))
 
 
-def _pronta(tmp_path, monkeypatch, fila, transfere=True):
+def _pronta(tmp_path, monkeypatch, fila, transfere="passa"):
     """Campeã com 0,5 s de ganho sobre a enviada, trava de 6 h vencida e transferência ok."""
     (tmp_path / "submissions.jsonl").write_text('{"versao": 32}\n')
     monkeypatch.setattr(esteira, "ROOT", tmp_path)
     monkeypatch.setattr(esteira, "memoria_livre_gb", lambda: 12.0)
-    monkeypatch.setattr(esteira, "transferencia_ok",
-                        lambda champ: (transfere, "ok" if transfere else "falha: IC do corpo > 0"))
+    monkeypatch.setattr(esteira, "transferencia_ok", lambda champ: (
+        transfere, "ok" if transfere == "passa" else "falha: IC do corpo > 0"))
     fila.meta("ultimo_arquivo_em", "0")
     return _champ(["m", "n"], sem_loteria=232.5,
                   enviada={"versao": 32, "sem_loteria": 233.0, "membros": ["m"]})
@@ -332,7 +395,7 @@ def test_enviado_grava_o_sem_loteria_e_os_membros_do_momento_da_geracao(tmp_path
 def test_talvez_enviar_segura_o_submit_quando_a_transferencia_reprova(tmp_path, monkeypatch):
     """O caso v37: a régua promoveu, mas o ganho não é de regime que transfere."""
     f = esteira.Fila(tmp_path / "e.db")
-    champ = _pronta(tmp_path, monkeypatch, f, transfere=False)
+    champ = _pronta(tmp_path, monkeypatch, f, transfere="reprova")
     cmds = []
     assert esteira.talvez_enviar(f, champ, lambda argv, **kw: cmds.append(argv)) is None
     assert not cmds and not f.meta("pronto")
@@ -342,13 +405,36 @@ def test_talvez_enviar_segura_o_submit_quando_a_transferencia_reprova(tmp_path, 
 
 def test_transferencia_reprovada_nao_e_remedida_para_a_mesma_campea(tmp_path, monkeypatch):
     f = esteira.Fila(tmp_path / "e.db")
-    champ = _pronta(tmp_path, monkeypatch, f, transfere=False)
+    champ = _pronta(tmp_path, monkeypatch, f, transfere="reprova")
     medidas = []
     monkeypatch.setattr(esteira, "transferencia_ok",
-                        lambda c: (medidas.append(c) or (False, "falha: corpo > 0")))
+                        lambda c: (medidas.append(c) or ("reprova", "falha: corpo > 0")))
     for _ in range(3):
         assert esteira.talvez_enviar(f, champ, lambda argv, **kw: None) is None
     assert len(medidas) == 1
+
+
+def test_portao_que_estourou_nao_vira_reprovacao_e_e_remedido_depois(tmp_path, monkeypatch):
+    """Cache invalidado, parquet faltando, memória: não mediu nada, então não barra a campeã."""
+    f = esteira.Fila(tmp_path / "e.db")
+    champ = _pronta(tmp_path, monkeypatch, f)
+    veredito = ["erro"]
+    medidas = []
+    monkeypatch.setattr(esteira, "transferencia_ok", lambda c: (
+        medidas.append(c) or (veredito[0], "SystemExit: cache de holdout2025 inválido")))
+
+    assert esteira.talvez_enviar(f, champ, lambda argv, **kw: None) is None
+    assert not f.meta("transferencia_reprovada")  # erro não é veredito
+    assert "cache de holdout2025" in f.meta("erro_envio")
+
+    assert esteira.talvez_enviar(f, champ, lambda argv, **kw: None) is None
+    assert len(medidas) == 1  # dentro da hora não remede
+
+    f.meta("transferencia_erro_em", str(time.time() - esteira.ERRO_TRANSFERENCIA_S - 1))
+    veredito[0] = "passa"  # a causa passou (cache refeito): o envio sai
+    cmds = []
+    assert esteira.talvez_enviar(f, champ, lambda argv, **kw: cmds.append(argv))
+    assert len(medidas) == 2 and [c for c in cmds if "submit" in c]
 
 
 def test_transferencia_ok_compara_a_campea_com_os_membros_da_ultima_enviada(monkeypatch):
@@ -360,16 +446,16 @@ def test_transferencia_ok_compara_a_campea_com_os_membros_da_ultima_enviada(monk
         return {"veredito": {"passa": True, "motivo": "transferência ok"}}
 
     monkeypatch.setattr(esteira.transferencia, "relatorio", relatorio)
-    assert esteira.transferencia_ok(champ) == (True, "transferência ok")
+    assert esteira.transferencia_ok(champ) == ("passa", "transferência ok")
     assert vistos == {"novos": ["m", "n"], "contra": ["m"]}
 
 
-def test_transferencia_ok_reprova_campea_igual_a_enviada_e_enviada_sem_membros():
+def test_transferencia_ok_separa_reprova_de_erro():
     igual = _champ(["m"], enviada={"versao": 32, "sem_loteria": 233.0, "membros": ["m"]})
-    assert esteira.transferencia_ok(igual) == (False, "campeã igual à última enviada")
+    assert esteira.transferencia_ok(igual) == ("reprova", "campeã igual à última enviada")
     velha = _champ(["m", "n"], enviada={"versao": 32, "sem_loteria": 233.0})
-    passa, motivo = esteira.transferencia_ok(velha)
-    assert not passa and "membros" in motivo
+    veredito, motivo = esteira.transferencia_ok(velha)  # conserto é de fora: dá para tentar de novo
+    assert veredito == "erro" and "membros" in motivo
 
 
 def test_transferencia_ok_nao_derruba_o_trabalhador_quando_o_relatorio_estoura(monkeypatch):
@@ -379,8 +465,8 @@ def test_transferencia_ok_nao_derruba_o_trabalhador_quando_o_relatorio_estoura(m
         raise SystemExit("m+n não cobre o mesmo holdout da referência")
 
     monkeypatch.setattr(esteira.transferencia, "relatorio", explode)
-    passa, motivo = esteira.transferencia_ok(champ)
-    assert not passa and "holdout" in motivo
+    veredito, motivo = esteira.transferencia_ok(champ)
+    assert veredito == "erro" and "holdout" in motivo
 
 
 def test_falha_no_submit_respeita_a_trava_de_seis_horas(tmp_path, monkeypatch):
@@ -503,9 +589,9 @@ def test_repriorizar_nao_toca_no_que_veio_da_mao(tmp_path):
 def test_vizinhos_devolve_familia_e_pula_as_cortadas():
     champ = {"membros": [{"id": "m", "config": {"corretor": "conjunto", "fila": "stand"}}]}
     vs = esteira.vizinhos(champ)
-    assert all(isinstance(fam, str) and isinstance(r, dict) for fam, r in vs)
-    assert {"bloco:--mapa", "fila:--fila", "param:num_leaves"} <= {fam for fam, _ in vs}
-    cortadas = {fam for fam, _ in esteira.vizinhos(champ, {"bloco:--mapa"})}
+    assert all(isinstance(fam, str) and isinstance(r, dict) and mid == "m" for fam, r, mid in vs)
+    assert {"bloco:--mapa", "fila:--fila", "param:num_leaves"} <= {fam for fam, _, _ in vs}
+    cortadas = {fam for fam, _, _ in esteira.vizinhos(champ, {"bloco:--mapa"})}
     assert "bloco:--mapa" not in cortadas and "fila:--fila" in cortadas
 
 
@@ -544,3 +630,46 @@ def test_relatorio_traz_a_tabela_de_familias(tmp_path):
     _termina(f, "bloco:--mapa", -0.2)
     texto = esteira.relatorio(f, _champ())
     assert "## Famílias" in texto and "| bloco:--mapa | 1 |" in texto and "explorando" in texto
+
+
+def test_passo_pula_candidato_com_pseudo_da_campea_sem_rodar(tmp_path, monkeypatch):
+    """`--pseudo campea` destila o holdout: a esteira não tem como medir, então nem roda."""
+    f = esteira.Fila(tmp_path / "e.db")
+    champ = {"membros": [{"id": "m", "config": {"base": "B", "reusar_oof": "O"}}],
+             "pos_regras": ["roma"], "sem_loteria": 233.0, "enviada": None}
+    monkeypatch.setattr(esteira, "carregar_campea", lambda: champ)
+    monkeypatch.setattr(esteira, "PAUSA", tmp_path / "pausa")
+    monkeypatch.setattr(esteira, "executar", lambda *a, **k: 1 / 0)
+    cid = f.add("corretor", {"--conjunto": True, "--pseudo": "campea"}, "usuario", 9, "m")
+
+    assert esteira.passo(f, avaliar=lambda *a, **k: 1 / 0) is True
+    c = dict(f.db.execute("select * from candidatos where id=?", (cid,)).fetchone())
+    assert c["estado"] == "pulado" and "pseudo vazado" in c["motivo"]
+
+
+def test_passo_roda_candidato_com_pseudo_proprio(tmp_path, monkeypatch):
+    f = esteira.Fila(tmp_path / "e.db")
+    champ = {"membros": [{"id": "m", "config": {"base": "B", "reusar_oof": "O"}}],
+             "pos_regras": ["roma"], "sem_loteria": 233.0, "enviada": None}
+    monkeypatch.setattr(esteira, "carregar_campea", lambda: champ)
+    monkeypatch.setattr(esteira, "PAUSA", tmp_path / "pausa")
+    monkeypatch.setattr(esteira, "RELATORIO", tmp_path / "esteira.md")
+    monkeypatch.setattr(esteira, "memoria_livre_gb", lambda: 12.0)
+    monkeypatch.setattr(esteira, "executar", lambda c, ch, rodar=None: "RUN1")
+    f.add("corretor", {"--conjunto": True, "--pseudo": "propria"}, "usuario", 9, "m")
+
+    esteira.passo(f, rodar=lambda *a, **k: None, avaliar=lambda *a, **k: {
+        "aprovado": False, "membros": ["m"], "proposta": "soma", "a": {"ganho": 0.1}, "b": None,
+        "completo": 0.0, "motivo": "A: não seleciona", "avaliadas": 3})
+    assert f.ultimos(1)[0]["run_id"] == "RUN1"
+
+
+def test_add_recusa_receita_com_pseudo_da_campea(tmp_path, monkeypatch):
+    import pytest
+
+    f = esteira.Fila(tmp_path / "e.db")
+    monkeypatch.setattr(esteira, "Fila", lambda *a, **k: f)
+    monkeypatch.setattr(esteira, "carregar_campea", lambda: _champ(["m"]))
+    with pytest.raises(SystemExit, match="pseudo vazado"):
+        esteira.main(["add", "--receita", '{"--conjunto": true, "--pseudo": "campea"}'])
+    assert f.contar("fila") == 0

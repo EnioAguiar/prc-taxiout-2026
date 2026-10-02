@@ -32,9 +32,13 @@ ROUNDS = ()
 PARAMS_GRADE = {"num_leaves": (63, 127, 255), "learning_rate": (0.03, 0.05)}
 # `--roma-tdg` fica fora: medido em 02/10 com −1,48 s de sem_loteria (IC −2,58 a −0,39) no
 # `--crossfit`; a flag continua disponível para quem quiser repetir à mão.
+# `--fe-auto` também fica fora do gerador: a feature é a sobrevivente de 755 peneiradas no
+# mesmo holdout em que a régua julga, então uma aprovação aqui é enviesada
+# (`docs/research/2026-10-03-fe-auto.md`). A flag continua para quem quiser testar à mão.
 BLOCOS = ("--superficie", "--mapa", "--corretor-ref", "--dist-plano", "--corretor-sem-ctx",
-          "--pista", "--retencao", "--corretor-sem-regra", "--fe-auto")
+          "--pista", "--retencao", "--corretor-sem-regra")
 GANHO_ENVIO_S, ENVIO_INTERVALO_S = 0.5, 6 * 3600
+ERRO_TRANSFERENCIA_S = 3600  # portão que estourou: remede no máximo de hora em hora
 FILA_FLAGS = ("--fila", "--stand-prefixo")
 N_MIN = 3    # abaixo disso a família é nova: prioridade de exploração
 N_CORTE = 10  # daí em diante uma família só de prejuízo é cortada
@@ -52,6 +56,20 @@ FLAGS = {"externos": "--externos", "plano13": "--plano13", "dist_plano": "--dist
 
 def hash_receita(tipo: str, receita: dict) -> str:
     return hashlib.sha256(json.dumps([tipo, receita], sort_keys=True).encode()).hexdigest()[:16]
+
+
+MOTIVO_VAZADO = ("pseudo vazado: alvo destilado do próprio holdout, que então não mede"
+                 " a corrida (docs/research/2026-10-03-pseudo-rotulo.md)")
+
+
+def receita_vazada(receita: dict) -> bool:
+    """A receita destila o pseudo-rótulo de quem viu o holdout (`--pseudo campea`)?
+
+    A esteira mede tudo no holdout de jan/jul de 2025: uma corrida dessas não tem juiz
+    aqui, nem na régua nem no portão de transferência. Não entra na fila nem roda.
+    """
+    fonte = receita.get("--pseudo")
+    return bool(fonte) and pseudo.vazado(str(fonte))
 
 
 def receita_de_config(cfg: dict) -> dict:
@@ -111,22 +129,39 @@ class Fila:
             create table if not exists candidatos (
               id integer primary key, criado real, origem text, tipo text, receita text,
               hash text, prioridade integer, estado text, campea text, run_id text,
-              resultado text, motivo text, inicio real, fim real, familia text);
-            create unique index if not exists dedup on candidatos(hash, campea);
+              resultado text, motivo text, inicio real, fim real, familia text,
+              membro text default '');
             create table if not exists meta (chave text primary key, valor text);""")
         colunas = {r["name"] for r in self.db.execute("pragma table_info(candidatos)")}
         if "familia" not in colunas:  # bancos criados antes da prioridade por família
             self.db.execute("alter table candidatos add column familia text")
-            self.db.commit()
+        if "membro" not in colunas:  # bancos criados antes do membro de origem
+            self.db.execute("alter table candidatos add column membro text default ''")
+        # a dedup passa a separar por membro de origem: a mesma receita sobre bases
+        # diferentes são dois experimentos (o índice antigo `dedup` só via hash e campeã)
+        self.db.execute("drop index if exists dedup")
+        self.db.execute("create unique index if not exists dedup_membro"
+                        " on candidatos(hash, campea, membro)")
+        self.db.commit()
 
     def add(self, tipo: str, receita: dict, origem: str, prioridade: int = 0,
-            campea: str = "", familia: str = "") -> int | None:
+            campea: str = "", familia: str = "", membro: str = "") -> int | None:
+        """`membro`: id do membro da campeã de onde a receita saiu (vazio = por semelhança).
+
+        Linha antiga sem membro cobre qualquer origem: enquanto ela estiver no banco para
+        esta campeã, o vizinho equivalente com origem não entra de novo.
+        """
+        h = hash_receita(tipo, receita)
+        if self.db.execute("select 1 from candidatos where hash=? and campea=?"
+                           " and (membro is null or membro='' or membro=?) limit 1",
+                           (h, campea, membro)).fetchone():
+            return None
         try:
             cur = self.db.execute(
                 "insert into candidatos (criado, origem, tipo, receita, hash, prioridade, estado,"
-                " campea, familia) values (?,?,?,?,?,?, 'fila', ?,?)",
+                " campea, familia, membro) values (?,?,?,?,?,?, 'fila', ?,?,?)",
                 (time.time(), origem, tipo, json.dumps(receita, sort_keys=True),
-                 hash_receita(tipo, receita), prioridade, campea, familia))
+                 h, prioridade, campea, familia, membro))
         except sqlite3.IntegrityError:
             return None
         self.db.commit()
@@ -200,11 +235,16 @@ def familia_proxima(receita: dict, bases: list[dict]) -> str:
     return familia(receita, min(bases, key=lambda b: len(diferencas(receita, b))))
 
 
-def membro_de_origem(champ: dict, receita: dict) -> dict:
-    """O membro de quem a receita saiu: o de receita mais parecida (menos chaves diferentes).
+def membro_de_origem(champ: dict, receita: dict, membro_id: str = "") -> dict:
+    """O membro de quem a receita saiu; a base **dele** é a do candidato de corretor.
 
-    Com membros em bases diferentes é a base **dele** que o candidato de corretor usa: o
-    vizinho só faz sentido sobre a base de onde ele veio."""
+    `membro_id` é o que o gerador gravou na linha da fila (coluna `membro`): é ele que
+    manda. Sem ele — linha antiga, ou candidato posto à mão — vale a semelhança, que não
+    separa dois membros de mesma receita em bases diferentes.
+    """
+    por_id = {m["id"]: m for m in champ["membros"]}
+    if membro_id in por_id:
+        return por_id[membro_id]
     return min(champ["membros"],
                key=lambda m: len(diferencas(receita, receita_de_config(m["config"]))))
 
@@ -352,36 +392,49 @@ def memoria_livre_gb() -> float:
     return 0.0
 
 
-def vizinhos(champ: dict, cortadas: set[str] | tuple = ()) -> list[tuple[str, dict]]:
-    """Pares (família, receita) a um passo da campeã: liga/desliga um bloco, troca o bloco
-    de fila, ou varia um parâmetro do corretor por vez. As famílias cortadas ficam de fora."""
+def _variantes(r: dict) -> list[dict]:
+    """Receitas a um passo de `r`: liga/desliga um bloco, troca o bloco de fila, ou varia
+    um parâmetro do corretor por vez."""
     saida: list[dict] = []
-    for m in champ["membros"]:
-        r = receita_de_config(m["config"])
-        for b in BLOCOS:
-            v = dict(r)
-            if b in v:
-                v.pop(b)
-            else:
-                v[b] = True
-            saida.append(v)
-        for alt in ("--stand-prefixo", "--fila", None):  # três estados do bloco fila
-            v = {k: x for k, x in r.items() if k not in FILA_FLAGS}
-            if alt:
-                v[alt] = True
-            saida.append(v)
-        for n in ROUNDS:
-            saida.append(r | {"--corretor-rounds": n})
-        atual = r.get("--corretor-params", {})
-        for p, valores in PARAMS_GRADE.items():
-            for x in valores:
-                if atual.get(p) != x:
-                    saida.append(r | {"--corretor-params": atual | {p: x}})
+    for b in BLOCOS:
+        v = dict(r)
+        if b in v:
+            v.pop(b)
+        else:
+            v[b] = True
+        saida.append(v)
+    for alt in ("--stand-prefixo", "--fila", None):  # três estados do bloco fila
+        v = {k: x for k, x in r.items() if k not in FILA_FLAGS}
+        if alt:
+            v[alt] = True
+        saida.append(v)
+    for n in ROUNDS:
+        saida.append(r | {"--corretor-rounds": n})
+    atual = r.get("--corretor-params", {})
+    for p, valores in PARAMS_GRADE.items():
+        for x in valores:
+            if atual.get(p) != x:
+                saida.append(r | {"--corretor-params": atual | {p: x}})
+    return saida
+
+
+def vizinhos(champ: dict, cortadas: set[str] | tuple = ()) -> list[tuple[str, dict, str]]:
+    """Trios (família, receita, id do membro de origem) a um passo da campeã.
+
+    Cada membro gera os seus: dois membros de mesma receita em bases diferentes dão dois
+    candidatos, porque cada um roda sobre a base do seu. As famílias cortadas ficam de fora.
+    """
     membros = [receita_de_config(m["config"]) for m in champ["membros"]]
     atuais = {json.dumps(b, sort_keys=True) for b in membros}
-    unicos = {json.dumps(v, sort_keys=True): v for v in saida}
-    pares = [(familia_proxima(v, membros), v) for k, v in unicos.items() if k not in atuais]
-    return [(f, v) for f, v in pares if f not in cortadas]
+    saida, vistos = [], set()
+    for m, r in zip(champ["membros"], membros):
+        for v in _variantes(r):
+            k = (m["id"], json.dumps(v, sort_keys=True))
+            if k[1] in atuais or k in vistos:
+                continue
+            vistos.add(k)
+            saida.append((familia(v, r), v, m["id"]))
+    return [(f, v, mid) for f, v, mid in saida if f not in cortadas]
 
 
 def executar(c: dict, champ: dict, rodar=subprocess.run) -> str | list[str]:
@@ -389,7 +442,7 @@ def executar(c: dict, champ: dict, rodar=subprocess.run) -> str | list[str]:
     nome = f"e{c['id']}"
     receita = json.loads(c["receita"])
     if c["tipo"] == "corretor":
-        origem = campeao.base_do_membro(membro_de_origem(champ, receita))
+        origem = campeao.base_do_membro(membro_de_origem(champ, receita, c.get("membro") or ""))
         argv = argv_corretor(receita, origem["base"], origem["oof"])
         rodar(["bin/run", "src/stack.py", nome, *argv], cwd=ROOT, check=True)
         return campeao.ultimo_por_nome(nome)["id"]
@@ -398,8 +451,14 @@ def executar(c: dict, champ: dict, rodar=subprocess.run) -> str | list[str]:
     rodar(["bin/run", "src/experiment.py", f"{nome}_base", *receita["base"]], cwd=ROOT, check=True)
     base_id = campeao.ultimo_por_nome(f"{nome}_base")["id"]
     ids: list[str] = []
+    feitas: set[str] = set()
     for i, membro in enumerate(champ["membros"]):
-        argv = argv_corretor(receita_de_config(membro["config"]), base_id, ids[0] if ids else None)
+        r = receita_de_config(membro["config"])
+        chave = json.dumps(r, sort_keys=True)
+        if chave in feitas:  # sobre a base nova dois membros de mesma receita viram um só
+            continue
+        feitas.add(chave)
+        argv = argv_corretor(r, base_id, ids[0] if ids else None)
         rodar(["bin/run", "src/stack.py", f"{nome}_m{i}", *argv], cwd=ROOT, check=True)
         ids.append(campeao.ultimo_por_nome(f"{nome}_m{i}")["id"])
     return ids
@@ -414,13 +473,16 @@ def passo(fila: Fila, rodar=subprocess.run, avaliar=regua.avaliar,
     cortadas = repriorizar(fila)  # a fila se reordena pelo rendimento de cada família
     c = fila.proximo()
     if c is None:
-        for fam, v in vizinhos(champ, cortadas):
-            fila.add("corretor", v, "gerador", 0, id_campea(champ), fam)
+        for fam, v, membro in vizinhos(champ, cortadas):
+            fila.add("corretor", v, "gerador", 0, id_campea(champ), fam, membro)
         repriorizar(fila)
         c = fila.proximo()
         if c is None:
             talvez_enviar(fila, champ, rodar)
             return False
+    if receita_vazada(json.loads(c["receita"])):
+        fila.marcar(c["id"], "pulado", fim=time.time(), motivo=MOTIVO_VAZADO)
+        return True
     while memoria_livre_gb() < MEMORIA_MIN_GB:
         time.sleep(60)
     fila.marcar(c["id"], "rodando", inicio=time.time())
@@ -455,24 +517,28 @@ def passo(fila: Fila, rodar=subprocess.run, avaliar=regua.avaliar,
     return True
 
 
-def transferencia_ok(champ: dict) -> tuple[bool, str]:
+def transferencia_ok(champ: dict) -> tuple[str, str]:
     """Portão de transferência 2025 → 2026 da campeã contra a última versão enviada.
 
     A régua decide quem entra no `champion.json`; este portão decide se a diferença
     acumulada desde o último envio vale um dos 5 slots diários. Mede de que regime vem o
     ganho (`src/transferencia.py`): a v37 passou na régua e seria barrada aqui.
+
+    Devolve `passa` (mede e aprova), `reprova` (mede e barra — vale até a campeã mudar) ou
+    `erro` (não chegou a medir: cache invalidado, parquet faltando, memória), que só pede
+    para tentar de novo mais tarde.
     """
     antes = (champ.get("enviada") or {}).get("membros")
     agora = [m["id"] for m in champ["membros"]]
-    if not antes:
-        return False, "`enviada` sem `membros`: rode `esteira.py enviado <versão>` de novo"
+    if not antes:  # conserto é de fora, com a mesma campeã: não é veredito
+        return "erro", "`enviada` sem `membros`: rode `esteira.py enviado <versão>` de novo"
     if sorted(antes) == sorted(agora):
-        return False, "campeã igual à última enviada"
+        return "reprova", "campeã igual à última enviada"
     try:
         rel = transferencia.relatorio(agora, list(antes))
     except (SystemExit, Exception) as e:  # noqa: B014 — o trabalhador 24/7 não pode morrer aqui
-        return False, f"{type(e).__name__}: {e}"
-    return rel["veredito"]["passa"], rel["veredito"]["motivo"]
+        return "erro", f"{type(e).__name__}: {e}"
+    return ("passa" if rel["veredito"]["passa"] else "reprova"), rel["veredito"]["motivo"]
 
 
 def talvez_enviar(fila: Fila, champ: dict, rodar=subprocess.run) -> str | None:
@@ -485,11 +551,19 @@ def talvez_enviar(fila: Fila, champ: dict, rodar=subprocess.run) -> str | None:
             or time.time() - ultimo < ENVIO_INTERVALO_S):
         return None
     chave = id_campea(champ)
-    if fila.meta("transferencia_reprovada") == chave:  # já medido para esta campeã
+    if fila.meta("transferencia_reprovada") == chave:  # já medido e barrado para esta campeã
         return None
-    passa, motivo = transferencia_ok(champ)
-    if not passa:
-        fila.meta("transferencia_reprovada", chave)
+    erro_em = float(fila.meta("transferencia_erro_em") or 0)
+    if (fila.meta("transferencia_erro") == chave  # estourou há pouco: não insiste em rajada
+            and time.time() - erro_em < ERRO_TRANSFERENCIA_S):
+        return None
+    veredito, motivo = transferencia_ok(champ)
+    if veredito != "passa":
+        if veredito == "erro":  # a causa pode sumir (cache refeito, RAM livre): só adia
+            fila.meta("transferencia_erro", chave)
+            fila.meta("transferencia_erro_em", str(time.time()))
+        else:
+            fila.meta("transferencia_reprovada", chave)
         fila.meta("erro_envio", f"transferência: {motivo}"[:200])
         return None
     registradas = [json.loads(l)["versao"]
@@ -536,6 +610,8 @@ def main(argv: list[str] | None = None) -> None:
     if args.cmd == "add":
         champ = carregar_campea()
         receita = json.loads(args.receita)
+        if receita_vazada(receita):
+            raise SystemExit(MOTIVO_VAZADO)
         fam = "base" if args.tipo == "base" else familia_proxima(receita, receitas_membros(champ))
         cid = fila.add(args.tipo, receita, args.origem, args.prioridade, id_campea(champ), fam)
         print(f"candidato {cid} (família {fam})" if cid else "já estava na fila para esta campeã")
@@ -554,8 +630,8 @@ def main(argv: list[str] | None = None) -> None:
         print("retomada")
     elif args.cmd == "gerar":
         champ = carregar_campea()
-        n = sum(fila.add("corretor", v, "gerador", 0, id_campea(champ), fam) is not None
-                for fam, v in vizinhos(champ, repriorizar(fila)))
+        n = sum(fila.add("corretor", v, "gerador", 0, id_campea(champ), fam, membro) is not None
+                for fam, v, membro in vizinhos(champ, repriorizar(fila)))
         print(f"{n} vizinhos novos na fila")
     elif args.cmd == "familias":
         champ = carregar_campea()
@@ -587,6 +663,7 @@ def main(argv: list[str] | None = None) -> None:
         fila.meta("pronto_sem_loteria", "")
         fila.meta("pronto_membros", "")
         fila.meta("transferencia_reprovada", "")  # a próxima campeã é medida contra esta
+        fila.meta("transferencia_erro", "")
         print(f"campeã marcada como enviada na v{args.n} (sem loteria {sem_lot})")
     elif args.cmd == "trabalhar":
         recuperados = fila.recuperar()

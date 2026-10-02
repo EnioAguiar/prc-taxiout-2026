@@ -163,6 +163,16 @@ Só mexe no que veio do `gerador`; `usuario`/`agente` e os candidatos de tipo `b
 a prioridade dada à mão. `esteira familias` rotula as linhas antigas (comparando com as
 receitas dos membros conhecidos) e imprime o quadro.
 
+**Revisão 02/10 — membro de origem**: cada candidato do gerador guarda **de qual membro**
+ele saiu (coluna `membro`), e é a base **desse** membro que `executar` usa. Antes a origem
+era adivinhada por semelhança de receita, que empata sempre que dois membros têm a mesma
+receita de corretor em bases diferentes (o caso de `20260930-140011-e76_m1` e
+`20261001-160427-e113_m1`): o desempate pegava o primeiro da lista e nenhum vizinho rodava
+sobre a segunda base. Agora os dois geram candidatos próprios — a dedup é por
+`(hash, campeã, membro)`, e uma linha antiga **sem** membro continua valendo por qualquer
+origem (não duplica o que já está na fila) e continua caindo na semelhança para rodar.
+Na base nova, dois membros de mesma receita viram **um** corretor só (`executar` dedupa).
+
 ### 7. Relatório — `docs/esteira.md` (regravado a cada candidato)
 
 Campeã atual (membros, simulação completa/sem loteria), ganho acumulado desde o último envio,

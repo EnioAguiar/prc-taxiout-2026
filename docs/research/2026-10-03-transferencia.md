@@ -168,19 +168,29 @@ falha: IC do corpo > 0; top-20 do corpo < 200%
 campeã continua sendo promovida pela régua (é ela que decide o que entra no
 `champion.json`), mas o envio — que custa 2,6 h de `submit` e um dos 5 slots diários — só
 acontece se a transferência passar. Quando não passa, a esteira grava o motivo em
-`erro_envio` (visível em `docs/esteira.md`), marca `transferencia_reprovada` com a chave da
-campeã para não remedir a mesma coisa a cada candidato, e **não** gasta a trava de 6 h.
+`erro_envio` (visível em `docs/esteira.md`) e **não** gasta a trava de 6 h.
+
+O portão tem três respostas (02/10), porque "não passa" e "não mediu" não são a mesma coisa:
+
+| resposta | quando | o que a esteira faz |
+|---|---|---|
+| `passa` | o veredito do relatório aprova | monta a submissão |
+| `reprova` | mediu e barrou (regime do ganho, campeã igual à enviada) | marca `transferencia_reprovada` com a chave da campeã e não remede até a campeã mudar |
+| `erro` | não chegou a medir: cache de split invalidado, parquet de `runs/` faltando, `MemoryError` no adversário, `enviada` sem `membros` | marca `transferencia_erro`/`transferencia_erro_em` e tenta de novo depois de uma hora (`ERRO_TRANSFERENCIA_S`) |
+
+Tratar erro como reprovação travava o envio até a campeã mudar ou alguém rodar
+`esteira.py enviado` — mesmo depois de a causa sumir (cache refeito, RAM livre).
 
 A referência da comparação é a última versão **enviada**, não a campeã de agora. Para isso
 `enviada` passou a guardar `membros` (`esteira.py enviado <N>` grava os ids do arquivo que
 foi gerado, que podem já não ser os da campeã); o `champion.json` da v37 foi preenchido à
-mão com os quatro membros dela. Sem esse campo o portão reprova e pede para rodar
-`esteira.py enviado <versão>` de novo — é o único jeito honesto, porque sem os membros
-antigos não há o que medir.
+mão com os quatro membros dela. Sem esse campo o portão devolve `erro` e pede para rodar
+`esteira.py enviado <versão>` de novo — é conserto de fora, com a mesma campeã, então a
+hora seguinte tenta outra vez.
 
 Verificação de ponta a ponta (02/10, com a campeã real no disco): marcando a v36 como
 última enviada, `esteira.transferencia_ok` devolve
-`(False, 'falha: IC do corpo > 0; top-20 do corpo < 200%')` — ou seja, a esteira **não
+`('reprova', 'falha: IC do corpo > 0; top-20 do corpo < 200%')` — ou seja, a esteira **não
 teria montado a v37**.
 
 ## 6. Limites honestos
