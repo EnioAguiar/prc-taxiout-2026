@@ -247,13 +247,16 @@ def test_id_campea_soma_os_membros_e_solta_a_dedup(tmp_path):
     assert f.add("corretor", receita, "gerador", 0, esteira.id_campea(c2))
 
 
-def _pronta(tmp_path, monkeypatch, fila):
-    """Campeã com 0,5 s de ganho sobre a enviada e a trava de 6 h vencida."""
+def _pronta(tmp_path, monkeypatch, fila, transfere=True):
+    """Campeã com 0,5 s de ganho sobre a enviada, trava de 6 h vencida e transferência ok."""
     (tmp_path / "submissions.jsonl").write_text('{"versao": 32}\n')
     monkeypatch.setattr(esteira, "ROOT", tmp_path)
     monkeypatch.setattr(esteira, "memoria_livre_gb", lambda: 12.0)
+    monkeypatch.setattr(esteira, "transferencia_ok",
+                        lambda champ: (transfere, "ok" if transfere else "falha: IC do corpo > 0"))
     fila.meta("ultimo_arquivo_em", "0")
-    return _champ(sem_loteria=232.5, enviada={"versao": 32, "sem_loteria": 233.0})
+    return _champ(["m", "n"], sem_loteria=232.5,
+                  enviada={"versao": 32, "sem_loteria": 233.0, "membros": ["m"]})
 
 
 def test_talvez_enviar_anota_erro_quando_o_submit_falha(tmp_path, monkeypatch):
@@ -306,7 +309,7 @@ def test_passo_sem_aprovacao_ainda_gera_o_arquivo(tmp_path, monkeypatch):
     assert [c for c in cmds if "submit" in c] and f.meta("pronto")
 
 
-def test_enviado_grava_o_sem_loteria_do_momento_da_geracao(tmp_path, monkeypatch, capsys):
+def test_enviado_grava_o_sem_loteria_e_os_membros_do_momento_da_geracao(tmp_path, monkeypatch):
     import campeao
 
     f = esteira.Fila(tmp_path / "e.db")
@@ -314,14 +317,59 @@ def test_enviado_grava_o_sem_loteria_do_momento_da_geracao(tmp_path, monkeypatch
     assert esteira.talvez_enviar(f, champ, lambda argv, **kw: None)
     assert f.meta("pronto_sem_loteria") == "232.5"
 
-    outra = _champ(["m", "n"], sem_loteria=231.0, enviada=champ["enviada"])
+    outra = _champ(["m", "n", "o"], sem_loteria=231.0, enviada=champ["enviada"])
     monkeypatch.setattr(esteira, "Fila", lambda *a, **k: f)
     monkeypatch.setattr(esteira, "carregar_campea", lambda: outra)
     salvo = {}
     monkeypatch.setattr(campeao, "salvar", lambda c: salvo.update(c))
     esteira.main(["enviado", "33"])
-    assert salvo["enviada"] == {"versao": 33, "sem_loteria": 232.5}
+    # a campeã já tem 3 membros, mas o arquivo enviado foi o de 2: é esse o alvo da próxima
+    # checagem de transferência
+    assert salvo["enviada"] == {"versao": 33, "sem_loteria": 232.5, "membros": ["m", "n"]}
     assert not f.meta("pronto") and not f.meta("pronto_sem_loteria")
+
+
+def test_talvez_enviar_segura_o_submit_quando_a_transferencia_reprova(tmp_path, monkeypatch):
+    """O caso v37: a régua promoveu, mas o ganho não é de regime que transfere."""
+    f = esteira.Fila(tmp_path / "e.db")
+    champ = _pronta(tmp_path, monkeypatch, f, transfere=False)
+    cmds = []
+    assert esteira.talvez_enviar(f, champ, lambda argv, **kw: cmds.append(argv)) is None
+    assert not cmds and not f.meta("pronto")
+    assert "transferência" in f.meta("erro_envio") and "IC do corpo" in f.meta("erro_envio")
+    assert not f.meta("ultimo_arquivo_em") or f.meta("ultimo_arquivo_em") == "0"
+
+
+def test_transferencia_reprovada_nao_e_remedida_para_a_mesma_campea(tmp_path, monkeypatch):
+    f = esteira.Fila(tmp_path / "e.db")
+    champ = _pronta(tmp_path, monkeypatch, f, transfere=False)
+    medidas = []
+    monkeypatch.setattr(esteira, "transferencia_ok",
+                        lambda c: (medidas.append(c) or (False, "falha: corpo > 0")))
+    for _ in range(3):
+        assert esteira.talvez_enviar(f, champ, lambda argv, **kw: None) is None
+    assert len(medidas) == 1
+
+
+def test_transferencia_ok_compara_a_campea_com_os_membros_da_ultima_enviada(monkeypatch):
+    champ = _champ(["m", "n"], enviada={"versao": 32, "sem_loteria": 233.0, "membros": ["m"]})
+    vistos = {}
+
+    def relatorio(novos, contra):
+        vistos["novos"], vistos["contra"] = novos, contra
+        return {"veredito": {"passa": True, "motivo": "transferência ok"}}
+
+    monkeypatch.setattr(esteira.transferencia, "relatorio", relatorio)
+    assert esteira.transferencia_ok(champ) == (True, "transferência ok")
+    assert vistos == {"novos": ["m", "n"], "contra": ["m"]}
+
+
+def test_transferencia_ok_reprova_campea_igual_a_enviada_e_enviada_sem_membros():
+    igual = _champ(["m"], enviada={"versao": 32, "sem_loteria": 233.0, "membros": ["m"]})
+    assert esteira.transferencia_ok(igual) == (False, "campeã igual à última enviada")
+    velha = _champ(["m", "n"], enviada={"versao": 32, "sem_loteria": 233.0})
+    passa, motivo = esteira.transferencia_ok(velha)
+    assert not passa and "membros" in motivo
 
 
 def test_falha_no_submit_respeita_a_trava_de_seis_horas(tmp_path, monkeypatch):

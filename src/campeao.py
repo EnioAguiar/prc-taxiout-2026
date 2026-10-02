@@ -1,7 +1,7 @@
 """Campeã v3: média simples de corretores (membros), mais pós-regras.
 
     {"membros": [{"id", "config"}], "pos_regras", "rmse_simulacao",
-     "sem_loteria", "enviada": {"versao", "sem_loteria"} | null}
+     "sem_loteria", "enviada": {"versao", "sem_loteria", "membros"} | null}
 
 Os membros podem estar sobre **bases diferentes** (foi daí que veio o ganho de 02/10): a
 base de cada um vive em `config.base`/`config.base_config` (`base_do_membro()`) e o

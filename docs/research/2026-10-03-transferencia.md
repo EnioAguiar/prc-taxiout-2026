@@ -84,6 +84,17 @@ Qualidade de previsão do delta oficial (6 pontos):
 | `completo_p` (com peso) | +0,026 | +0,257 | 3,18 | 1,594 s |
 | `corpo_p` (corpo com peso) | +0,659 | +0,771 | 1,29 | 0,407 s |
 
+A razão acima é ajustada nos mesmos seis pontos em que é medida. Repetindo com
+**deixa-um-de-fora** (razão ajustada nas outras cinco transições, erro na que ficou de
+fora), a ordem não muda:
+
+| métrica | EAM fora da amostra | pior caso |
+|---|---|---|
+| `completo` | 0,594 s | 1,575 s |
+| `sem_loteria` | 0,469 s | 1,540 s |
+| **`corpo`** | **0,222 s** | **0,823 s** |
+| `corpo_p` | 0,539 s | 1,608 s |
+
 Três coisas saem daqui, e duas são desconfortáveis:
 
 1. **A parcela do corpo é praticamente o delta oficial.** Razão 1,03 e erro absoluto médio
@@ -153,10 +164,24 @@ delta oficial previsto: +0.19 s (±0,15 s de erro médio no backtest)
 falha: IC do corpo > 0; top-20 do corpo < 200%
 ```
 
-`esteira.talvez_enviar` chama o portão antes de montar uma submissão: a campeã continua
-sendo promovida pela régua (é ela que decide o que entra no `champion.json`), mas o envio
-— que custa 2,6 h de `submit` e um dos 5 slots diários — só acontece se a transferência
-passar. Quando não passa, a esteira grava o motivo em `erro_envio` e não gasta o slot.
+`esteira.talvez_enviar` chama `esteira.transferencia_ok` antes de montar uma submissão: a
+campeã continua sendo promovida pela régua (é ela que decide o que entra no
+`champion.json`), mas o envio — que custa 2,6 h de `submit` e um dos 5 slots diários — só
+acontece se a transferência passar. Quando não passa, a esteira grava o motivo em
+`erro_envio` (visível em `docs/esteira.md`), marca `transferencia_reprovada` com a chave da
+campeã para não remedir a mesma coisa a cada candidato, e **não** gasta a trava de 6 h.
+
+A referência da comparação é a última versão **enviada**, não a campeã de agora. Para isso
+`enviada` passou a guardar `membros` (`esteira.py enviado <N>` grava os ids do arquivo que
+foi gerado, que podem já não ser os da campeã); o `champion.json` da v37 foi preenchido à
+mão com os quatro membros dela. Sem esse campo o portão reprova e pede para rodar
+`esteira.py enviado <versão>` de novo — é o único jeito honesto, porque sem os membros
+antigos não há o que medir.
+
+Verificação de ponta a ponta (02/10, com a campeã real no disco): marcando a v36 como
+última enviada, `esteira.transferencia_ok` devolve
+`(False, 'falha: IC do corpo > 0; top-20 do corpo < 200%')` — ou seja, a esteira **não
+teria montado a v37**.
 
 ## 6. Limites honestos
 

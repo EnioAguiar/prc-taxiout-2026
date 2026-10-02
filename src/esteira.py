@@ -17,6 +17,7 @@ from pathlib import Path
 
 import campeao
 import regua
+import transferencia
 from runlog import ROOT
 
 DB = ROOT / "data" / "esteira.db"
@@ -447,13 +448,39 @@ def passo(fila: Fila, rodar=subprocess.run, avaliar=regua.avaliar,
     return True
 
 
+def transferencia_ok(champ: dict) -> tuple[bool, str]:
+    """Portão de transferência 2025 → 2026 da campeã contra a última versão enviada.
+
+    A régua decide quem entra no `champion.json`; este portão decide se a diferença
+    acumulada desde o último envio vale um dos 5 slots diários. Mede de que regime vem o
+    ganho (`src/transferencia.py`): a v37 passou na régua e seria barrada aqui.
+    """
+    antes = (champ.get("enviada") or {}).get("membros")
+    agora = [m["id"] for m in champ["membros"]]
+    if not antes:
+        return False, "`enviada` sem `membros`: rode `esteira.py enviado <versão>` de novo"
+    if sorted(antes) == sorted(agora):
+        return False, "campeã igual à última enviada"
+    rel = transferencia.relatorio(agora, list(antes))
+    return rel["veredito"]["passa"], rel["veredito"]["motivo"]
+
+
 def talvez_enviar(fila: Fila, champ: dict, rodar=subprocess.run) -> str | None:
-    """Arquiva uma submissão quando a campeã ganhou o bastante e faz tempo desde a última."""
+    """Arquiva uma submissão quando a campeã ganhou o bastante, faz tempo desde a última
+    e o ganho transfere para 2026 (`transferencia_ok`)."""
     enviada = (champ.get("enviada") or {}).get("sem_loteria")
     ultimo = float(fila.meta("ultimo_arquivo_em") or 0)
     if (fila.meta("pronto") or enviada is None or champ["sem_loteria"] is None
             or enviada - champ["sem_loteria"] < GANHO_ENVIO_S
             or time.time() - ultimo < ENVIO_INTERVALO_S):
+        return None
+    chave = id_campea(champ)
+    if fila.meta("transferencia_reprovada") == chave:  # já medido para esta campeã
+        return None
+    passa, motivo = transferencia_ok(champ)
+    if not passa:
+        fila.meta("transferencia_reprovada", chave)
+        fila.meta("erro_envio", f"transferência: {motivo}"[:200])
         return None
     registradas = [json.loads(l)["versao"]
                    for l in (ROOT / "submissions.jsonl").read_text().splitlines() if l.strip()]
@@ -470,6 +497,7 @@ def talvez_enviar(fila: Fila, champ: dict, rodar=subprocess.run) -> str | None:
         fila.meta("erro_envio", f"submit v{versao}: {type(e).__name__}: {e}"[:200])
         return None
     fila.meta("pronto_sem_loteria", str(champ["sem_loteria"]))
+    fila.meta("pronto_membros", json.dumps([m["id"] for m in champ["membros"]]))
     return fila.meta("pronto", f"submissions/outgoing-boat_v{versao}.parquet "
                                f"(campeã {', '.join(m['id'] for m in champ['membros'])})")
 
@@ -540,10 +568,15 @@ def main(argv: list[str] | None = None) -> None:
         fila.meta("pronto", "")
         champ = carregar_campea()
         gerado = fila.meta("pronto_sem_loteria")  # valor do momento em que o arquivo foi gerado
+        membros = fila.meta("pronto_membros")  # a campeã pode ter mudado desde o arquivo
         sem_lot = float(gerado) if gerado else champ["sem_loteria"]
-        champ["enviada"] = {"versao": args.n, "sem_loteria": sem_lot}
+        champ["enviada"] = {"versao": args.n, "sem_loteria": sem_lot,
+                            "membros": json.loads(membros) if membros
+                            else [m["id"] for m in champ["membros"]]}
         campeao.salvar(champ)
         fila.meta("pronto_sem_loteria", "")
+        fila.meta("pronto_membros", "")
+        fila.meta("transferencia_reprovada", "")  # a próxima campeã é medida contra esta
         print(f"campeã marcada como enviada na v{args.n} (sem loteria {sem_lot})")
     elif args.cmd == "trabalhar":
         recuperados = fila.recuperar()
