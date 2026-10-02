@@ -157,3 +157,39 @@ def test_reprova_quando_b_piora_mesmo_com_a_forte():
     y, base, novo, dias = _cenario(0.05, -0.01)
     r = regua.decidir(y, base, novo, dias, np.ones(len(y), bool))
     assert not r["aprovado"] and r["motivo"].startswith("B")
+
+
+def _registro(tmp_path, monkeypatch, vazados):
+    import json
+
+    caminho = tmp_path / "experiments.jsonl"
+    caminho.write_text("".join(
+        json.dumps({"id": i, "config": {"pseudo": "campea", "pseudo_vazado": True}}) + "\n"
+        for i in vazados))
+    monkeypatch.setattr(regua, "REGISTRY", caminho)
+
+
+def test_recusa_sem_medir_a_corrida_destilada_do_holdout(tmp_path, monkeypatch):
+    """`--pseudo campea`: o alvo saiu de um modelo que viu jan/jul, o holdout não a julga."""
+    import campeao
+
+    _registro(tmp_path, monkeypatch, ["n"])
+    monkeypatch.setattr(campeao, "previsao", lambda ids: 1 / 0)  # nem chega a medir
+
+    r = regua.avaliar(["m1"], "n")
+
+    assert not r["aprovado"] and "pseudo vazado" in r["motivo"]
+    assert r["membros"] == ["m1"] and r["avaliadas"] == 0
+
+
+def test_proposta_limpa_segue_medida_quando_outra_esta_vazada(tmp_path, monkeypatch):
+    import campeao
+
+    n, quadros = _quadros_de_duas_bases(ruido_novo=15.0)
+    _registro(tmp_path, monkeypatch, ["m1"])  # a campeã atual é que está suja
+    monkeypatch.setattr(campeao, "previsao", _previsao_falsa(quadros))
+    monkeypatch.setattr(regua, "slice_masks", lambda ref: {"sem loteria": np.ones(n, bool)})
+
+    r = regua.avaliar_conjunto(["m1"], ["n1"])  # `soma` leva m1 junto; `base_nova` não
+
+    assert r["avaliadas"] == 1 and r["proposta"] == "base_nova" and r["aprovado"], r["motivo"]

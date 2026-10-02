@@ -7,15 +7,21 @@ v32 — e ganho `completo` ≥ COMPLETO_MIN. B nunca escolhe: só confirma a pro
 
 Calibração de 30/09: com `IC_B = −0,3` a régua reprovou a base com plano 13 (candidato 76:
 A +2,37, B +0,50 com IC −0,93 a +1,95, dias todos sem loteria +1,45 com IC +0,09 a +3,05).
+
+Proposta com membro de config `pseudo_vazado` (`--pseudo campea`) é recusada sem medir: o
+alvo dela saiu de um modelo que viu jan/jul de 2025, então o holdout não é juiz.
 """
 from __future__ import annotations
+
+import json
 
 import numpy as np
 
 import campeao
 from cache import TRUTH
-from features import ID
 from compare import paired_bootstrap, slice_masks
+from features import ID
+from runlog import REGISTRY
 
 GANHO_A, COMPLETO_MIN = 0.3, -0.5
 
@@ -63,8 +69,31 @@ def decidir(y, base, novo, dias, sem_lot, semente: int = 0) -> dict:
     return {"aprovado": True, "a": a, "b": b, "completo": completo, "motivo": "aprovado"}
 
 
+def vazadas(ids) -> set[str]:
+    """Entre `ids`, as corridas com `pseudo_vazado` na config: alvo destilado do holdout.
+
+    O holdout de jan/jul de 2025 não mede quem aprendeu com um modelo que o viu
+    (`docs/research/2026-10-03-pseudo-rotulo.md`), então a régua não as julga. Corrida fora
+    do registro não é vazada: o teste monta ids de mentira e a esteira grava antes de medir.
+    """
+    alvo, saida = set(ids), set()
+    for linha in REGISTRY.read_text().splitlines():
+        if not linha.strip():
+            continue
+        rec = json.loads(linha)
+        if rec["id"] in alvo and (rec.get("config") or {}).get("pseudo_vazado"):
+            saida.add(rec["id"])
+    return saida
+
+
 def _melhor(membros: list[str], todas: dict[str, list[str]], semente: int) -> dict:
     """Entre as propostas que passam em A, a de maior ganho; só ela é confirmada em B."""
+    sujas = vazadas({i for ids in todas.values() for i in ids})
+    limpas = {nome: ids for nome, ids in todas.items() if not sujas.intersection(ids)}
+    if not limpas:
+        return {"aprovado": False, "a": None, "b": None, "completo": None,
+                "motivo": f"pseudo vazado: {', '.join(sorted(sujas))} não é medida no holdout",
+                "proposta": None, "membros": list(membros), "avaliadas": 0}
     ref = campeao.previsao(membros)
     y, dias = ref[TRUTH].to_numpy(float), ref["dia"].to_numpy()
     sem_lot = slice_masks(ref)["sem loteria"]
@@ -73,7 +102,7 @@ def _melhor(membros: list[str], todas: dict[str, list[str]], semente: int) -> di
     escolha, melhor = None, -np.inf
     passou, melhor_passou = None, -np.inf
     m = (lado == "A") & sem_lot
-    for nome, ids in todas.items():
+    for nome, ids in limpas.items():
         p = _alinhado(ref, ids)
         r_a = paired_bootstrap(y[m], base_pred[m], p[m], dias[m])
         g = r_a["ganho"]
@@ -83,7 +112,7 @@ def _melhor(membros: list[str], todas: dict[str, list[str]], semente: int) -> di
             passou, melhor_passou = (nome, ids, p), g
     nome, ids, p = passou or escolha  # sem nenhuma passando, reprova com a de maior ganho
     r = decidir(y, base_pred, p, dias, sem_lot, semente)
-    return r | {"proposta": nome, "membros": ids, "avaliadas": len(todas)}
+    return r | {"proposta": nome, "membros": ids, "avaliadas": len(limpas)}
 
 
 def _alinhado(ref, ids: list[str]) -> np.ndarray:

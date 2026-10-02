@@ -19,9 +19,13 @@ membro medido e o membro enviado serem o mesmo objeto.
 
 1. **Previsão da base para 2026** (`pseudo.base_2026`): um ajuste da `base_config` no
    `train2025` — os **10 meses sem jan/jul** — prevendo as 344.841 partidas do ranking.
-   Fica em `data/cache/pseudo/base-<chave>.parquet`; a chave junta a config da base e os
-   arquivos que a determinam (`models.py`, `crossfit.py`, `features.py`, `cache.py`), no
-   espírito do `train.chave_oof`. Custo de uma vez por base; depois é leitura.
+   Fica em `data/cache/pseudo/base-<chave>.parquet`; a chave é a mesma conta do
+   `train.chave_oof` (`identidade.chave_da_base`, com marca própria): config da base, todo
+   o código de que a previsão da base depende (`crossfit.py` e o que ele importa de `src/`,
+   o que inclui `plano13`, `pista`, `externos`, `mapa`, `dispositivo`) e o tamanho/mtime dos
+   parquets de dados e do `events.parquet`. Corrigido em 02/10: antes a chave só via
+   `models/crossfit/features/cache`, e um `plano13.py` editado ou um `events.parquet` refeito
+   devolviam a base velha. Custo de uma vez por base; depois é leitura.
 2. **Alvo das linhas de 2026** (`fonte`):
    - `propria`: a previsão do **próprio corretor desta corrida** (treinado nas cegas dos
      10 meses) sobre aquela base. Nenhum dos dois viu rótulo de jan/jul de 2025.
@@ -123,6 +127,13 @@ tipo de coisa que um professor contaminado transporta e que não existe no ofici
 da corrida e **o número de holdout dela não decide nada** — nem régua, nem promoção. Quem
 quiser usá-la tem que aceitar enviar às cegas. O candidato que foi para a fila usa
 `--pseudo propria`.
+
+**A marca passou a valer (02/10).** Antes ninguém lia `pseudo_vazado`; agora:
+`regua._melhor` descarta sem medir qualquer proposta com membro marcado (motivo
+`pseudo vazado: …`), `compare.promote` recusa promover a corrida, e a esteira nem enfileira
+nem roda receita com `--pseudo campea` (`esteira.py add` sai com erro, e um candidato
+desses já na fila vira `pulado`). Para usar a fonte vazada é preciso sair da esteira: rodar
+o `stack.py` à mão e montar o envio sabendo que não há medida.
 
 **Por que `propria` é limpa.** A base de 2026 é ajustada no `train2025` (10 meses, sem
 jan/jul) e o professor é o corretor desta mesma corrida, treinado nas cegas dos 10 meses

@@ -65,3 +65,18 @@ def test_ganho_de_poucos_voos_e_fragil():
     sem_top = gain_without_top(y, base, new)
     assert res["ganho"] >= 10 and sem_top <= 0
     assert verdict(res, sem_top, by_month(y, base, new, dia)) == "FRÁGIL"
+
+
+def test_nao_promove_corrida_destilada_do_proprio_holdout(monkeypatch):
+    """`--pseudo campea` marca `pseudo_vazado`: este holdout não julga a corrida."""
+    import campeao
+    import compare
+    import pytest
+
+    salvos = []
+    monkeypatch.setattr(campeao, "salvar", lambda c: salvos.append(c))
+
+    with pytest.raises(SystemExit, match="pseudo_vazado"):
+        compare.promote({"id": "x", "config": {"pseudo": "campea", "pseudo_vazado": True}})
+
+    assert not salvos

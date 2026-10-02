@@ -121,6 +121,10 @@ def may_promote(base_id: str | None, champion: dict | None) -> bool:
 
 
 def promote(rec: dict) -> None:
+    if (rec.get("config") or {}).get("pseudo_vazado"):
+        # alvo destilado de um modelo que viu jan/jul de 2025: este holdout não a mede
+        raise SystemExit(f"{rec['id']} tem `pseudo_vazado`: o holdout não julga essa corrida"
+                         " (docs/research/2026-10-03-pseudo-rotulo.md); não promove")
     atual = campeao.carregar() if CHAMPION.exists() else None
     campeao.salvar(campeao.nova([rec], enviada=atual.get("enviada") if atual else None))
     print(f"campeã agora: {rec['id']} (1 membro)")
