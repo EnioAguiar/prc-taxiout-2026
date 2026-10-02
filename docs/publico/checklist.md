@@ -66,25 +66,12 @@ documentação depois do prazo não conta.
 - [ ] **Caminho pessoal em `experiments.jsonl`**: 18 ocorrências de `/home/enio` (campos de
   caminho de arquivos de corrida). Decidir entre limpar os caminhos ou aceitar que o nome de
   usuário apareça. Não é segredo; é só exposição do nome da conta local.
-- [ ] **Material interno que ainda está rastreado, a decidir caso a caso** (nada disso é
-  segredo técnico; são leituras de fora misturadas a conteúdo técnico, então não foram
-  apagadas sozinhas):
-  - `docs/superpowers/specs/2026-09-24-pipeline-melhoria-continua-design.md` — cita Discord
-    e posições de placar ao justificar o pipeline;
-  - `docs/superpowers/plans/2026-09-26-plano4-adsb.md` (seção "Etapa final oculta (Discord)"),
-    `2026-09-27-plano8-contexto-arr.md`, `2026-09-27-plano9-conjunto-corretor.md`,
-    `2026-09-27-plano10-sem-latlon.md`, `2026-09-28-plano11-regressor-limpo.md` e
-    `2026-09-28-plano12-pacote-externo.md` — evidência vinda de Discord ou de repositórios de
-    outras equipes, e links para as pesquisas que saíram do índice;
-  - `docs/research/2026-09-24-competicoes-e-placar.md` — notas do espelho do placar e dos
-    READMEs de outras equipes;
-  - `docs/research/2026-09-24-literatura-taxiout.md` — mistura literatura revisada por pares
-    com números lidos de um concorrente;
-  - `docs/research/2026-09-24-forense-dados.md` e `2026-09-24-diagnostico-v4.md` — citam a
-    nota do líder e o placar em uma linha cada;
-  - `docs/mapa.md` — duas menções a Discord (regra do Trino do OpenSky, tuning);
-  - `ferramentas/projecao.py` — ferramenta que baixa a foto do placar público; a saída já
-    está fora do git, mas o script continua rastreado.
+- [x] **Material interno misturado a conteúdo técnico (decidido em 02/10):** o repositório abre com
+  todo o histórico, então essas leituras já ficam visíveis nos commits antigos. Sai da versão final
+  só `docs/research/2026-09-24-competicoes-e-placar.md` (foto do placar e leitura de READMEs de
+  outras equipes; fica no disco, no `.gitignore`). **Ficam**, porque mostram de onde veio cada
+  passo do método: o spec do pipeline, os planos 4 e 8–12, `literatura-taxiout.md`,
+  `forense-dados.md`, `diagnostico-v4.md`, `docs/mapa.md` e `ferramentas/projecao.py`.
 - [ ] **Atualizar a campeã e o README entre 08 e 10/10**: se a esteira promover membros
   novos até lá, refazer §1.3 (`champion.json`), a tabela de versões e a nota oficial do
   `README.md` **antes** do prazo — o organizador usa o último commit anterior a 11/10.
