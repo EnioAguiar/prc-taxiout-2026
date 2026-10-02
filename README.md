@@ -285,6 +285,45 @@ labelled as such in `submissions.jsonl`:
 
 Everything else was promoted locally first.
 
+### 2.4 The transfer check: which regime does the gain come from?
+
+The ruler of §2.2 answers "does the candidate win on the 2025 holdout?". It does not answer
+"will that win survive the move to 2026?", and version v37 showed the difference: simulated
+−0.77 s of full RMSE, official −0.02 s. The post-mortem is that the simulated gain was in
+the wrong place — **+0.586 s of it came from flights with `y > 1 h`** (lottery, not signal),
+20 flights were worth 129 % of it, and the member had been picked among 266 runs scored on
+the same holdout.
+
+`src/transferencia.py` measures what the ruler cannot. The RMSE gain decomposes **exactly**
+into a per-flight sum — `RMSE(b) − RMSE(n) = Σᵢ wᵢ·dᵢ / (Σw · (RMSE_b + RMSE_n))` with
+`dᵢ = (y−b)² − (y−n)²` — so the same sum restricted to a subset *is* the share of the gain
+that comes from it, in seconds of RMSE, and the parts add up. Three readings follow: the
+**body** (`y ≤ 3600 s`), the **tail** (`y > 3600 s`), and the share held by the 20
+most-improved flights. A fourth reading reweights the holdout to the 2026 covariate
+distribution with importance weights `w = p/(1−p)` from an adversarial 2025-vs-2026
+classifier (out-of-fold AUC 0.866), clipped at the 95th percentile (IWCV, Sugiyama 2007).
+
+Backtested on the six consecutive submissions with a known official delta (v30 → v37), the
+**body share alone predicts the official delta with a ratio of 1.03 and a mean absolute
+error of 0.15 s** (Pearson 0.985), against 0.44 s for the full RMSE and 0.36 s for
+`sem_loteria`; the tail share is *anti*-correlated with the official delta (−0.86). So the
+gate is:
+
+1. the body share of the gain is positive, with a day-bootstrap 95 % CI strictly above zero;
+2. the 20 most-improved flights hold less than 200 % of the body gain;
+3. the body share stays positive under the 2026 importance weights.
+
+It accepts 3 of 3 submissions that were worth ≥ 0.65 s officially and refuses 3 of 3 that
+were worth ≤ 0.16 s, **v37 included**. The 200 % limit is not a typo: with ~1 s of gain
+spread over 344 k flights, concentration is the norm — v33, worth +2.21 s officially, has
+125 % of its body gain in 20 flights, and a 50 % limit would have refused it.
+
+`esteira.talvez_enviar` calls the gate before building a submission: the ruler still decides
+what enters `champion.json`, but a submission — 2.6 h of `train.py submit` and one of the 5
+daily slots — is only produced when the transfer check passes. Measurement, calibration and
+the honest limits are in
+[`docs/research/2026-10-03-transferencia.md`](docs/research/2026-10-03-transferencia.md).
+
 ## 3. What did not work
 
 Negative results, with the measurement that killed each one. All of them are reproducible
