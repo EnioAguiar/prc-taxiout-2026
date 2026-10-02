@@ -232,3 +232,41 @@ def test_o_peso_das_linhas_de_2026_chega_ao_lightgbm():
 
     assert abs(sem_peso.mean()) < 1.0
     assert com_peso.mean() > 90.0
+
+
+def test_a_chave_cobre_os_modulos_transitivos_e_os_dados(tmp_path, monkeypatch):
+    """Editar plano13.py ou refazer os eventos ADS-B tem que invalidar a base de 2026."""
+    import identidade
+
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "crossfit.py").write_text("import models\n")
+    (src / "models.py").write_text("import plano13\n")
+    (src / "plano13.py").write_text("X = 1\n")
+    dados = tmp_path / "data"
+    (dados / "mapa").mkdir(parents=True)
+    (dados / "ranking.parquet").write_bytes(b"ranking")
+    monkeypatch.setattr(identidade, "ROOT", tmp_path)
+    monkeypatch.setattr(identidade, "DATA", dados)
+    monkeypatch.setattr(identidade, "ADSB_RAIZ", tmp_path / "adsb")
+    cfg = {"model": "two_stage_nm"}
+
+    inicial = pseudo.chave(cfg)
+    assert pseudo.chave(cfg) == inicial
+    assert pseudo.chave(cfg) != identidade.chave_da_base(cfg)  # outro artefato, outro arquivo
+
+    (src / "plano13.py").write_text("X = 2\n")  # módulo que só `models.prepare` puxa
+    sem_plano13 = pseudo.chave(cfg)
+    assert sem_plano13 != inicial
+
+    (dados / "ranking.parquet").write_bytes(b"ranking refeito")
+    assert pseudo.chave(cfg) != sem_plano13
+
+
+def test_os_modulos_da_base_pegam_o_que_prepare_importa():
+    import identidade
+
+    nomes = {p.name for p in identidade.modulos_da_base()}
+
+    assert {"plano13.py", "pista.py", "externos.py", "mapa.py", "dispositivo.py",
+            "models.py", "cache.py"} <= nomes

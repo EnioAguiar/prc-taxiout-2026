@@ -23,16 +23,14 @@ cauda é onde o pseudo-rótulo é pior (ali a previsão é hedge entre táxi e c
 planejado) e onde o erro² mora — pseudo-rotulá-la só reforçaria o próprio hedge.
 
 A previsão da base para 2026 (um ajuste no `train2025`, ~10 min) fica em
-`data/cache/pseudo/base-<chave>.parquet`; a chave junta a config da base e o código que a
-determina (`models.py`, `crossfit.py`, `features.py`, `cache.py`), no espírito do
-`train.chave_oof`. O mesmo arquivo serve à simulação e ao envio, então o membro medido e o
-membro enviado usam exatamente as mesmas linhas de 2026.
+`data/cache/pseudo/base-<chave>.parquet`; a chave é a do `train.chave_oof`
+(`identidade.chave_da_base`) com marca própria: config da base, todo o código de que a
+previsão da base depende e os parquets de entrada. O mesmo arquivo serve à simulação e ao
+envio, então o membro medido e o membro enviado usam exatamente as mesmas linhas de 2026.
 """
 
 from __future__ import annotations
 
-import hashlib
-import json
 import re
 from pathlib import Path
 
@@ -41,6 +39,7 @@ import pandas as pd
 
 import features as F
 from cache import CACHE, HOLDOUT_MONTHS, load_split
+from identidade import chave_da_base
 from models import build_model, leaky_columns, prepare
 from runlog import ROOT
 
@@ -49,16 +48,17 @@ SUBMISSOES = ROOT / "submissions"
 CORTE = 3600.0  # corpo: acima disso a previsão já é hedge de cópia
 PESO = 0.3
 FONTES = ("propria", "campea")
-MODULOS = ("models", "crossfit", "features", "cache")  # o que determina a previsão da base
 VERSAO = re.compile(r"_v(\d+)\.parquet$")
 
 
 def chave(cfg_base: dict) -> str:
-    """Identidade da previsão de 2026: a config da base e o código que a produz."""
-    h = hashlib.sha256(json.dumps(cfg_base, sort_keys=True).encode())
-    for nome in MODULOS:
-        h.update(nome.encode() + (ROOT / "src" / f"{nome}.py").read_bytes())
-    return h.hexdigest()[:16]
+    """Identidade da previsão de 2026: config da base, código dela e dados de entrada.
+
+    A mesma conta do `train.chave_oof` (`identidade.chave_da_base`), com marca própria: a
+    previsão de 2026 depende de tudo o que a de 2025 depende — `models.prepare` e o que ele
+    importa, `events.parquet` e os parquets de dados —, não só de `models/crossfit/features/cache`.
+    """
+    return chave_da_base(cfg_base, "pseudo-base-2026")
 
 
 def caminho_base(cfg_base: dict, pasta: Path = PASTA) -> Path:

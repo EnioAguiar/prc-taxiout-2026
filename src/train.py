@@ -32,13 +32,10 @@ de companhias sai do `full2025` e é o mesmo nos dois quadros.
 from __future__ import annotations
 
 import argparse
-import ast
-import hashlib
 import json
 import os
 import sys
 from collections.abc import Iterable
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -52,10 +49,10 @@ import pseudo as pseudo_mod
 import refcel
 import roma
 import runlog
-from adsb_events import RAIZ as ADSB_RAIZ
 from cache import CACHE, DATA, TRUTH, load_split
 from crossfit import oof_base
 from externos import MESES_2025, CopiaCia, colunas_ext, copia_cia_2025
+from identidade import chave_da_base
 from models import build_model, leaky_columns, prepare
 from plano13 import colunas_p13, vocabulario
 from runlog import ROOT, Run
@@ -68,37 +65,9 @@ OOF_CACHE = CACHE / "oof_base"
 ROUNDS_SCALE = 1.2  # full2025 tem 2,085 M linhas contra 1,741 M do train2025
 
 
-def modulos_da_base(inicio: str = "crossfit") -> list[Path]:
-    """Arquivos de `src/` que a previsão fora do bloco usa: `crossfit.py` e seus imports locais."""
-    src = ROOT / "src"
-    vistos: set[str] = set()
-    fila = [inicio]
-    while fila:
-        nome = fila.pop()
-        path = src / f"{nome}.py"
-        if nome in vistos or not path.exists():
-            continue
-        vistos.add(nome)
-        for no in ast.walk(ast.parse(path.read_text())):
-            if isinstance(no, ast.Import):
-                fila += [a.name.split(".")[0] for a in no.names]
-            elif isinstance(no, ast.ImportFrom) and no.module and not no.level:
-                fila.append(no.module.split(".")[0])
-    return [src / f"{m}.py" for m in sorted(vistos)]
-
-
 def chave_oof(cfg_base: dict) -> str:
     """Identidade da previsão fora do bloco: config da base, código dela e dados de entrada."""
-    h = hashlib.sha256(json.dumps(cfg_base, sort_keys=True).encode())
-    for p in modulos_da_base():
-        h.update(p.name.encode() + p.read_bytes())
-    dados = [*sorted(DATA.glob("*.parquet")), *sorted((DATA / "mapa").glob("*.parquet")),
-             ADSB_RAIZ / "events.parquet"]
-    for p in dados:  # caminho resolvido: data/adsb como link para outro disco dá a mesma chave
-        p = p.resolve()
-        st = p.stat() if p.exists() else None
-        h.update(f"{p}:{st.st_size}:{st.st_mtime_ns}".encode() if st else f"{p}:-".encode())
-    return h.hexdigest()[:16]
+    return chave_da_base(cfg_base)
 
 
 def escalar_rodadas(cfg: dict) -> dict:
