@@ -22,3 +22,4 @@
 {"versao": 34, "enviado_utc": "2026-10-01T17:56", "oficial": 244.1847, "simulacao": 295.86, "mudanca": "--retencao no corretor 1 (esteira, candidato 117, retenção no portão) + e76_m1 + regra de Roma"}
 {"versao": 35, "enviado_utc": "2026-10-02T14:04", "oficial": 244.131, "simulacao": 295.81, "mudanca": "--corretor-sem-regra no corretor 1 (esteira, candidato 122: não treina nem corrige os 207 voos de regra) + e76_m1 + regra de Roma"}
 {"versao": 36, "enviado_utc": "2026-10-02T16:03", "oficial": 243.9755, "simulacao": 295.63, "mudanca": "3 corretores na média: v35 + candidato 140 (corretor 1 com --pista --retencao --corretor-sem-regra) + regra de Roma"}
+{"versao": 37, "enviado_utc": "2026-10-02T22:41", "oficial": null, "simulacao": 294.86, "mudanca": "4 membros em 2 bases: v36 (3 corretores sobre e76_base) + e113_m1 (corretor sobre a base --cls-peso quad); hill climbing de Caruana nas corridas salvas; + regra de Roma"}
