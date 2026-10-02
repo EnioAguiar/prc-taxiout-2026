@@ -84,6 +84,7 @@ from superficie import contagens as contagens_superficie
 import mapa as mapa_aeroporto
 import memoria
 import refcel
+import roma as roma_tdg_mod
 
 FOLDS = 5
 ROUNDS = 300
@@ -142,7 +143,8 @@ def corrector_frame(df: pd.DataFrame, pred: np.ndarray, adsb: bool = True,
                     plano13: pd.DataFrame | None = None, dist_plano: bool = False,
                     sem_ctx: bool = False, superficie: bool = False,
                     mapa: bool = False, ref_cel: pd.DataFrame | None = None,
-                    pista: bool = False, retencao: bool = False) -> pd.DataFrame:
+                    pista: bool = False, retencao: bool = False,
+                    roma: pd.DataFrame | None = None) -> pd.DataFrame:
     """Entradas do corretor: a previsão da base, o contexto do voo e o rastro ADS-B.
 
     `sem` tira as colunas com esses nomes (nome que não está no quadro é ignorado: a
@@ -177,6 +179,11 @@ def corrector_frame(df: pd.DataFrame, pred: np.ndarray, adsb: bool = True,
     `retencao` (`src/pista.py`, `--retencao`) soma as colunas `ret_*`: no instante do push
     real (`AOBT_3`), quantas partidas já passaram do `EOBT_1` sem empurrar, quantas estão
     taxiando na mesma pista, o atraso de push recente do aeroporto e o EWMA de decolagens.
+
+    `roma` (`src/roma.py`, `--roma-tdg`) é o quadro com `roma_g_hat`/`roma_t_hat` pronto, na
+    mesma ordem de `df`: o atraso de portão previsto no LIRF e o táxi que a identidade
+    `T = D − G` reconstrói com ele. Entra com a distância da previsão da base a `roma_t_hat`;
+    fora do LIRF as três colunas são nulas.
     """
     cols = [F.AIRPORT, "nm_missing", "hour", *[c for c in df if c.startswith("to_takeoff_from_")],
             *([] if sem_ctx else [c for c in contexto.COLS if c in df])]
@@ -215,6 +222,10 @@ def corrector_frame(df: pd.DataFrame, pred: np.ndarray, adsb: bool = True,
     if retencao:
         for nome, valores in colunas_retencao(df).items():
             X[nome] = np.asarray(valores, float)
+    if roma is not None:
+        for nome in roma_tdg_mod.COLS:
+            X[nome] = np.asarray(roma[nome], float)
+        X["roma_t_menos_pred"] = X["roma_t_hat"].to_numpy(float) - X["pred"].to_numpy(float)
     return X.drop(columns=[c for c in sem if c in X.columns])
 
 
@@ -358,6 +369,7 @@ def previsao_corrigida(model: lgb.Booster | Conjunto, df: pd.DataFrame, base: np
                        sem_ctx: bool = False, superficie: bool = False,
                        mapa: bool = False, ref_cel: pd.DataFrame | None = None,
                        pista: bool = False, retencao: bool = False,
+                       roma: pd.DataFrame | None = None,
                        regra: np.ndarray | None = None) -> np.ndarray:
     """Previsão dos voos de `df` corrigida: com `janela`, dentro da janela do LOBT.
 
@@ -365,7 +377,7 @@ def previsao_corrigida(model: lgb.Booster | Conjunto, df: pd.DataFrame, base: np
     previsão da base é mantida como está, sem correção.
     """
     X = corrector_frame(df, base, adsb, janela, sem, externos, plano13, dist_plano, sem_ctx,
-                        superficie, mapa, ref_cel, pista, retencao)
+                        superficie, mapa, ref_cel, pista, retencao, roma)
     pred = apply_corrector(model, X, base, df if janela else None)
     if regra is not None:
         pred[regra] = np.asarray(base, float)[regra]
@@ -450,6 +462,33 @@ def tabelas_celula(train: pd.DataFrame, run: Run | None = None):
     return tabs_bloco, refcel.ajustar(chaves, train[F.TARGET]), bloco_do_mes
 
 
+def modelos_roma(train: pd.DataFrame, run: Run | None = None):
+    """Modelos de `G` do `roma`: por bloco de meses (fora dele) e do treino inteiro.
+
+    Mesma regra do `tabelas_celula`: as cegas usam o modelo que não viu o mês delas, e
+    holdout e ranking usam o treino inteiro, que não os contém.
+    """
+    mes = train["MVT_TIME_UTC_mvt"].dt.month
+    bloco_do_mes = month_blocks(mes)
+    meses_por_bloco: dict[int, list[int]] = {}
+    for m, k in bloco_do_mes.items():
+        meses_por_bloco.setdefault(k, []).append(m)
+    # Só as linhas do LIRF entram no modelo: recortar antes evita copiar o treino inteiro.
+    lirf = roma_tdg_mod.linhas(train)
+    cols = [F.AIRPORT, roma_tdg_mod.MS, *roma_tdg_mod.CAT,
+            *roma_tdg_mod.colunas_numericas(train)]
+    sub = train.loc[lirf, [c for c in dict.fromkeys(cols) if c in train.columns]]
+    alvo = train.loc[lirf, F.TARGET]
+    mes_sub = mes[lirf]
+    mods = {}
+    for k, meses in sorted(meses_por_bloco.items()):
+        fora = ~mes_sub.isin(meses)
+        mods[k] = roma_tdg_mod.ajustar(sub[fora], alvo[fora])
+    if run:
+        run.log(f"roma: {int(lirf.sum()):,} partidas do LIRF no treino · {len(mods)} blocos")
+    return mods, roma_tdg_mod.ajustar(sub, alvo), bloco_do_mes
+
+
 def simulacao_crossfit(
     run: Run, base_id: str, cfg_base: dict, adsb: bool, conjunto: bool = False,
     sem: Iterable[str] = (), externos: bool = False, plano13: bool = False,
@@ -457,6 +496,7 @@ def simulacao_crossfit(
     reusar_oof: str | None = None, corretor_xgb: bool = False, superficie: bool = False,
     rounds: int = ROUNDS, mapa: bool = False, ref_cel: bool = False, params: dict | None = None,
     pista: bool = False, retencao: bool = False, sem_regra: bool = False,
+    roma_tdg: bool = False,
 ) -> tuple[pd.DataFrame, pd.DataFrame, np.ndarray]:
     """Corretor treinado no ano fora do bloco; devolve (holdout, base, previsão).
 
@@ -472,6 +512,7 @@ def simulacao_crossfit(
         rk = None if caminho_pronto else load_split("ranking2026")
         cias = vocabulario(train) if plano13 else None  # vocabulário fixo do treino
         tabs_bloco, tabs_todos, bloco_do_mes = tabelas_celula(train, run) if ref_cel else (None, None, None)
+        roma_bloco, roma_todos, roma_bloco_do_mes = modelos_roma(train, run) if roma_tdg else (None, None, None)
         run.log(f"treino {len(train):,} · cegas {len(blind):,} · holdout {len(hold):,}")
     with run.phase("base fora do bloco", 0.7):
         if caminho_pronto:
@@ -511,9 +552,17 @@ def simulacao_crossfit(
             cel_hold = refcel.aplicar(hold, tabs_todos)
             run.log(f"células: {cel_cegas['cel_p50'].notna().mean():.1%} das cegas · "
                     f"nível 0 em {(cel_hold['cel_nivel'] == 0).mean():.1%} do holdout")
+        roma_cegas = roma_hold = None
+        if roma_tdg:
+            bloco = pd.Series(oof["mes"].to_numpy()).map(roma_bloco_do_mes).to_numpy()
+            roma_cegas = roma_tdg_mod.aplicar_por_bloco(cegas, bloco, roma_bloco)
+            roma_hold = roma_tdg_mod.aplicar(hold, roma_todos)
+            run.log(f"roma: {roma_cegas['roma_t_hat'].notna().mean():.2%} das cegas · "
+                    f"{roma_hold['roma_t_hat'].notna().mean():.2%} do holdout")
         regra_cegas = linhas_de_regra(cegas, cfg_base) if sem_regra else None
         X_oof = corrector_frame(cegas, pred_oof, adsb, janela, sem, ext_cegas, p13_cegas,
-                                dist_plano, sem_ctx, superficie, mapa, cel_cegas, pista, retencao)
+                                dist_plano, sem_ctx, superficie, mapa, cel_cegas, pista, retencao,
+                                roma_cegas)
         del cegas
         memoria.soltar()
         if adsb:
@@ -531,7 +580,7 @@ def simulacao_crossfit(
         regra_hold = linhas_de_regra(hold, cfg_base) if sem_regra else None
         pred = previsao_corrigida(model, hold, pred_base, adsb, janela, sem, ext_hold, p13_hold,
                                   dist_plano, sem_ctx, superficie, mapa, cel_hold, pista, retencao,
-                                  regra_hold)
+                                  roma_hold, regra_hold)
     return hold, base, pred
 
 
@@ -574,6 +623,9 @@ def parser() -> argparse.ArgumentParser:
     ap.add_argument("--retencao", action="store_true",
                     help="--crossfit: soma as colunas ret_* (fila de portão no AOBT_3: partidas "
                          "vencidas sem push, ativas na pista, atraso recente e EWMA, src/pista.py)")
+    ap.add_argument("--roma-tdg", action="store_true",
+                    help="--crossfit: soma as colunas roma_* (atraso de portão previsto no LIRF e "
+                         "o táxi que T = D − G reconstrói com ele, src/roma.py)")
     ap.add_argument("--corretor-sem-ctx", action="store_true",
                     help="--crossfit: tira ctx_* do corretor (a base já usa, --base-ctx)")
     ap.add_argument("--reusar-oof", metavar="ID",
@@ -629,6 +681,8 @@ def config_da_corrida(a: argparse.Namespace, base_id: str) -> dict:
         cfg["pista"] = True
     if a.retencao:
         cfg["retencao"] = True
+    if a.roma_tdg:
+        cfg["roma_tdg"] = True
     if a.mapa:
         cfg["mapa"] = True
     if a.corretor_sem_ctx:
@@ -677,6 +731,8 @@ def main() -> None:
         ap.error("--corretor-sem-regra só vale com --crossfit (os folds não têm as cegas do ano)")
     if a.retencao and not a.crossfit:
         ap.error("--retencao só vale com --crossfit (os folds não têm as cegas do ano)")
+    if a.roma_tdg and not a.crossfit:
+        ap.error("--roma-tdg só vale com --crossfit (os folds não têm meses de treino separados)")
     if a.plano13 and not a.crossfit:
         ap.error("--plano13 só vale com --crossfit (os folds não têm vocabulário de treino)")
     if a.reusar_oof and not a.crossfit:
@@ -699,7 +755,7 @@ def main() -> None:
                                                   a.reusar_oof, a.corretor_xgb, a.superficie,
                                                   a.corretor_rounds, a.mapa, a.corretor_ref,
                                                   a.corretor_params, a.pista, a.retencao,
-                                                  a.corretor_sem_regra)
+                                                  a.corretor_sem_regra, a.roma_tdg)
         else:
             hold, base, pred = simulacao_folds(run, base_id, adsb, sem)
         with run.phase("métricas", 0.1):

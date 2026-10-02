@@ -280,6 +280,73 @@ def test_o_catboost_recebe_todas_as_categoricas_em_texto():
     assert not stack.colunas_cat(Xc)
 
 
+def test_com_roma_o_corretor_ganha_as_colunas_e_a_distancia_ate_o_taxi_reconstruido():
+    df = _voos()
+    pred = np.array([800.0, 900.0, 1000.0])
+    hoje = corrector_frame(df, pred)
+    quadro = pd.DataFrame({"roma_g_hat": [300.0, np.nan, 400.0],
+                           "roma_t_hat": [600.0, np.nan, 500.0]}, index=[7, 8, 9])
+
+    X = corrector_frame(df, pred, roma=quadro)
+
+    assert list(X.columns) == [*hoje.columns, "roma_g_hat", "roma_t_hat", "roma_t_menos_pred"]
+    pd.testing.assert_frame_equal(X[hoje.columns], hoje)
+    np.testing.assert_allclose(X["roma_t_menos_pred"].to_numpy(float),
+                               [600 - 800, np.nan, 500 - 1000])
+
+
+def test_sem_roma_o_corretor_nao_ve_nenhuma_coluna_roma():
+    X = corrector_frame(_voos(), np.array([800.0, 900.0, 1000.0]))
+
+    assert [c for c in X.columns if c.startswith("roma_")] == []
+
+
+def test_a_config_do_crossfit_so_tem_roma_tdg_com_a_flag(tmp_path, monkeypatch):
+    registro = tmp_path / "experiments.jsonl"
+    registro.write_text(json.dumps(
+        {"id": "20260101-a", "config": {"model": "two_stage_nm", "seed": 0}}
+    ) + "\n", encoding="utf-8")
+    monkeypatch.setattr(stack, "REGISTRY", registro)
+
+    com = stack.config_da_corrida(
+        stack.parser().parse_args(["v99", "--crossfit", "--roma-tdg"]), "20260101-a")
+    sem = stack.config_da_corrida(stack.parser().parse_args(["v99", "--crossfit"]), "20260101-a")
+
+    assert com["roma_tdg"] is True
+    assert "roma_tdg" not in sem
+
+
+def test_modelos_roma_dao_um_modelo_por_bloco_treinado_fora_dos_meses_dele():
+    """Bloco de dois meses: o modelo dele aprende o G dos outros meses, nunca o próprio."""
+    import roma as roma_mod
+
+    n = 4 * roma_mod.PARAMS["min_data_in_leaf"]
+    meses = np.repeat([1, 2, 3, 4], n)
+    rng = np.random.default_rng(0)
+    ms = rng.uniform(2000.0, 9000.0, meses.size)
+    g = np.where(meses <= 2, 300.0, 3000.0)  # bloco 0 = jan/fev, bloco 1 = mar/abr
+    train = pd.DataFrame({
+        F.AIRPORT: roma_mod.AEROPORTO,
+        "MVT_TIME_UTC_mvt": pd.to_datetime([f"2025-{m:02d}-10T10:00Z" for m in meses]),
+        roma_mod.MS: ms, F.TARGET: ms - g,
+        "hour": 10.0, "dow": 1.0, "nm_missing": 0.0,
+        "apt_dep_prev_30m": rng.integers(0, 11, meses.size).astype(float),
+    })
+    for c in roma_mod.CAT:
+        train[c] = "x"
+
+    mods, todos, bloco_do_mes = stack.modelos_roma(train)
+
+    assert bloco_do_mes == {1: 0, 2: 0, 3: 1, 4: 1}
+    alvo = train.iloc[:1].assign(**{roma_mod.MS: 5000.0})
+    g0 = roma_mod.aplicar(alvo, mods[0])["roma_g_hat"].iloc[0]
+    g1 = roma_mod.aplicar(alvo, mods[1])["roma_g_hat"].iloc[0]
+    assert abs(g0 - 3000.0) < 60  # bloco jan/fev aprendeu só mar/abr
+    assert abs(g1 - 300.0) < 60
+    g_ano = roma_mod.aplicar(alvo, todos)["roma_g_hat"].iloc[0]
+    assert 300.0 < g_ano < 3000.0  # o modelo do ano inteiro fica entre os dois regimes
+
+
 def test_a_config_do_crossfit_so_tem_plano13_com_a_flag(tmp_path, monkeypatch):
     registro = tmp_path / "experiments.jsonl"
     registro.write_text(json.dumps(

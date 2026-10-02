@@ -28,6 +28,8 @@ MEMORIA_MIN_GB = 6.7  # pico do corretor 6,17 GB depois do corte de RAM de 30/09
 # −0,10 s e as rodadas −0,11 s; a única promoção veio de `num_leaves` 127. Sem variar rodadas.
 ROUNDS = ()
 PARAMS_GRADE = {"num_leaves": (63, 127, 255), "learning_rate": (0.03, 0.05)}
+# `--roma-tdg` fica fora: medido em 02/10 com −1,48 s de sem_loteria (IC −2,58 a −0,39) no
+# `--crossfit`; a flag continua disponível para quem quiser repetir à mão.
 BLOCOS = ("--superficie", "--mapa", "--corretor-ref", "--dist-plano", "--corretor-sem-ctx",
           "--pista", "--retencao", "--corretor-sem-regra")
 GANHO_ENVIO_S, ENVIO_INTERVALO_S = 0.5, 6 * 3600
@@ -42,7 +44,7 @@ MEMBROS_HISTORICOS = ("20260929-154118-v29_mapa_cf", "20260929-220513-e2_fila_su
 FLAGS = {"externos": "--externos", "plano13": "--plano13", "dist_plano": "--dist-plano",
          "superficie": "--superficie", "mapa": "--mapa", "corretor_sem_ctx": "--corretor-sem-ctx",
          "ref_cel": "--corretor-ref", "pista": "--pista", "retencao": "--retencao",
-         "corretor_sem_regra": "--corretor-sem-regra"}
+         "corretor_sem_regra": "--corretor-sem-regra", "roma_tdg": "--roma-tdg"}
 
 
 def hash_receita(tipo: str, receita: dict) -> str:
