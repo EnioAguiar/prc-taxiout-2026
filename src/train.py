@@ -48,6 +48,7 @@ import campeao
 import features as F
 import memoria
 import pos_regras
+import pseudo as pseudo_mod
 import refcel
 import roma
 import runlog
@@ -59,7 +60,8 @@ from models import build_model, leaky_columns, prepare
 from plano13 import colunas_p13, vocabulario
 from runlog import ROOT, Run
 from stack import (ROUNDS as ROUNDS_CORRETOR, corrector_frame, fit_corrector,
-                   linhas_de_regra, modelos_roma, na_ordem, previsao_corrigida, tabelas_celula)
+                   linhas_de_regra, modelos_roma, na_ordem, previsao_corrigida, pseudo_2026,
+                   tabelas_celula)
 
 OUT = ROOT / "submissions"
 OOF_CACHE = CACHE / "oof_base"
@@ -151,7 +153,10 @@ def corretor_final(cfg_bloco: dict, adsb: bool, full: pd.DataFrame, rk: pd.DataF
                    xgb: bool = False, superficie: bool = False, rounds: int = ROUNDS_CORRETOR,
                    mapa: bool = False, cel: tuple | None = None, params: dict | None = None,
                    pista: bool = False, retencao: bool = False, sem_regra: bool = False,
-                   roma_mods: tuple | None = None, fe_auto: bool = False):
+                   roma_mods: tuple | None = None, fe_auto: bool = False,
+                   pseudo: str | None = None, pseudo_peso: float = pseudo_mod.PESO,
+                   pseudo_corte: float = pseudo_mod.CORTE, tabs_cel: list | None = None,
+                   roma_todos: tuple | None = None):
     """Corretor treinado nas cegas com a previsão de uma base que não viu o mês delas.
 
     A previsão fora do bloco sai de `caminho_oof` quando ele já existe (ver `chave_oof`);
@@ -161,6 +166,11 @@ def corretor_final(cfg_bloco: dict, adsb: bool, full: pd.DataFrame, rk: pd.DataF
     vem dos 12 meses de 2025, sempre sem o mês da própria linha. Com `cias` (config
     `plano13`), ganham também as colunas do plano 13. Com `cel` (config `ref_cel`), as
     estatísticas de célula do bloco de meses de cada linha (`(tabelas, mês → bloco)`).
+
+    Com `pseudo` (config `pseudo`), as partidas de 2026 entram no treino com peso
+    `pseudo_peso`, como na simulação: a previsão da base delas vem do mesmo arquivo de
+    `data/cache/pseudo/` que a corrida medida usou, e `tabs_cel`/`roma_todos` são as
+    tabelas do ranking (as mesmas do `corrigir_ranking`).
     """
     blind = load_split("blind2025")
     run.log(f"cegas {len(blind):,}")
@@ -189,7 +199,8 @@ def corretor_final(cfg_bloco: dict, adsb: bool, full: pd.DataFrame, rk: pd.DataF
         bloco = pd.Series(oof["mes"].to_numpy()).map(roma_bloco_do_mes).to_numpy()
         roma_cegas = roma.aplicar_por_bloco(cegas, bloco, mods_bloco)
     regra = linhas_de_regra(cegas, cfg_bloco) if sem_regra else None
-    X = corrector_frame(cegas, pred_oof, adsb, bool(cfg_bloco.get("janela_lobt")), sem, ext, p13,
+    janela = bool(cfg_bloco.get("janela_lobt"))
+    X = corrector_frame(cegas, pred_oof, adsb, janela, sem, ext, p13,
                         dist_plano, sem_ctx, superficie, mapa, cel_cegas, pista, retencao,
                         roma_cegas, fe_auto)
     del cegas
@@ -200,7 +211,28 @@ def corretor_final(cfg_bloco: dict, adsb: bool, full: pd.DataFrame, rk: pd.DataF
     if regra is not None:
         run.log(f"corretor sem regra: {int(regra.sum()):,} de {len(X):,} cegas fora do treino")
         X, alvo, pred_oof = X[~regra], alvo[~regra], pred_oof[~regra]
-    return fit_corrector(X, alvo, pred_oof, conjunto, xgb, rounds, params)
+    corretor = fit_corrector(X, alvo, pred_oof, conjunto, xgb, rounds, params)
+    if not pseudo:
+        return corretor
+    pred_rk = pseudo_mod.base_2026(cfg_bloco, rk, run)
+    ext_rk = colunas_ext(rk, copia, MESES_2025) if copia else None
+    p13_rk = colunas_p13(rk, cias, com_fila=fila) if cias is not None else None
+    cel_rk = refcel.aplicar(rk, tabs_cel) if tabs_cel is not None else None
+    roma_rk = roma.aplicar(rk, roma_todos) if roma_todos is not None else None
+    regra_rk = linhas_de_regra(rk, cfg_bloco) if sem_regra else None
+    X_rk = corrector_frame(rk, pred_rk, adsb, janela, sem, ext_rk, p13_rk, dist_plano, sem_ctx,
+                           superficie, mapa, cel_rk, pista, retencao, roma_rk, fe_auto)
+    X_ps, alvo_ps, base_ps = pseudo_2026(corretor, rk, pred_rk, X_rk, pseudo, pseudo_corte,
+                                         regra_rk, janela, run)
+    del X_rk, corretor, ext_rk, p13_rk, cel_rk, roma_rk
+    memoria.soltar()
+    X, alvo, pred_oof, pesos = pseudo_mod.juntar(X, alvo, pred_oof, X_ps, alvo_ps, base_ps,
+                                                 pseudo_peso)
+    del X_ps
+    memoria.soltar()
+    run.log(f"pseudo: treino do corretor com {len(X):,} linhas · peso de 2026 "
+            f"{pesos[pesos < 1].sum() / pesos.sum():.1%} do total")
+    return fit_corrector(X, alvo, pred_oof, conjunto, xgb, rounds, params, pesos)
 
 
 def corrigir_ranking(corretor, cfg_bloco: dict, adsb: bool, rk: pd.DataFrame,
@@ -254,7 +286,9 @@ def prever_membros(membros: list[dict], full, rk, run) -> list[tuple[dict, objec
             bool(c.get("corretor_xgb")), bool(c.get("superficie")), c.get("rounds", ROUNDS_CORRETOR),
             bool(c.get("mapa")), cel, c.get("corretor_params"), bool(c.get("pista")),
             bool(c.get("retencao")), bool(c.get("corretor_sem_regra")), roma_mods,
-            bool(c.get("fe_auto")),
+            bool(c.get("fe_auto")), c.get("pseudo"),
+            float(c.get("pseudo_peso", pseudo_mod.PESO)),
+            float(c.get("pseudo_corte", pseudo_mod.CORTE)), tabs_cel, roma_todos,
         )
         saida.append((c, corretor, {"copia": copia, "cias": cias, "tabs_cel": tabs_cel,
                                     "roma_todos": roma_todos}))

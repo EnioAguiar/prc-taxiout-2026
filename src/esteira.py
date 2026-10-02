@@ -16,6 +16,7 @@ import time
 from pathlib import Path
 
 import campeao
+import pseudo
 import regua
 import transferencia
 from runlog import ROOT
@@ -68,6 +69,12 @@ def receita_de_config(cfg: dict) -> dict:
         r["--corretor-sem-feature"] = list(cfg["corretor_sem_features"])
     if cfg.get("corretor_xgb"):
         r["--corretor-xgb"] = True
+    if cfg.get("pseudo"):  # fonte do pseudo-rótulo das linhas de 2026 (stack.py --pseudo)
+        r["--pseudo"] = cfg["pseudo"]
+        if cfg.get("pseudo_peso") != pseudo.PESO:
+            r["--pseudo-peso"] = cfg["pseudo_peso"]
+        if cfg.get("pseudo_corte") != pseudo.CORTE:
+            r["--pseudo-corte"] = cfg["pseudo_corte"]
     return {k: v for k, v in r.items() if v}
 
 

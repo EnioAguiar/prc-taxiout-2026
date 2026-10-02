@@ -68,6 +68,15 @@ não forem idênticos aos desta. A previsão fora do bloco depende só da base, 
 de corretor não exige refazê-la: a corrida cai de ~25 min para ~7 min. Grava
 `reusar_oof: <id>` na config; o `train.py` ignora a chave e refaz o oof do ano inteiro no
 envio, como sempre.
+
+`--pseudo propria|campea` (só com `--crossfit`) põe as partidas de 2026 do
+`ranking.parquet` no **treino** do corretor, com alvo previsto (nunca verdade de 2026) e
+peso `--pseudo-peso` (0,3). Só o corpo entra: alvo até `--pseudo-corte` (3.600 s) e voo
+com plano NM. `propria` tira o alvo do próprio corretor desta corrida, que só viu os 10
+meses de treino — o holdout continua limpo; `campea` tira do último arquivo de
+`submissions/`, que treinou no `full2025` **com** jan e jul e por isso marca
+`pseudo_vazado: true` na config: o holdout daquela corrida não decide nada
+(`docs/research/2026-10-03-pseudo-rotulo.md`).
 """
 from __future__ import annotations
 
@@ -98,6 +107,7 @@ from superficie import contagens as contagens_superficie
 import fe_auto as fe_auto_mod
 import mapa as mapa_aeroporto
 import memoria
+import pseudo as pseudo_mod
 import refcel
 import roma as roma_tdg_mod
 
@@ -319,7 +329,7 @@ def catboost_frame(X: pd.DataFrame) -> pd.DataFrame:
     return Xc
 
 
-def fit_catboost(X: pd.DataFrame, alvo: np.ndarray):
+def fit_catboost(X: pd.DataFrame, alvo: np.ndarray, peso: np.ndarray | None = None):
     """CatBoost determinístico na correção; GPU quando há placa, senão 12 threads."""
     from catboost import CatBoostRegressor, utils
 
@@ -329,7 +339,7 @@ def fit_catboost(X: pd.DataFrame, alvo: np.ndarray):
     else:
         params["thread_count"] = 12
     modelo = CatBoostRegressor(**params)
-    modelo.fit(catboost_frame(X), alvo, cat_features=colunas_cat(X))
+    modelo.fit(catboost_frame(X), alvo, cat_features=colunas_cat(X), sample_weight=peso)
     return modelo
 
 
@@ -338,27 +348,33 @@ XGB_CORRETOR = dict(tree_method="hist", device="cuda", grow_policy="lossguide", 
                     max_cat_to_onehot=8, objective="reg:squarederror", seed=0)
 
 
-def fit_xgb(X: pd.DataFrame, alvo: np.ndarray):
+def fit_xgb(X: pd.DataFrame, alvo: np.ndarray, peso: np.ndarray | None = None):
     """XGBoost na GPU com os mesmos parâmetros do LightGBM global (folhas, taxa, rodadas)."""
     import xgboost as xgb
 
-    d = xgb.QuantileDMatrix(X, alvo, enable_categorical=True, max_bin=XGB_CORRETOR["max_bin"])
+    d = xgb.QuantileDMatrix(X, alvo, weight=peso, enable_categorical=True,
+                            max_bin=XGB_CORRETOR["max_bin"])
     return xgb.train(XGB_CORRETOR, d, ROUNDS)
 
 
 def fit_corrector(X: pd.DataFrame, y: np.ndarray, base: np.ndarray,
                   conjunto: bool = False, xgb: bool = False,
-                  rounds: int = ROUNDS, params: dict | None = None) -> lgb.Booster | Conjunto:
+                  rounds: int = ROUNDS, params: dict | None = None,
+                  peso: np.ndarray | None = None) -> lgb.Booster | Conjunto:
     """Corretor L2 na diferença entre o alvo e a previsão da base.
 
     Com `conjunto`, devolve a média de três corretores sobre as mesmas entradas; com `xgb`
     também, soma um quarto (XGBoost na GPU). `rounds` vale só para os LightGBM, e `params`
     sobrescreve os parâmetros deles (o CatBoost fica intocado).
+
+    `peso` (uma linha a uma linha de `X`, `--pseudo`) entra em todos os motores: é como as
+    linhas de 2026 pesam menos que as de 2025.
     """
     alvo = np.asarray(y, float) - np.asarray(base, float)
+    peso = None if peso is None else np.asarray(peso, float)
     pg = lgb_params({**PARAMS, **(params or {})})
     pa = lgb_params({**PARAMS_AEROPORTO, **(params or {})})
-    global_ = lgb.train(pg, lgb.Dataset(X, alvo), rounds)
+    global_ = lgb.train(pg, lgb.Dataset(X, alvo, weight=peso), rounds)
     global_.free_dataset()  # histograma binado: não serve para prever
     memoria.soltar()
     if not conjunto:
@@ -367,10 +383,12 @@ def fit_corrector(X: pd.DataFrame, y: np.ndarray, base: np.ndarray,
     aero = X[F.AIRPORT].astype(str).to_numpy()
     for nome in np.unique(aero):
         sel = aero == nome
-        aeroportos[nome] = lgb.train(pa, lgb.Dataset(X[sel], alvo[sel]), rounds)
+        dados = lgb.Dataset(X[sel], alvo[sel], weight=None if peso is None else peso[sel])
+        aeroportos[nome] = lgb.train(pa, dados, rounds)
         aeroportos[nome].free_dataset()
     memoria.soltar()  # o CatBoost monta a matriz dele do zero: entra com o heap limpo
-    return Conjunto(global_, aeroportos, fit_catboost(X, alvo), fit_xgb(X, alvo) if xgb else None)
+    return Conjunto(global_, aeroportos, fit_catboost(X, alvo, peso),
+                    fit_xgb(X, alvo, peso) if xgb else None)
 
 
 def apply_corrector(model: lgb.Booster | Conjunto, X: pd.DataFrame, base: np.ndarray,
@@ -518,6 +536,30 @@ def modelos_roma(train: pd.DataFrame, run: Run | None = None):
     return mods, roma_tdg_mod.ajustar(sub, alvo), bloco_do_mes
 
 
+def pseudo_2026(model, rk: pd.DataFrame, pred_rk: np.ndarray, X_rk: pd.DataFrame, fonte: str,
+                corte: float, regra_rk: np.ndarray | None, janela: bool,
+                run: Run | None = None) -> tuple[pd.DataFrame, np.ndarray, np.ndarray]:
+    """Linhas de 2026 que entram no treino do corretor: `(entradas, alvo, previsão da base)`.
+
+    `fonte` escolhe o professor: `propria` é o corretor `model` desta corrida (treinado só
+    nos meses de treino, sem jan/jul — o holdout segue limpo); `campea` é o último arquivo
+    de `submissions/`, que treinou no `full2025` e **viu o holdout**. Só o corpo entra
+    (`pseudo.corpo`); ver `docs/research/2026-10-03-pseudo-rotulo.md`.
+    """
+    if fonte == "propria":
+        alvo = apply_corrector(model, X_rk, pred_rk, rk if janela else None)
+        if regra_rk is not None:
+            alvo[regra_rk] = np.asarray(pred_rk, float)[regra_rk]
+    else:
+        alvo = pseudo_mod.alvo_da_submissao(rk[F.ID].to_numpy())
+    corpo = pseudo_mod.corpo(alvo, rk["nm_missing"], regra_rk, corte)
+    if run:
+        run.log(f"pseudo ({fonte}): {int(corpo.sum()):,} de {len(rk):,} partidas de 2026 no "
+                f"corpo (alvo ≤ {corte:.0f} s e com plano NM) · alvo médio "
+                f"{np.nanmean(alvo[corpo]):.1f} s")
+    return X_rk[corpo], alvo[corpo], np.asarray(pred_rk, float)[corpo]
+
+
 def simulacao_crossfit(
     run: Run, base_id: str, cfg_base: dict, adsb: bool, conjunto: bool = False,
     sem: Iterable[str] = (), externos: bool = False, plano13: bool = False,
@@ -526,12 +568,19 @@ def simulacao_crossfit(
     rounds: int = ROUNDS, mapa: bool = False, ref_cel: bool = False, params: dict | None = None,
     pista: bool = False, retencao: bool = False, sem_regra: bool = False,
     roma_tdg: bool = False, sem_cor: Iterable[str] = (), fe_auto: bool = False,
+    pseudo: str | None = None, pseudo_peso: float = pseudo_mod.PESO,
+    pseudo_corte: float = pseudo_mod.CORTE,
 ) -> tuple[pd.DataFrame, pd.DataFrame, np.ndarray]:
     """Corretor treinado no ano fora do bloco; devolve (holdout, base, previsão).
 
     Com `reusar_oof`, a previsão fora do bloco vem pronta daquela corrida (mesma base e
     mesma `base_config`), e só o corretor é refeito. `sem_cor` (`--corretor-sem-feature`)
     sai só das entradas do corretor, por isso não mexe na `base_config` nem no `reusar_oof`.
+
+    Com `pseudo`, o corretor é ajustado duas vezes: a primeira só nas cegas (é ela que gera
+    o alvo das linhas de 2026 quando a fonte é `propria`) e a segunda nas cegas mais as
+    partidas de 2026, com peso `pseudo_peso`. O holdout não entra no treino em momento
+    algum.
     """
     sem = (*sem, *sem_cor)
     janela = bool(cfg_base.get("janela_lobt"))
@@ -540,7 +589,7 @@ def simulacao_crossfit(
         base = pd.read_parquet(RUNS / f"{base_id}.parquet")
         hold = holdout_da_base(base)
         train, blind = load_split("train2025"), load_split("blind2025")
-        rk = None if caminho_pronto else load_split("ranking2026")
+        rk = None if caminho_pronto and not pseudo else load_split("ranking2026")
         cias = vocabulario(train) if plano13 else None  # vocabulário fixo do treino
         tabs_bloco, tabs_todos, bloco_do_mes = tabelas_celula(train, run) if ref_cel else (None, None, None)
         roma_bloco, roma_todos, roma_bloco_do_mes = modelos_roma(train, run) if roma_tdg else (None, None, None)
@@ -554,7 +603,14 @@ def simulacao_crossfit(
             oof = oof_base(cfg_base, train, blind, rk, run)
             caminho_oof = RUNS / f"{run.id}_oof.parquet"
             oof.to_parquet(caminho_oof, index=False)
-        del train, rk
+        pred_rk = None
+        if pseudo:
+            # a base de 2026 sai de um ajuste no train2025 (10 meses): nenhum rótulo de
+            # jan/jul entra no pseudo-rótulo (docs/research/2026-10-03-pseudo-rotulo.md)
+            pred_rk = pseudo_mod.base_2026(cfg_base, rk, run, train)
+        else:
+            rk = None
+        del train
         memoria.soltar()  # ~1,4 GB do treino: sai do heap antes do pico do corretor
         run.set(oof=str(caminho_oof.relative_to(ROOT)))
         run.log(f"fora do bloco: {len(oof):,} previsões · rmse {rmse(oof[TRUTH], oof['pred']):.2f}")
@@ -605,6 +661,27 @@ def simulacao_crossfit(
                                            pred_oof[~regra_cegas])
         model = fit_corrector(X_oof, alvo_oof, treino_oof, conjunto, corretor_xgb,
                               rounds, params)
+        if pseudo:
+            ext_rk = colunas_ext(rk, copia, meses) if externos else None
+            p13_rk = colunas_p13(rk, cias, com_fila=fila) if plano13 else None
+            cel_rk = refcel.aplicar(rk, tabs_todos) if ref_cel else None
+            roma_rk = roma_tdg_mod.aplicar(rk, roma_todos) if roma_tdg else None
+            regra_rk = linhas_de_regra(rk, cfg_base) if sem_regra else None
+            X_rk = corrector_frame(rk, pred_rk, adsb, janela, sem, ext_rk, p13_rk, dist_plano,
+                                   sem_ctx, superficie, mapa, cel_rk, pista, retencao, roma_rk,
+                                   fe_auto)
+            X_ps, alvo_ps, base_ps = pseudo_2026(model, rk, pred_rk, X_rk, pseudo, pseudo_corte,
+                                                 regra_rk, janela, run)
+            del X_rk, rk, model, ext_rk, p13_rk, cel_rk, roma_rk
+            memoria.soltar()
+            X_oof, alvo_oof, treino_oof, pesos = pseudo_mod.juntar(
+                X_oof, alvo_oof, treino_oof, X_ps, alvo_ps, base_ps, pseudo_peso)
+            del X_ps
+            memoria.soltar()
+            run.log(f"pseudo: treino do corretor com {len(X_oof):,} linhas · peso de 2026 "
+                    f"{pesos[pesos < 1].sum() / pesos.sum():.1%} do total")
+            model = fit_corrector(X_oof, alvo_oof, treino_oof, conjunto, corretor_xgb,
+                                  rounds, params, pesos)
         del X_oof
         memoria.soltar()
         pred_base = base["pred"].to_numpy(float)
@@ -674,6 +751,14 @@ def parser() -> argparse.ArgumentParser:
                          "célula aeroporto × stand × pista, src/refcel.py)")
     ap.add_argument("--corretor-params", type=json.loads, metavar="JSON",
                     help="--crossfit: sobrescreve parâmetros dos LightGBM do corretor")
+    ap.add_argument("--pseudo", choices=pseudo_mod.FONTES,
+                    help="--crossfit: põe as partidas de 2026 no treino do corretor, com alvo "
+                         "previsto por `propria` (corretor desta corrida, sem jan/jul) ou "
+                         "`campea` (último envio, que viu o holdout: marca pseudo_vazado)")
+    ap.add_argument("--pseudo-peso", type=float, default=pseudo_mod.PESO, metavar="W",
+                    help=f"--pseudo: peso das linhas de 2026 (padrão {pseudo_mod.PESO})")
+    ap.add_argument("--pseudo-corte", type=float, default=pseudo_mod.CORTE, metavar="S",
+                    help=f"--pseudo: alvo máximo do corpo em segundos (padrão {pseudo_mod.CORTE:.0f})")
     ap.add_argument("--nota", default="")
     return ap
 
@@ -734,6 +819,12 @@ def config_da_corrida(a: argparse.Namespace, base_id: str) -> dict:
         cfg["corretor_params"] = a.corretor_params
     if a.reusar_oof:
         cfg["reusar_oof"] = a.reusar_oof
+    if a.pseudo:
+        cfg["pseudo"] = a.pseudo
+        cfg["pseudo_peso"] = a.pseudo_peso
+        cfg["pseudo_corte"] = a.pseudo_corte
+        if pseudo_mod.vazado(a.pseudo):
+            cfg["pseudo_vazado"] = True
     if sem:
         cfg["sem_features"] = sem
     if a.corretor_sem_feature:
@@ -786,6 +877,10 @@ def main() -> None:
         ap.error("--corretor-ref só vale com --crossfit (os folds não têm meses de treino separados)")
     if a.corretor_params and not a.crossfit:
         ap.error("--corretor-params só vale com --crossfit")
+    if a.pseudo and not a.crossfit:
+        ap.error("--pseudo só vale com --crossfit (os folds não têm base de 2026)")
+    if (a.pseudo_peso, a.pseudo_corte) != (pseudo_mod.PESO, pseudo_mod.CORTE) and not a.pseudo:
+        ap.error("--pseudo-peso e --pseudo-corte só valem com --pseudo")
     base_id = a.base or campeao.principal(campeao.carregar())["base"]
     adsb = not a.sem_adsb
     cfg = config_da_corrida(a, base_id)
@@ -801,7 +896,8 @@ def main() -> None:
                                                   a.corretor_rounds, a.mapa, a.corretor_ref,
                                                   a.corretor_params, a.pista, a.retencao,
                                                   a.corretor_sem_regra, a.roma_tdg,
-                                                  cfg.get("corretor_sem_features", ()), a.fe_auto)
+                                                  cfg.get("corretor_sem_features", ()), a.fe_auto,
+                                                  a.pseudo, a.pseudo_peso, a.pseudo_corte)
         else:
             hold, base, pred = simulacao_folds(run, base_id, adsb, sem)
         with run.phase("métricas", 0.1):
