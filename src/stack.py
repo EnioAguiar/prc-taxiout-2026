@@ -73,6 +73,7 @@ import lightgbm as lgb
 import numpy as np
 import pandas as pd
 
+import campeao
 import contexto
 import features as F
 from adsb_events import FEATURES as ADSB
@@ -762,7 +763,7 @@ def main() -> None:
         ap.error("--corretor-ref só vale com --crossfit (os folds não têm meses de treino separados)")
     if a.corretor_params and not a.crossfit:
         ap.error("--corretor-params só vale com --crossfit")
-    base_id = a.base or json.loads((ROOT / "champion.json").read_text())["base"]
+    base_id = a.base or campeao.principal(campeao.carregar())["base"]
     adsb = not a.sem_adsb
     cfg = config_da_corrida(a, base_id)
 

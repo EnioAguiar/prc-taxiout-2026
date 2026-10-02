@@ -70,7 +70,9 @@ def checar_campea() -> None:
     reg = {json.loads(l)["id"]: json.loads(l) for l in (ROOT / "experiments.jsonl").read_text().splitlines() if l.strip()}
     ids = [m["id"] for m in champ["membros"]]
     ok(all(i in reg for i in ids), f"membros da campeã existem no experiments.jsonl ({', '.join(ids)})")
-    ok(all(reg[i]["config"]["base"] == champ["base"] for i in ids if i in reg), "membros com a mesma base")
+    bases = {reg[i]["config"]["base"] for i in ids if i in reg}
+    ok(all(b in reg for b in bases),
+       f"as bases dos membros existem no experiments.jsonl ({', '.join(sorted(bases))})")
     # o README é público e em inglês; o diário em pt-BR continua sendo o texto de trabalho
     readme = "\n".join((ROOT / p).read_text() for p in ("README.md", "docs/diario.md"))
     ok(all(i in readme for i in ids), "documentação cita os membros da campeã")

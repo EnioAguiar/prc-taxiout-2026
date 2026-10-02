@@ -143,21 +143,29 @@ them (CatBoost alone: 309.53 against 309.27 for the LightGBM).
 
 ### 1.3 The current champion (`champion.json`)
 
-Base `20260930-130008-e76_base`, shared by the three members:
+Four corrector members averaged with equal weights, **over two different bases**. Each
+member carries its own base in `config.base`/`config.base_config`; the submission groups the
+members by base, trains one final base per group in sequence and averages everything at the
+end (`src/train.py`, `grupos_por_base`).
+
+Base A — `20260930-130008-e76_base`, shared by three members:
 
 ```
 --model two_stage_nm --seed 0 --nm-min-ms 21600 --janela-lobt --reg-corte 7200
 --base-ctx --base-p13 --base-por-apt          (400 + 400 rounds)
 ```
 
-Out-of-block base predictions computed once by `20260930-130921-e76_m0` and reused by
-every member (`--reusar-oof`). Three corrector members, averaged with equal weights:
+Base B — `20261001-150429-e113_base`, the same recipe plus `--cls-peso quad`.
 
-| Member | Blocks on top of the common recipe |
-|---|---|
-| `20261001-185827-e122` | `--corretor-sem-regra --retencao` |
-| `20260930-140011-e76_m1` | `--fila --superficie --corretor-params '{"num_leaves": 127}'` |
-| `20261002-015703-e140` | `--pista --retencao --corretor-sem-regra` |
+Out-of-block base predictions are computed once per base (`20260930-130921-e76_m0` and
+`20261001-151412-e113_m0`) and reused by every member of that base (`--reusar-oof`).
+
+| Member | Base | Blocks on top of the common recipe |
+|---|---|---|
+| `20261001-185827-e122` | A | `--corretor-sem-regra --retencao` |
+| `20260930-140011-e76_m1` | A | `--fila --superficie --corretor-params '{"num_leaves": 127}'` |
+| `20261002-015703-e140` | A | `--pista --retencao --corretor-sem-regra` |
+| `20261001-160427-e113_m1` | B | `--fila --superficie --corretor-params '{"num_leaves": 127}'` |
 
 Common recipe of every member: `--crossfit --conjunto --corretor-rounds 500 --externos
 --plano13 --dist-plano --mapa --corretor-ref --seed 0`.
@@ -166,7 +174,10 @@ Post-rules: `roma`.
 Equal weights are a decision, not an oversight: fitted blend weights were tested and the
 members are strongly correlated, so a fitted weight buys noise. What the ensemble is
 actually exploiting is *decorrelation of the blocks* — each member reads a different part of
-the airport state.
+the airport state. Adding a member over a **different base** is the same idea one level
+down, and it is where the last gain came from: the fourth member above only changes the
+base (`--cls-peso quad`) and still took the holdout simulation from 295.63 to 294.86
+(no-lottery 228.69 → 227.74).
 
 ### 1.4 The feature blocks
 

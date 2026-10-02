@@ -28,9 +28,11 @@ def metades(dias: np.ndarray, semente: int = 0) -> np.ndarray:
     return np.array([lado[d] for d in np.asarray(dias).astype(str)])
 
 
-def propostas(membros: list[str], novo: str, mesma_base: bool) -> dict[str, list[str]]:
-    if not mesma_base:
-        return {"sozinho": [novo]}
+def propostas(membros: list[str], novo: str) -> dict[str, list[str]]:
+    """Trocar o novo por cada membro, somá-lo aos atuais, ou ficar só com ele.
+
+    Vale mesmo quando o novo está sobre outra base: o envio agrupa os membros por
+    `base_config` e treina uma base final por grupo (`train.grupos_por_base`)."""
     p = {f"troca:{m}": [novo if x == m else x for x in membros] for m in membros}
     return p | {"soma": [*membros, novo], "sozinho": [novo]}
 
@@ -61,9 +63,8 @@ def decidir(y, base, novo, dias, sem_lot, semente: int = 0) -> dict:
     return {"aprovado": True, "a": a, "b": b, "completo": completo, "motivo": "aprovado"}
 
 
-def avaliar(membros: list[str], novo: str, semente: int = 0) -> dict:
+def _melhor(membros: list[str], todas: dict[str, list[str]], semente: int) -> dict:
     """Entre as propostas que passam em A, a de maior ganho; só ela é confirmada em B."""
-    mesma = campeao.registro(novo)["config"]["base"] == campeao.registro(membros[0])["config"]["base"]
     ref = campeao.previsao(membros)
     y, dias = ref[TRUTH].to_numpy(float), ref["dia"].to_numpy()
     sem_lot = slice_masks(ref)["sem loteria"]
@@ -72,9 +73,8 @@ def avaliar(membros: list[str], novo: str, semente: int = 0) -> dict:
     escolha, melhor = None, -np.inf
     passou, melhor_passou = None, -np.inf
     m = (lado == "A") & sem_lot
-    todas = propostas(membros, novo, mesma)
     for nome, ids in todas.items():
-        p = campeao.previsao(ids)["pred"].to_numpy(float)
+        p = _alinhado(ref, ids)
         r_a = paired_bootstrap(y[m], base_pred[m], p[m], dias[m])
         g = r_a["ganho"]
         if g > melhor:
@@ -86,16 +86,21 @@ def avaliar(membros: list[str], novo: str, semente: int = 0) -> dict:
     return r | {"proposta": nome, "membros": ids, "avaliadas": len(todas)}
 
 
-def avaliar_conjunto(membros: list[str], novos: list[str], semente: int = 0) -> dict:
-    """Candidato de base nova: a média completa refeita sobre a base nova contra a campeã.
+def _alinhado(ref, ids: list[str]) -> np.ndarray:
+    """Previsão média dos `ids` na ordem de voos de `ref` (base nova grava na ordem dela)."""
+    p = ref[[ID]].merge(campeao.previsao(ids)[[ID, "pred"]], on=ID, how="left",
+                        validate="one_to_one")["pred"].to_numpy(float)
+    if np.isnan(p).any():
+        raise SystemExit(f"{'+'.join(ids)} não cobre o mesmo holdout da campeã")
+    return p
 
-    A base nova grava o holdout na ordem dela: alinha pelo voo antes de comparar."""
-    ref = campeao.previsao(membros)
-    y, dias = ref[TRUTH].to_numpy(float), ref["dia"].to_numpy()
-    sem_lot = slice_masks(ref)["sem loteria"]
-    novo = ref[[ID]].merge(campeao.previsao(novos)[[ID, "pred"]], on=ID, how="left",
-                           validate="one_to_one")["pred"].to_numpy(float)
-    if np.isnan(novo).any():
-        raise SystemExit("base nova não cobre o mesmo holdout da campeã")
-    r = decidir(y, ref["pred"].to_numpy(float), novo, dias, sem_lot, semente)
-    return r | {"proposta": "base_nova", "membros": list(novos), "avaliadas": 1}
+
+def avaliar(membros: list[str], novo: str, semente: int = 0) -> dict:
+    """Candidato de corretor: trocar por um membro, somar aos atuais, ou ficar só com ele."""
+    return _melhor(membros, propostas(membros, novo), semente)
+
+
+def avaliar_conjunto(membros: list[str], novos: list[str], semente: int = 0) -> dict:
+    """Candidato de base nova: os corretores refeitos sobre ela trocam a campeã inteira
+    (`base_nova`) ou **somam** aos membros atuais (`soma`), que é a mistura de duas bases."""
+    return _melhor(membros, {"base_nova": list(novos), "soma": [*membros, *novos]}, semente)

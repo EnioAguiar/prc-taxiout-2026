@@ -2,9 +2,13 @@
 
     bin/run src/train.py submit N [--corrida <id>]   # gera submissions/<TEAM>_vN.parquet (NÃO envia)
 
-Sem `--corrida`, a receita é a da campeã (`champion.json` v2: média dos membros e as
+Sem `--corrida`, a receita é a da campeã (`champion.json`: média dos membros e as
 `pos_regras`); com `--corrida <id>`, a da última linha dessa corrida no `experiments.jsonl`,
 sozinha e com a pós-regra de Roma (o `champion.json` não é lido nem mexido).
+
+Os membros podem estar sobre bases diferentes: o envio os agrupa por `base_config`, treina
+uma base final por grupo **em sequência** (soltando a anterior) e tira a média simples de
+todos os membros no fim.
 
 Grava o `src_hash` atual no registro do envio.
 Envio separado, só depois de aprovado: .venv/bin/python src/s3.py submit <arquivo>
@@ -256,24 +260,65 @@ def prever_membros(membros: list[dict], full, rk, run) -> list[tuple[dict, objec
     return saida
 
 
-def media_membros(membros, rk, pred_base, full, run, regras, prontos=None) -> np.ndarray:
-    """Média simples das previsões corrigidas de cada membro, depois as pós-regras.
+def grupos_por_base(membros: list[dict]) -> list[tuple[dict, list[dict]]]:
+    """Membros agrupados pela config da base, na ordem em que aparecem.
 
-    `prontos` = saída de `prever_membros` já calculada antes da `base_final` (que muta `full`
-    e `rk`); sem ela, calcula aqui (usado nos testes)."""
-    preds = []
-    for c, corretor, ex in prontos or prever_membros(membros, full, rk, run):
-        preds.append(corrigir_ranking(
-            corretor, c["base_config"], c["adsb"], rk, pred_base, sem_do_corretor(c),
-            ex.get("copia"), ex.get("cias"), c.get("fila", False), bool(c.get("dist_plano")),
-            bool(c.get("corretor_sem_ctx")), bool(c.get("superficie")), bool(c.get("mapa")),
-            ex.get("tabs_cel"), bool(c.get("pista")), bool(c.get("retencao")),
-            bool(c.get("corretor_sem_regra")), ex.get("roma_todos")))
-    return pos_regras.aplicar(rk, np.mean(preds, axis=0), regras)
+    Cada grupo precisa de uma `base_final` própria; dentro do grupo a base é a mesma e
+    o cache do oof fora do bloco é compartilhado."""
+    saida: dict[str, tuple[dict, list[dict]]] = {}
+    for m in membros:
+        cfg = m["config"]["base_config"]
+        saida.setdefault(json.dumps(cfg, sort_keys=True), (cfg, []))[1].append(m)
+    return list(saida.values())
+
+
+def prever_grupo(base_cfg: dict, membros: list[dict], full, rk, run) -> list[np.ndarray]:
+    """Corretores do grupo, a base final dele e a previsão corrigida de cada membro.
+
+    A base final sai depois dos corretores porque `base_final` muta `full`/`rk`; ela e os
+    corretores são soltos no fim para o grupo seguinte não somar à memória."""
+    prontos = prever_membros(membros, full, rk, run)
+    pred_base = base_final(escala_base(base_cfg), full, rk, run)
+    preds = [corrigir_ranking(
+        corretor, c["base_config"], c["adsb"], rk, pred_base, sem_do_corretor(c),
+        ex.get("copia"), ex.get("cias"), c.get("fila", False), bool(c.get("dist_plano")),
+        bool(c.get("corretor_sem_ctx")), bool(c.get("superficie")), bool(c.get("mapa")),
+        ex.get("tabs_cel"), bool(c.get("pista")), bool(c.get("retencao")),
+        bool(c.get("corretor_sem_regra")), ex.get("roma_todos")) for c, corretor, ex in prontos]
+    del prontos, pred_base
+    memoria.soltar()
+    return preds
+
+
+def media_membros(membros, run, regras, carregar=None) -> tuple[np.ndarray, np.ndarray]:
+    """Média simples das previsões corrigidas de todos os membros, depois as pós-regras.
+
+    Um grupo de base por vez, cada um com quadros recém-carregados (`carregar`, padrão
+    `load_split`): `prepare` e `base_final` mutam `full`/`rk` (colunas novas, categorias
+    limitadas), então o grupo seguinte não pode herdá-los — e o pico de memória fica o de
+    uma base só, não o de todas. Devolve (ids do ranking, previsão final) alinhados por voo."""
+    carregar = carregar or load_split
+    grupos = grupos_por_base(membros)
+    preds: list[pd.Series] = []
+    full = rk = None
+    for i, (base_cfg, do_grupo) in enumerate(grupos, 1):
+        del full, rk
+        memoria.soltar()
+        full, rk = carregar("full2025"), carregar("ranking2026")
+        run.log(f"base {i}/{len(grupos)}: {len(do_grupo)} membro(s) — "
+                f"{', '.join(m['id'] for m in do_grupo)}")
+        voos = rk[F.ID].to_numpy()
+        preds += [pd.Series(p, index=voos)
+                  for p in prever_grupo(base_cfg, do_grupo, full, rk, run)]
+    voos = rk[F.ID].to_numpy()
+    alinhadas = [p.reindex(voos).to_numpy(float) for p in preds]
+    if any(np.isnan(a).any() for a in alinhadas):
+        raise SystemExit("grupos de base com rankings diferentes: previsões não alinham por voo")
+    return voos, pos_regras.aplicar(rk, np.mean(alinhadas, axis=0), regras)
 
 
 def submit(version: int, corrida: str | None = None) -> None:
-    """Gera a versão N da campeã (champion.json v2) ou de uma corrida sozinha (`--corrida`)."""
+    """Gera a versão N da campeã (champion.json) ou de uma corrida sozinha (`--corrida`)."""
     load_dotenv(ROOT / ".env")
     team = os.environ.get("TEAM_NAME") or sys.exit("Falta TEAM_NAME no .env")
     if corrida:
@@ -281,25 +326,20 @@ def submit(version: int, corrida: str | None = None) -> None:
     else:
         champ = campeao.carregar()
         membros, regras = [campeao.registro(m["id"]) for m in champ["membros"]], champ["pos_regras"]
-    base_cfg = membros[0]["config"]["base_config"]
     OUT.mkdir(exist_ok=True)
     with Run(f"submit_v{version}", {"membros": [m["id"] for m in membros], "pos_regras": regras,
                                     "src_hash": runlog.src_hash()}) as run:
         with run.phase("dados", 0.05):
-            full, rk = load_split("full2025"), load_split("ranking2026")
             template = pd.read_parquet(DATA / "submitting.parquet")
-        with run.phase("corretor", 0.55):
-            prontos = prever_membros(membros, full, rk, run)
-        with run.phase("base final", 0.30):
-            pred_base = base_final(escala_base(base_cfg), full, rk, run)
-            pred = media_membros(membros, rk, pred_base, full, run, regras, prontos)
+        with run.phase("membros", 0.85):
+            voos, pred = media_membros(membros, run, regras)
         with run.phase("arquivo", 0.10):
-            out, preenchidas = build_submission(template, rk[F.ID], pred)
+            out, preenchidas = build_submission(template, voos, pred)
             path = OUT / f"{team}_v{version}.parquet"
             out.to_parquet(path, index=False)
             run.set(arquivo=str(path.relative_to(ROOT)), preenchidas=preenchidas)
-            run.log(f"gerado {path.name}: {len(out):,} linhas, {len(membros)} membro(s), "
-                    f"pós-regras {regras}. NÃO enviado.")
+            run.log(f"gerado {path.name}: {len(out):,} linhas, {len(membros)} membro(s) em "
+                    f"{len(grupos_por_base(membros))} base(s), pós-regras {regras}. NÃO enviado.")
 
 
 if __name__ == "__main__":

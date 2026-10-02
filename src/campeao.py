@@ -1,9 +1,13 @@
-"""Campeã v2: média simples de corretores (membros) sobre a mesma base, mais pós-regras.
+"""Campeã v3: média simples de corretores (membros), mais pós-regras.
 
-    {"base", "oof", "membros": [{"id", "config"}], "pos_regras", "rmse_simulacao",
+    {"membros": [{"id", "config"}], "pos_regras", "rmse_simulacao",
      "sem_loteria", "enviada": {"versao", "sem_loteria"} | null}
 
-`oof` é a corrida cujo oof fora do bloco os corretores novos reaproveitam (`--reusar-oof`).
+Os membros podem estar sobre **bases diferentes** (foi daí que veio o ganho de 02/10): a
+base de cada um vive em `config.base`/`config.base_config` (`base_do_membro()`) e o
+conjunto delas sai de `bases()`. Um candidato de corretor roda sobre a base do membro de
+quem ele saiu (`esteira.membro_de_origem`); `principal()` só serve de padrão para o
+`stack.py --base` rodado à mão.
 """
 from __future__ import annotations
 
@@ -49,17 +53,33 @@ def ultimo_por_nome(nome: str) -> dict:
     raise SystemExit(f"nenhuma corrida com nome {nome} em {REGISTRY.name}")
 
 
+def base_do_membro(m: dict) -> dict:
+    """A base de um membro: a corrida da base e a corrida dona do oof fora do bloco dela.
+
+    `oof` é quem os corretores novos daquela base reaproveitam (`--reusar-oof`); quando o
+    próprio membro calculou o seu, é ele mesmo."""
+    return {"base": m["config"]["base"], "oof": m["config"].get("reusar_oof") or m["id"]}
+
+
+def bases(champ: dict) -> list[dict]:
+    """Uma entrada por base distinta dos membros, na ordem em que aparecem."""
+    saida: dict[str, dict] = {}
+    for m in champ["membros"]:
+        saida.setdefault(m["config"]["base"], base_do_membro(m))
+    return list(saida.values())
+
+
+def principal(champ: dict) -> dict:
+    """A base do primeiro membro: o padrão do `stack.py --base` rodado à mão."""
+    return bases(champ)[0]
+
+
 def nova(membros: list[dict], pos_regras: list[str] | None = None,
          enviada: dict | None = None, medir: bool = True) -> dict:
-    """Campeã v2 a partir de registros do `experiments.jsonl`; `medir` calcula a simulação
+    """Campeã v3 a partir de registros do `experiments.jsonl`; `medir` calcula a simulação
     da média (lê o holdout real; os testes passam `medir=False`)."""
-    bases = {m["config"]["base"] for m in membros}
-    if len(bases) != 1:
-        raise ValueError(f"membros precisam da mesma base: {sorted(bases)}")
     ids = [m["id"] for m in membros]
     return {
-        "base": bases.pop(),
-        "oof": membros[0]["config"].get("reusar_oof") or membros[0]["id"],
         "membros": [{"id": m["id"], "config": m["config"]} for m in membros],
         "pos_regras": list(pos_regras) if pos_regras is not None else ["roma"],
         "rmse_simulacao": None, "sem_loteria": None,

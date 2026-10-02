@@ -1,6 +1,4 @@
 {
-  "base": "20260930-130008-e76_base",
-  "oof": "20260930-130921-e76_m0",
   "membros": [
     {
       "id": "20261001-185827-e122",
@@ -101,13 +99,49 @@
         "ref_cel": true,
         "reusar_oof": "20260930-130921-e76_m0"
       }
+    },
+    {
+      "id": "20261001-160427-e113_m1",
+      "config": {
+        "model": "stack_cf",
+        "base": "20261001-150429-e113_base",
+        "base_config": {
+          "model": "two_stage_nm",
+          "cls_rounds": 400,
+          "reg_rounds": 400,
+          "seed": 0,
+          "nm_split_ms": false,
+          "nm_min_ms": 21600.0,
+          "janela_lobt": true,
+          "reg_corte": 7200.0,
+          "base_ctx": true,
+          "base_p13": true,
+          "base_por_apt": true,
+          "cls_peso": "quad"
+        },
+        "adsb": true,
+        "rounds": 500,
+        "seed": 0,
+        "corretor": "conjunto",
+        "externos": true,
+        "plano13": true,
+        "fila": true,
+        "dist_plano": true,
+        "superficie": true,
+        "mapa": true,
+        "ref_cel": true,
+        "corretor_params": {
+          "num_leaves": 127
+        },
+        "reusar_oof": "20261001-151412-e113_m0"
+      }
     }
   ],
   "pos_regras": [
     "roma"
   ],
-  "rmse_simulacao": 295.63,
-  "sem_loteria": 228.69,
+  "rmse_simulacao": 294.86,
+  "sem_loteria": 227.74,
   "enviada": {
     "versao": 36,
     "sem_loteria": 228.69

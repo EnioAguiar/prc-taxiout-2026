@@ -59,17 +59,67 @@ def test_escala_base_multiplica_as_rodadas_sem_mutar():
     assert cfg["cls_rounds"] == 400
 
 
-def test_envio_e_a_media_dos_membros_com_pos_regras(monkeypatch, tmp_path):
-    rk = _ranking()
-    rk["FLIGHT_ID_mvt"] = [1.0, 2.0]
+class _Run:
+    """Run falso: só precisa aceitar `log` nas funções de envio."""
+
+    def log(self, *_a, **_k) -> None:
+        pass
+
+
+def _carregador(rks: list) -> callable:
+    """`load_split` falso: um quadro de ranking novo por grupo de base (`full` não é usado
+    porque os testes trocam `prever_membros` e `base_final`)."""
+    frames = iter(rks)
+    return lambda nome: next(frames) if nome == "ranking2026" else None
+
+
+def _rk_pronto(ordem=(0, 1)) -> pd.DataFrame:
+    rk = _ranking().iloc[list(ordem)].reset_index(drop=True)
+    rk["FLIGHT_ID_mvt"] = rk[F.ID]
     rk["to_takeoff_from_SCHED_TIME_UTC_mvt"] = [100.0, 100.0]
-    membros = [{"config": {"base_config": {"model": "two_stage_nm"}, "adsb": False}},
-               {"config": {"base_config": {"model": "two_stage_nm"}, "adsb": False}}]
+    return rk
+
+
+def test_envio_e_a_media_dos_membros_com_pos_regras(monkeypatch):
+    membros = [{"id": "a", "config": {"base_config": {"model": "two_stage_nm"}, "adsb": False}},
+               {"id": "b", "config": {"base_config": {"model": "two_stage_nm"}, "adsb": False}}]
     corretores = iter([_Corretor(100.0), _Corretor(300.0)])
     monkeypatch.setattr(train, "prever_membros",
                         lambda ms, full, rk_, run: [(m["config"], next(corretores), {}) for m in ms])
-    pred = train.media_membros(membros, rk, np.array([1000.0, 1000.0]), None, None, ["roma"])
+    monkeypatch.setattr(train, "base_final", lambda cfg, full, rk_, run: np.array([1000.0, 1000.0]))
+    voos, pred = train.media_membros(membros, _Run(), ["roma"], _carregador([_rk_pronto()]))
+    assert voos.tolist() == [1.0, 2.0]
     np.testing.assert_allclose(pred, [1200.0, 1200.0])
+
+
+def test_envio_com_bases_diferentes_treina_uma_base_final_por_grupo(monkeypatch):
+    """Três membros em duas bases: uma base final por grupo e a média alinhada por voo,
+    mesmo com o ranking do segundo grupo em outra ordem."""
+    b1, b2 = {"model": "two_stage_nm"}, {"model": "two_stage_nm", "cls_peso": "quad"}
+    membros = [{"id": "a", "config": {"base_config": b1, "adsb": False}},
+               {"id": "c", "config": {"base_config": b2, "adsb": False}},
+               {"id": "b", "config": {"base_config": b1, "adsb": False}}]
+    assert [cfg for cfg, _ in train.grupos_por_base(membros)] == [b1, b2]
+    assert [[m["id"] for m in g] for _, g in train.grupos_por_base(membros)] == [["a", "b"], ["c"]]
+
+    bases = []
+    monkeypatch.setattr(train, "prever_membros",
+                        lambda ms, full, rk_, run: [(m["config"], _Corretor(100.0), {}) for m in ms])
+
+    def _base(cfg, full, rk_, run):  # `cfg` chega por `escala_base`, uma cópia de b1/b2
+        bases.append(cfg)
+        por_voo = {1.0: 1000.0, 2.0: 2000.0} if cfg == b1 else {1.0: 8000.0, 2.0: 4000.0}
+        return rk_[F.ID].map(por_voo).to_numpy(float)
+
+    monkeypatch.setattr(train, "base_final", _base)
+    # o 2º grupo recarrega o ranking e o recebe na ordem dele (voo 2 antes do voo 1)
+    voos, pred = train.media_membros(membros, _Run(), [],
+                                     _carregador([_rk_pronto(), _rk_pronto((1, 0))]))
+
+    assert bases == [b1, b2]  # uma base final por grupo, na ordem dos membros
+    assert voos.tolist() == [2.0, 1.0]  # a saída segue o último ranking carregado
+    # voo 1: (1100 + 1100 + 8100) / 3 · voo 2: (2100 + 2100 + 4100) / 3
+    np.testing.assert_allclose(pred, [2766 + 2 / 3, 3433 + 1 / 3])
 
 
 def test_envio_com_janela_na_base_para_nos_limites_do_lobt():

@@ -74,9 +74,9 @@ def test_vizinhos_nao_variam_rodadas_nem_params_cortados():
 
 def test_executar_base_refaz_todos_os_membros_reusando_o_oof(monkeypatch):
     import campeao
-    champ = {"base": "B", "oof": "O", "membros": [
-        {"id": "m1", "config": {"rounds": 500}},
-        {"id": "m2", "config": {"mapa": True}}]}
+    champ = {"membros": [
+        {"id": "m1", "config": {"rounds": 500, "base": "B", "reusar_oof": "O"}},
+        {"id": "m2", "config": {"mapa": True, "base": "B", "reusar_oof": "O"}}]}
     monkeypatch.setattr(campeao, "ultimo_por_nome", lambda n: {"id": f"ID:{n}"})
     cmds = []
     c = {"id": 7, "tipo": "base", "receita": json.dumps({"base": ["--superficie"]})}
@@ -88,9 +88,32 @@ def test_executar_base_refaz_todos_os_membros_reusando_o_oof(monkeypatch):
     assert cmds[2][cmds[2].index("--reusar-oof") + 1] == "ID:e7_m0"
 
 
+def test_executar_corretor_usa_a_base_do_membro_de_onde_a_receita_saiu(monkeypatch):
+    import campeao
+    champ = {"membros": [
+        {"id": "m1", "config": {"corretor": "conjunto", "base": "B1", "reusar_oof": "O1"}},
+        {"id": "m2", "config": {"corretor": "conjunto", "mapa": True, "base": "B2"}}]}
+    monkeypatch.setattr(campeao, "ultimo_por_nome", lambda n: {"id": f"ID:{n}"})
+    cmds = []
+    rodar = lambda *a, **k: cmds.append(a[0])  # noqa: E731
+
+    # vizinho de m2 (mapa + superfície): roda sobre B2, cujo oof é o próprio m2
+    c = {"id": 9, "tipo": "corretor",
+         "receita": json.dumps({"--conjunto": True, "--mapa": True, "--superficie": True})}
+    assert esteira.executar(c, champ, rodar=rodar) == "ID:e9"
+    assert cmds[0][cmds[0].index("--base") + 1] == "B2"
+    assert cmds[0][cmds[0].index("--reusar-oof") + 1] == "m2"
+
+    # vizinho de m1 (só liga a fila): roda sobre B1, com o oof que m1 reaproveita
+    c = {"id": 10, "tipo": "corretor", "receita": json.dumps({"--conjunto": True, "--fila": True})}
+    esteira.executar(c, champ, rodar=rodar)
+    assert cmds[1][cmds[1].index("--base") + 1] == "B1"
+    assert cmds[1][cmds[1].index("--reusar-oof") + 1] == "O1"
+
+
 def test_passo_usa_avaliar_conjunto_quando_executar_devolve_lista(tmp_path, monkeypatch):
     f = esteira.Fila(tmp_path / "e.db")
-    champ = {"base": "B", "oof": "O", "membros": [{"id": "m", "config": {"rounds": 500}}],
+    champ = {"membros": [{"id": "m", "config": {"rounds": 500, "base": "B", "reusar_oof": "O"}}],
              "pos_regras": ["roma"], "sem_loteria": 233.0, "enviada": None}
     monkeypatch.setattr(esteira, "carregar_campea", lambda: champ)
     monkeypatch.setattr(esteira, "memoria_livre_gb", lambda: 12.0)
@@ -112,7 +135,7 @@ def test_passo_usa_avaliar_conjunto_quando_executar_devolve_lista(tmp_path, monk
 
 def test_passo_promove_e_registra(tmp_path, monkeypatch):
     f = esteira.Fila(tmp_path / "e.db")
-    champ = {"base": "B", "oof": "O", "membros": [{"id": "m", "config": {"rounds": 500}}],
+    champ = {"membros": [{"id": "m", "config": {"rounds": 500, "base": "B", "reusar_oof": "O"}}],
              "pos_regras": ["roma"], "sem_loteria": 233.0, "enviada": {"versao": 32, "sem_loteria": 233.0}}
     salvo = {}
     monkeypatch.setattr(esteira, "carregar_campea", lambda: champ)
@@ -134,7 +157,7 @@ def test_passo_promove_e_registra(tmp_path, monkeypatch):
 
 
 def test_passo_marca_falhou_quando_executar_ou_avaliar_estoura(tmp_path, monkeypatch):
-    champ = {"base": "B", "oof": "O", "membros": [{"id": "m", "config": {"rounds": 500}}],
+    champ = {"membros": [{"id": "m", "config": {"rounds": 500, "base": "B", "reusar_oof": "O"}}],
              "pos_regras": ["roma"], "sem_loteria": 233.0, "enviada": None}
     monkeypatch.setattr(esteira, "carregar_campea", lambda: champ)
     monkeypatch.setattr(esteira, "memoria_livre_gb", lambda: 12.0)
@@ -173,8 +196,9 @@ def test_passo_respeita_pausa(tmp_path, monkeypatch):
 
 
 def _champ(membros=("m",), sem_loteria=233.0, enviada=None):
-    return {"base": "B", "oof": "O", "sem_loteria": sem_loteria, "pos_regras": ["roma"],
-            "enviada": enviada, "membros": [{"id": i, "config": {"rounds": 500}} for i in membros]}
+    return {"sem_loteria": sem_loteria, "pos_regras": ["roma"], "enviada": enviada,
+            "membros": [{"id": i, "config": {"rounds": 500, "base": "B", "reusar_oof": "O"}}
+                        for i in membros]}
 
 
 def test_commitar_promocao_versiona_o_relatorio_antes_nao_rastreado(tmp_path, monkeypatch):

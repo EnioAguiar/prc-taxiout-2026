@@ -156,12 +156,17 @@ class Fila:
         return row[0] if row else None
 
 
+def diferencas(receita: dict, base: dict) -> set[str]:
+    """Chaves em que duas receitas discordam."""
+    return {k for k in set(receita) | set(base) if receita.get(k) != base.get(k)}
+
+
 def familia(receita: dict, base: dict) -> str:
     """Rótulo da única diferença entre a receita e aquela de onde ela saiu.
 
     `bloco:<flag>`, `fila:<estado>`, `param:<nome>`, `rodadas`; `outro` quando muda
     mais de uma coisa (ou nada)."""
-    dif = {k for k in set(receita) | set(base) if receita.get(k) != base.get(k)}
+    dif = diferencas(receita, base)
     if not dif:
         return "outro"
     if dif <= set(FILA_FLAGS):  # trocar de estado mexe em duas chaves de uma vez
@@ -183,9 +188,16 @@ def familia_proxima(receita: dict, bases: list[dict]) -> str:
     """Família contra a receita de membro mais parecida (menos chaves diferentes)."""
     if not bases:
         return "outro"
-    perto = min(bases, key=lambda b: len({k for k in set(b) | set(receita)
-                                          if b.get(k) != receita.get(k)}))
-    return familia(receita, perto)
+    return familia(receita, min(bases, key=lambda b: len(diferencas(receita, b))))
+
+
+def membro_de_origem(champ: dict, receita: dict) -> dict:
+    """O membro de quem a receita saiu: o de receita mais parecida (menos chaves diferentes).
+
+    Com membros em bases diferentes é a base **dele** que o candidato de corretor usa: o
+    vizinho só faz sentido sobre a base de onde ele veio."""
+    return min(champ["membros"],
+               key=lambda m: len(diferencas(receita, receita_de_config(m["config"]))))
 
 
 def preencher_familias(fila: Fila, receitas_membros: list[dict]) -> int:
@@ -255,6 +267,7 @@ def relatorio(fila: Fila, champ: dict) -> str:
         "`docs/superpowers/specs/2026-09-30-esteira-design.md`.", "",
         "## Campeã", "",
         f"- Membros: {', '.join(m['id'] for m in champ['membros'])}",
+        f"- Bases: {', '.join(b['base'] for b in campeao.bases(champ))}",
         f"- Simulação: completo {champ.get('rmse_simulacao')} · sem loteria {champ.get('sem_loteria')}",
         f"- Última enviada: {json.dumps(champ.get('enviada'))}",
         f"- Arquivo pronto esperando ok: {fila.meta('pronto') or 'nenhum'}",
@@ -367,7 +380,8 @@ def executar(c: dict, champ: dict, rodar=subprocess.run) -> str | list[str]:
     nome = f"e{c['id']}"
     receita = json.loads(c["receita"])
     if c["tipo"] == "corretor":
-        argv = argv_corretor(receita, champ["base"], champ["oof"])
+        origem = campeao.base_do_membro(membro_de_origem(champ, receita))
+        argv = argv_corretor(receita, origem["base"], origem["oof"])
         rodar(["bin/run", "src/stack.py", nome, *argv], cwd=ROOT, check=True)
         return campeao.ultimo_por_nome(nome)["id"]
     # base: experiment.py com a receita da base, depois a média completa refeita sobre ela;
