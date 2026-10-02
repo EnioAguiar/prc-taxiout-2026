@@ -151,7 +151,7 @@ def corretor_final(cfg_bloco: dict, adsb: bool, full: pd.DataFrame, rk: pd.DataF
                    xgb: bool = False, superficie: bool = False, rounds: int = ROUNDS_CORRETOR,
                    mapa: bool = False, cel: tuple | None = None, params: dict | None = None,
                    pista: bool = False, retencao: bool = False, sem_regra: bool = False,
-                   roma_mods: tuple | None = None):
+                   roma_mods: tuple | None = None, fe_auto: bool = False):
     """Corretor treinado nas cegas com a previsão de uma base que não viu o mês delas.
 
     A previsão fora do bloco sai de `caminho_oof` quando ele já existe (ver `chave_oof`);
@@ -191,7 +191,7 @@ def corretor_final(cfg_bloco: dict, adsb: bool, full: pd.DataFrame, rk: pd.DataF
     regra = linhas_de_regra(cegas, cfg_bloco) if sem_regra else None
     X = corrector_frame(cegas, pred_oof, adsb, bool(cfg_bloco.get("janela_lobt")), sem, ext, p13,
                         dist_plano, sem_ctx, superficie, mapa, cel_cegas, pista, retencao,
-                        roma_cegas)
+                        roma_cegas, fe_auto)
     del cegas
     memoria.soltar()
     if adsb:
@@ -211,7 +211,7 @@ def corrigir_ranking(corretor, cfg_bloco: dict, adsb: bool, rk: pd.DataFrame,
                      superficie: bool = False, mapa: bool = False,
                      tabs_cel: list | None = None, pista: bool = False,
                      retencao: bool = False, sem_regra: bool = False,
-                     roma_todos: tuple | None = None) -> np.ndarray:
+                     roma_todos: tuple | None = None, fe_auto: bool = False) -> np.ndarray:
     """Previsão final do ranking: na janela do LOBT quando os blocos da base usam."""
     ext = colunas_ext(rk, copia, MESES_2025) if copia else None
     p13 = colunas_p13(rk, cias, com_fila=fila) if cias is not None else None
@@ -220,7 +220,7 @@ def corrigir_ranking(corretor, cfg_bloco: dict, adsb: bool, rk: pd.DataFrame,
     regra = linhas_de_regra(rk, cfg_bloco) if sem_regra else None
     return previsao_corrigida(corretor, rk, pred, adsb, bool(cfg_bloco.get("janela_lobt")),
                               sem, ext, p13, dist_plano, sem_ctx, superficie, mapa, cel, pista,
-                              retencao, roma_rk, regra)
+                              retencao, roma_rk, regra, fe_auto)
 
 
 def sem_do_corretor(cfg: dict) -> tuple[str, ...]:
@@ -254,6 +254,7 @@ def prever_membros(membros: list[dict], full, rk, run) -> list[tuple[dict, objec
             bool(c.get("corretor_xgb")), bool(c.get("superficie")), c.get("rounds", ROUNDS_CORRETOR),
             bool(c.get("mapa")), cel, c.get("corretor_params"), bool(c.get("pista")),
             bool(c.get("retencao")), bool(c.get("corretor_sem_regra")), roma_mods,
+            bool(c.get("fe_auto")),
         )
         saida.append((c, corretor, {"copia": copia, "cias": cias, "tabs_cel": tabs_cel,
                                     "roma_todos": roma_todos}))
@@ -284,7 +285,8 @@ def prever_grupo(base_cfg: dict, membros: list[dict], full, rk, run) -> list[np.
         ex.get("copia"), ex.get("cias"), c.get("fila", False), bool(c.get("dist_plano")),
         bool(c.get("corretor_sem_ctx")), bool(c.get("superficie")), bool(c.get("mapa")),
         ex.get("tabs_cel"), bool(c.get("pista")), bool(c.get("retencao")),
-        bool(c.get("corretor_sem_regra")), ex.get("roma_todos")) for c, corretor, ex in prontos]
+        bool(c.get("corretor_sem_regra")), ex.get("roma_todos"),
+        bool(c.get("fe_auto"))) for c, corretor, ex in prontos]
     del prontos, pred_base
     memoria.soltar()
     return preds

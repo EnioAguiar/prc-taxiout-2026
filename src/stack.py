@@ -55,6 +55,13 @@ linhas de treino e vale igual para as cegas, o holdout e o ranking.
 ganha a distância da previsão da base a cada horário planejado, e/ou perde as colunas
 `ctx_*` quando a base já as usa (`--base-ctx`). Gravam `dist_plano` / `corretor_sem_ctx`.
 
+`--fe-auto` (só com `--crossfit`) soma ao corretor as colunas `fe_*` de `src/fe_auto.py`:
+as features geradas automaticamente (razão/diferença/produto de duas numéricas e
+agregações por grupo) que passaram no estudo de 03/10 — ganho fora do mês em jan **e** em
+jul, ganho também no corpo (`y ≤ 3600 s`) e AUC adversarial 2025×2026 abaixo de 0,6.
+Grava `fe_auto: true` na config. Nada ali lê o alvo nem a previsão da base, então o valor
+de um voo é o mesmo nas cegas, no holdout e no ranking.
+
 `--reusar-oof <id>` (só com `--crossfit`) pula o recálculo da base fora do bloco e lê o
 `oof` gravado por aquela corrida, recusando a troca se o `base` ou a `base_config` dela
 não forem idênticos aos desta. A previsão fora do bloco depende só da base, então trocar
@@ -88,6 +95,7 @@ from pista import colunas_retencao
 from plano13 import colunas_p13, vocabulario
 from runlog import REGISTRY, ROOT, Run
 from superficie import contagens as contagens_superficie
+import fe_auto as fe_auto_mod
 import mapa as mapa_aeroporto
 import memoria
 import refcel
@@ -151,7 +159,7 @@ def corrector_frame(df: pd.DataFrame, pred: np.ndarray, adsb: bool = True,
                     sem_ctx: bool = False, superficie: bool = False,
                     mapa: bool = False, ref_cel: pd.DataFrame | None = None,
                     pista: bool = False, retencao: bool = False,
-                    roma: pd.DataFrame | None = None,
+                    roma: pd.DataFrame | None = None, fe_auto: bool = False,
                     exigir: Iterable[str] = ()) -> pd.DataFrame:
     """Entradas do corretor: a previsão da base, o contexto do voo e o rastro ADS-B.
 
@@ -194,6 +202,11 @@ def corrector_frame(df: pd.DataFrame, pred: np.ndarray, adsb: bool = True,
     mesma ordem de `df`: o atraso de portão previsto no LIRF e o táxi que a identidade
     `T = D − G` reconstrói com ele. Entra com a distância da previsão da base a `roma_t_hat`;
     fora do LIRF as três colunas são nulas.
+
+    `fe_auto` (`src/fe_auto.py`, `--fe-auto`) soma as colunas `fe_*`: as features geradas
+    automaticamente (razão/diferença/produto de duas numéricas e agregações por grupo) que
+    sobreviveram ao estudo de 03/10 — ganho fora do mês nos dois meses do holdout, ganho
+    também no corpo (`y ≤ 3600 s`) e AUC adversarial 2025×2026 abaixo de 0,6.
     """
     cols = [F.AIRPORT, "nm_missing", "hour", *[c for c in df if c.startswith("to_takeoff_from_")],
             *([] if sem_ctx else [c for c in contexto.COLS if c in df])]
@@ -231,6 +244,9 @@ def corrector_frame(df: pd.DataFrame, pred: np.ndarray, adsb: bool = True,
             X[nome] = quadro[nome].array  # posicional; `pista_cfg` continua categórica
     if retencao:
         for nome, valores in colunas_retencao(df).items():
+            X[nome] = np.asarray(valores, float)
+    if fe_auto:
+        for nome, valores in fe_auto_mod.colunas(df).items():
             X[nome] = np.asarray(valores, float)
     if roma is not None:
         for nome in roma_tdg_mod.COLS:
@@ -383,14 +399,14 @@ def previsao_corrigida(model: lgb.Booster | Conjunto, df: pd.DataFrame, base: np
                        mapa: bool = False, ref_cel: pd.DataFrame | None = None,
                        pista: bool = False, retencao: bool = False,
                        roma: pd.DataFrame | None = None,
-                       regra: np.ndarray | None = None) -> np.ndarray:
+                       regra: np.ndarray | None = None, fe_auto: bool = False) -> np.ndarray:
     """Previsão dos voos de `df` corrigida: com `janela`, dentro da janela do LOBT.
 
     `regra` (de `linhas_de_regra`, `--corretor-sem-regra`) marca as linhas em que a
     previsão da base é mantida como está, sem correção.
     """
     X = corrector_frame(df, base, adsb, janela, sem, externos, plano13, dist_plano, sem_ctx,
-                        superficie, mapa, ref_cel, pista, retencao, roma)
+                        superficie, mapa, ref_cel, pista, retencao, roma, fe_auto)
     pred = apply_corrector(model, X, base, df if janela else None)
     if regra is not None:
         pred[regra] = np.asarray(base, float)[regra]
@@ -509,7 +525,7 @@ def simulacao_crossfit(
     reusar_oof: str | None = None, corretor_xgb: bool = False, superficie: bool = False,
     rounds: int = ROUNDS, mapa: bool = False, ref_cel: bool = False, params: dict | None = None,
     pista: bool = False, retencao: bool = False, sem_regra: bool = False,
-    roma_tdg: bool = False, sem_cor: Iterable[str] = (),
+    roma_tdg: bool = False, sem_cor: Iterable[str] = (), fe_auto: bool = False,
 ) -> tuple[pd.DataFrame, pd.DataFrame, np.ndarray]:
     """Corretor treinado no ano fora do bloco; devolve (holdout, base, previsão).
 
@@ -577,7 +593,7 @@ def simulacao_crossfit(
         regra_cegas = linhas_de_regra(cegas, cfg_base) if sem_regra else None
         X_oof = corrector_frame(cegas, pred_oof, adsb, janela, sem, ext_cegas, p13_cegas,
                                 dist_plano, sem_ctx, superficie, mapa, cel_cegas, pista, retencao,
-                                roma_cegas, exigir=sem_cor)
+                                roma_cegas, fe_auto, exigir=sem_cor)
         del cegas
         memoria.soltar()
         if adsb:
@@ -595,7 +611,7 @@ def simulacao_crossfit(
         regra_hold = linhas_de_regra(hold, cfg_base) if sem_regra else None
         pred = previsao_corrigida(model, hold, pred_base, adsb, janela, sem, ext_hold, p13_hold,
                                   dist_plano, sem_ctx, superficie, mapa, cel_hold, pista, retencao,
-                                  roma_hold, regra_hold)
+                                  roma_hold, regra_hold, fe_auto)
     return hold, base, pred
 
 
@@ -644,6 +660,9 @@ def parser() -> argparse.ArgumentParser:
     ap.add_argument("--roma-tdg", action="store_true",
                     help="--crossfit: soma as colunas roma_* (atraso de portão previsto no LIRF e "
                          "o táxi que T = D − G reconstrói com ele, src/roma.py)")
+    ap.add_argument("--fe-auto", action="store_true",
+                    help="--crossfit: soma as colunas fe_* (features geradas automaticamente "
+                         "e aprovadas fora do mês, src/fe_auto.py)")
     ap.add_argument("--corretor-sem-ctx", action="store_true",
                     help="--crossfit: tira ctx_* do corretor (a base já usa, --base-ctx)")
     ap.add_argument("--reusar-oof", metavar="ID",
@@ -701,6 +720,8 @@ def config_da_corrida(a: argparse.Namespace, base_id: str) -> dict:
         cfg["retencao"] = True
     if a.roma_tdg:
         cfg["roma_tdg"] = True
+    if a.fe_auto:
+        cfg["fe_auto"] = True
     if a.mapa:
         cfg["mapa"] = True
     if a.corretor_sem_ctx:
@@ -755,6 +776,8 @@ def main() -> None:
         ap.error("--retencao só vale com --crossfit (os folds não têm as cegas do ano)")
     if a.roma_tdg and not a.crossfit:
         ap.error("--roma-tdg só vale com --crossfit (os folds não têm meses de treino separados)")
+    if a.fe_auto and not a.crossfit:
+        ap.error("--fe-auto só vale com --crossfit (os folds não têm as cegas do ano)")
     if a.plano13 and not a.crossfit:
         ap.error("--plano13 só vale com --crossfit (os folds não têm vocabulário de treino)")
     if a.reusar_oof and not a.crossfit:
@@ -778,7 +801,7 @@ def main() -> None:
                                                   a.corretor_rounds, a.mapa, a.corretor_ref,
                                                   a.corretor_params, a.pista, a.retencao,
                                                   a.corretor_sem_regra, a.roma_tdg,
-                                                  cfg.get("corretor_sem_features", ()))
+                                                  cfg.get("corretor_sem_features", ()), a.fe_auto)
         else:
             hold, base, pred = simulacao_folds(run, base_id, adsb, sem)
         with run.phase("métricas", 0.1):
