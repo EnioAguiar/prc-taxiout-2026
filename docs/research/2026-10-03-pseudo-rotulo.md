@@ -57,6 +57,14 @@ Vale registrar que o corte de 3.600 s quase não corta (0,36 %): o filtro que re
 morde é o `nm_missing`. O corte está lá como trava contra o dia em que o professor
 alucinar cauda, não porque hoje ele remova muita coisa.
 
+Fiação conferida de ponta a ponta em quadros sintéticos (600 cegas de 10 meses, 120 de
+holdout, 60 do "ranking", base falsa), nos dois caminhos: a base de 2026 é ajustada
+exatamente nos meses `[2,3,4,5,6,8,9,10,11,12]`, o arquivo de cache é escrito e relido, as
+60 linhas entram com 2,9 % do peso e a previsão do holdout **muda** quando o alvo vem de
+fora (fonte `campea`). Com `propria` num modelo de uma folha só ela não muda — e é o
+esperado: o alvo das linhas de 2026 é a própria previsão do modelo, então a média
+ponderada não se move. Foi essa bancada que achou o voo de 2026 sem previsão da base.
+
 ## 2. O vazamento: por que a fonte `campea` não pode decidir no holdout
 
 O ranking de 2026 é de **janeiro e julho**. O holdout de 2025 é de **janeiro e julho**. A
