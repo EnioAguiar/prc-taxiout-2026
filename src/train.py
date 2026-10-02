@@ -307,7 +307,7 @@ def media_membros(membros, run, regras, carregar=None) -> tuple[np.ndarray, np.n
         full, rk = carregar("full2025"), carregar("ranking2026")
         run.log(f"base {i}/{len(grupos)}: {len(do_grupo)} membro(s) — "
                 f"{', '.join(m['id'] for m in do_grupo)}")
-        voos = rk[F.ID].to_numpy()
+        voos = rk[F.ID].to_numpy(copy=True)  # cópia: sem ela o bloco do `rk` fica preso na RAM
         preds += [pd.Series(p, index=voos)
                   for p in prever_grupo(base_cfg, do_grupo, full, rk, run)]
     voos = rk[F.ID].to_numpy()
