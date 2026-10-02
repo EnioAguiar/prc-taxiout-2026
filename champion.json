@@ -68,13 +68,46 @@
         },
         "reusar_oof": "20260930-130921-e76_m0"
       }
+    },
+    {
+      "id": "20261002-015703-e140",
+      "config": {
+        "model": "stack_cf",
+        "base": "20260930-130008-e76_base",
+        "base_config": {
+          "model": "two_stage_nm",
+          "cls_rounds": 400,
+          "reg_rounds": 400,
+          "seed": 0,
+          "nm_split_ms": false,
+          "nm_min_ms": 21600.0,
+          "janela_lobt": true,
+          "reg_corte": 7200.0,
+          "base_ctx": true,
+          "base_p13": true,
+          "base_por_apt": true
+        },
+        "adsb": true,
+        "rounds": 500,
+        "seed": 0,
+        "corretor": "conjunto",
+        "externos": true,
+        "plano13": true,
+        "dist_plano": true,
+        "corretor_sem_regra": true,
+        "pista": true,
+        "retencao": true,
+        "mapa": true,
+        "ref_cel": true,
+        "reusar_oof": "20260930-130921-e76_m0"
+      }
     }
   ],
   "pos_regras": [
     "roma"
   ],
-  "rmse_simulacao": 295.81,
-  "sem_loteria": 228.97,
+  "rmse_simulacao": 295.63,
+  "sem_loteria": 228.69,
   "enviada": {
     "versao": 34,
     "sem_loteria": 229.58
