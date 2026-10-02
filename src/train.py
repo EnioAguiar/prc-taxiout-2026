@@ -219,6 +219,12 @@ def corrigir_ranking(corretor, cfg_bloco: dict, adsb: bool, rk: pd.DataFrame,
                               retencao, roma_rk, regra)
 
 
+def sem_do_corretor(cfg: dict) -> tuple[str, ...]:
+    """Colunas fora das entradas do corretor: as da base (`sem_features`) mais as que só
+    o corretor perde (`corretor_sem_features`, `--corretor-sem-feature`)."""
+    return (*cfg.get("sem_features", ()), *cfg.get("corretor_sem_features", ()))
+
+
 def prever_membros(membros: list[dict], full, rk, run) -> list[tuple[dict, object, dict]]:
     """Um corretor por membro, treinado nas cegas com o oof do cache da base comum."""
     saida = []
@@ -239,7 +245,7 @@ def prever_membros(membros: list[dict], full, rk, run) -> list[tuple[dict, objec
         corretor = corretor_final(
             c["base_config"], c["adsb"], full, rk,
             OOF_CACHE / f"{chave_oof(c['base_config'])}.parquet",
-            run, c.get("corretor") == "conjunto", c.get("sem_features", ()), copia, cias,
+            run, c.get("corretor") == "conjunto", sem_do_corretor(c), copia, cias,
             c.get("fila", False), bool(c.get("dist_plano")), bool(c.get("corretor_sem_ctx")),
             bool(c.get("corretor_xgb")), bool(c.get("superficie")), c.get("rounds", ROUNDS_CORRETOR),
             bool(c.get("mapa")), cel, c.get("corretor_params"), bool(c.get("pista")),
@@ -258,7 +264,7 @@ def media_membros(membros, rk, pred_base, full, run, regras, prontos=None) -> np
     preds = []
     for c, corretor, ex in prontos or prever_membros(membros, full, rk, run):
         preds.append(corrigir_ranking(
-            corretor, c["base_config"], c["adsb"], rk, pred_base, c.get("sem_features", ()),
+            corretor, c["base_config"], c["adsb"], rk, pred_base, sem_do_corretor(c),
             ex.get("copia"), ex.get("cias"), c.get("fila", False), bool(c.get("dist_plano")),
             bool(c.get("corretor_sem_ctx")), bool(c.get("superficie")), bool(c.get("mapa")),
             ex.get("tabs_cel"), bool(c.get("pista")), bool(c.get("retencao")),

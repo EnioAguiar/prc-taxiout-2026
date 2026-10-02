@@ -41,6 +41,16 @@ def test_receita_de_config_e_argv_ida_e_volta():
     assert argv[argv.index("--base") + 1] == "BASE"
 
 
+def test_receita_com_lista_vira_flag_repetida():
+    r = {"--conjunto": True, "--corretor-sem-feature": ["met_temp", "met_vis"]}
+
+    argv = esteira.argv_corretor(r, "BASE", "OOF")
+
+    assert argv.count("--corretor-sem-feature") == 2
+    i = argv.index("--corretor-sem-feature")
+    assert argv[i + 1 : i + 4] == ["met_temp", "--corretor-sem-feature", "met_vis"]
+
+
 def test_vizinhos_mudam_uma_coisa_por_vez():
     champ = {"membros": [{"id": "m", "config": {"corretor": "conjunto", "fila": "stand", "rounds": 500,
                                                "mapa": True}}]}

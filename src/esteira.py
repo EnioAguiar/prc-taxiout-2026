@@ -62,6 +62,10 @@ def receita_de_config(cfg: dict) -> dict:
         r["--corretor-rounds"] = int(cfg["rounds"])
     if cfg.get("corretor_params"):
         r["--corretor-params"] = cfg["corretor_params"]
+    if cfg.get("corretor_sem_features"):
+        r["--corretor-sem-feature"] = list(cfg["corretor_sem_features"])
+    if cfg.get("corretor_xgb"):
+        r["--corretor-xgb"] = True
     return {k: v for k, v in r.items() if v}
 
 
@@ -71,13 +75,19 @@ def receitas_membros(champ: dict) -> list[dict]:
 
 
 def argv_corretor(receita: dict, base: str, oof: str | None) -> list[str]:
-    """Argumentos do `stack.py`; `oof=None` (base nova) calcula o oof fora do bloco do zero."""
+    """Argumentos do `stack.py`; `oof=None` (base nova) calcula o oof fora do bloco do zero.
+
+    Valor em lista vira a flag repetida (`--sem-feature A --sem-feature B`).
+    """
     argv = ["--base", base, "--crossfit", *(["--reusar-oof", oof] if oof else [])]
     for flag, valor in sorted(receita.items()):
         if valor is True:
             argv.append(flag)
         elif isinstance(valor, dict):
             argv += [flag, json.dumps(valor, sort_keys=True)]
+        elif isinstance(valor, list):
+            for item in valor:
+                argv += [flag, str(item)]
         else:
             argv += [flag, str(valor)]
     return argv

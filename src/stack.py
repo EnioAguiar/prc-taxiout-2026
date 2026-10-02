@@ -19,12 +19,18 @@ na janela antes do piso 0; sem `janela_lobt` na base, tudo segue como antes.
 
 Uso:
     bin/run src/stack.py <nome> [--base <id>] [--crossfit [--seeds N] [--conjunto]] [--sem-adsb]
-                                [--sem-feature COLUNA] [--externos] [--plano13]
-                                [--reusar-oof <id>]
+                                [--sem-feature COLUNA] [--corretor-sem-feature COLUNA]
+                                [--externos] [--plano13] [--reusar-oof <id>]
 
 `--sem-feature COLUNA` (pode repetir, só com `--crossfit`) tira a coluna da base e do
 corretor e grava `sem_features` na config da corrida e na `base_config`; sem a flag, nada
 muda. Nos folds a base vem pronta e ninguém confere o nome, então a flag é recusada.
+
+`--corretor-sem-feature COLUNA` (pode repetir, só com `--crossfit`) tira a coluna só das
+entradas do corretor e grava `corretor_sem_features` na config da corrida — a
+`base_config` fica intacta, então a previsão fora do bloco pode vir de `--reusar-oof`.
+É a flag das ablações de grupo do corretor (`ctx_*`, `met_*`, `pista_*`…), que custam
+~10 min em vez dos ~75 min de uma base nova.
 
 `--conjunto` (só com `--crossfit`) troca o corretor único pela média de três treinados
 nas mesmas entradas: LightGBM global, um LightGBM por aeroporto (aeroporto sem modelo
@@ -144,11 +150,14 @@ def corrector_frame(df: pd.DataFrame, pred: np.ndarray, adsb: bool = True,
                     sem_ctx: bool = False, superficie: bool = False,
                     mapa: bool = False, ref_cel: pd.DataFrame | None = None,
                     pista: bool = False, retencao: bool = False,
-                    roma: pd.DataFrame | None = None) -> pd.DataFrame:
+                    roma: pd.DataFrame | None = None,
+                    exigir: Iterable[str] = ()) -> pd.DataFrame:
     """Entradas do corretor: a previsão da base, o contexto do voo e o rastro ADS-B.
 
     `sem` tira as colunas com esses nomes (nome que não está no quadro é ignorado: a
-    lista é a mesma da base, que tem colunas que o corretor não usa).
+    lista é a mesma da base, que tem colunas que o corretor não usa). `exigir` são os
+    nomes que *precisam* existir — a ablação de `--corretor-sem-feature` erra alto em vez
+    de medir uma receita idêntica à campeã por causa de um nome escrito errado.
 
     `externos` (`src/externos.py`, `--externos`) são colunas `ext_*` prontas, uma por
     linha e na mesma ordem de `df`; sem elas o quadro é o de sempre.
@@ -226,6 +235,9 @@ def corrector_frame(df: pd.DataFrame, pred: np.ndarray, adsb: bool = True,
         for nome in roma_tdg_mod.COLS:
             X[nome] = np.asarray(roma[nome], float)
         X["roma_t_menos_pred"] = X["roma_t_hat"].to_numpy(float) - X["pred"].to_numpy(float)
+    faltando = [c for c in exigir if c not in X.columns]
+    if faltando:
+        raise SystemExit(f"colunas que o corretor não tem: {faltando}")
     return X.drop(columns=[c for c in sem if c in X.columns])
 
 
@@ -496,13 +508,15 @@ def simulacao_crossfit(
     reusar_oof: str | None = None, corretor_xgb: bool = False, superficie: bool = False,
     rounds: int = ROUNDS, mapa: bool = False, ref_cel: bool = False, params: dict | None = None,
     pista: bool = False, retencao: bool = False, sem_regra: bool = False,
-    roma_tdg: bool = False,
+    roma_tdg: bool = False, sem_cor: Iterable[str] = (),
 ) -> tuple[pd.DataFrame, pd.DataFrame, np.ndarray]:
     """Corretor treinado no ano fora do bloco; devolve (holdout, base, previsão).
 
     Com `reusar_oof`, a previsão fora do bloco vem pronta daquela corrida (mesma base e
-    mesma `base_config`), e só o corretor é refeito.
+    mesma `base_config`), e só o corretor é refeito. `sem_cor` (`--corretor-sem-feature`)
+    sai só das entradas do corretor, por isso não mexe na `base_config` nem no `reusar_oof`.
     """
+    sem = (*sem, *sem_cor)
     janela = bool(cfg_base.get("janela_lobt"))
     caminho_pronto = oof_reusado(reusar_oof, base_id, cfg_base) if reusar_oof else None
     with run.phase("dados", 0.1):
@@ -562,7 +576,7 @@ def simulacao_crossfit(
         regra_cegas = linhas_de_regra(cegas, cfg_base) if sem_regra else None
         X_oof = corrector_frame(cegas, pred_oof, adsb, janela, sem, ext_cegas, p13_cegas,
                                 dist_plano, sem_ctx, superficie, mapa, cel_cegas, pista, retencao,
-                                roma_cegas)
+                                roma_cegas, exigir=sem_cor)
         del cegas
         memoria.soltar()
         if adsb:
@@ -597,6 +611,9 @@ def parser() -> argparse.ArgumentParser:
                     help="--crossfit: corretor = média de global, por aeroporto e CatBoost")
     ap.add_argument("--sem-feature", action="append", default=[], metavar="COLUNA",
                     help="tira a coluna da base e do corretor (pode repetir)")
+    ap.add_argument("--corretor-sem-feature", action="append", default=[], metavar="COLUNA",
+                    help="--crossfit: tira a coluna só do corretor (pode repetir); a base "
+                         "fica igual, então `--reusar-oof` continua valendo")
     ap.add_argument("--externos", action="store_true",
                     help="--crossfit: soma as colunas ext_* (companhia, séries diárias, OPDI)")
     ap.add_argument("--plano13", action="store_true",
@@ -697,6 +714,8 @@ def config_da_corrida(a: argparse.Namespace, base_id: str) -> dict:
         cfg["reusar_oof"] = a.reusar_oof
     if sem:
         cfg["sem_features"] = sem
+    if a.corretor_sem_feature:
+        cfg["corretor_sem_features"] = list(a.corretor_sem_feature)
     return cfg
 
 
@@ -709,6 +728,8 @@ def main() -> None:
         ap.error("--conjunto só vale com --crossfit")
     if a.sem_feature and not a.crossfit:
         ap.error("--sem-feature só vale com --crossfit (nos folds nada confere o nome)")
+    if a.corretor_sem_feature and not a.crossfit:
+        ap.error("--corretor-sem-feature só vale com --crossfit (nos folds nada confere o nome)")
     if a.externos and not a.crossfit:
         ap.error("--externos só vale com --crossfit (os folds não têm meses de treino separados)")
     if a.corretor_xgb and not a.conjunto:
@@ -755,7 +776,8 @@ def main() -> None:
                                                   a.reusar_oof, a.corretor_xgb, a.superficie,
                                                   a.corretor_rounds, a.mapa, a.corretor_ref,
                                                   a.corretor_params, a.pista, a.retencao,
-                                                  a.corretor_sem_regra, a.roma_tdg)
+                                                  a.corretor_sem_regra, a.roma_tdg,
+                                                  cfg.get("corretor_sem_features", ()))
         else:
             hold, base, pred = simulacao_folds(run, base_id, adsb, sem)
         with run.phase("métricas", 0.1):

@@ -109,6 +109,21 @@ def test_sem_janela_o_corretor_nao_ve_os_limites_do_lobt():
     assert "dist_lo" not in X.columns and "dist_hi" not in X.columns
 
 
+def test_exigir_recusa_coluna_que_o_corretor_nao_tem():
+    """A ablação de `--corretor-sem-feature` tem de errar alto num nome escrito errado:
+    senão ela mediria a própria campeã e seria lida como 'tirar a coluna não muda nada'."""
+    with pytest.raises(SystemExit):
+        corrector_frame(_voos(), np.array([800.0, 900.0, 1000.0]),
+                        sem=["ctx_nao_existe"], exigir=["ctx_nao_existe"])
+
+
+def test_corretor_sem_feature_tira_a_coluna_so_do_corretor():
+    X = corrector_frame(_voos(), np.array([800.0, 900.0, 1000.0]),
+                        sem=["adsb_lat0"], exigir=["adsb_lat0"])
+
+    assert "adsb_lat0" not in X.columns and "adsb_lon0" in X.columns
+
+
 def test_com_janela_a_correcao_enorme_para_nos_limites_do_lobt():
     df = _voos()
     base = np.array([800.0, 900.0, 1000.0])
@@ -415,6 +430,25 @@ def test_a_config_do_crossfit_grava_sem_features_no_topo_e_na_base(tmp_path, mon
     assert com["sem_features"] == ["adsb_lat0", "adsb_lon0"]
     assert com["base_config"]["sem_features"] == ["adsb_lat0", "adsb_lon0"]
     assert "sem_features" not in sem and "sem_features" not in sem["base_config"]
+
+
+def test_a_config_do_corretor_sem_feature_nao_toca_na_base(tmp_path, monkeypatch):
+    """A `base_config` intacta é o que deixa `--reusar-oof` valer: a ablação do corretor
+    custa ~10 min em vez dos ~75 min de refazer a base."""
+    registro = tmp_path / "experiments.jsonl"
+    registro.write_text(json.dumps(
+        {"id": "20260101-a", "config": {"model": "two_stage_nm", "seed": 0}}
+    ) + "\n", encoding="utf-8")
+    monkeypatch.setattr(stack, "REGISTRY", registro)
+
+    cfg = stack.config_da_corrida(stack.parser().parse_args(
+        ["a1", "--crossfit", "--corretor-sem-feature", "met_temp",
+         "--corretor-sem-feature", "met_vis"],
+    ), "20260101-a")
+
+    assert cfg["corretor_sem_features"] == ["met_temp", "met_vis"]
+    assert "sem_features" not in cfg["base_config"]
+    assert cfg["base_config"] == {"model": "two_stage_nm", "seed": 0}
 
 
 def test_sem_feature_sem_crossfit_e_recusado(monkeypatch, capsys):
