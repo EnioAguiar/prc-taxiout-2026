@@ -428,8 +428,9 @@ def talvez_enviar(fila: Fila, champ: dict, rodar=subprocess.run) -> str | None:
             or enviada - champ["sem_loteria"] < GANHO_ENVIO_S
             or time.time() - ultimo < ENVIO_INTERVALO_S):
         return None
-    versao = 1 + max(json.loads(l)["versao"]
-                     for l in (ROOT / "submissions.jsonl").read_text().splitlines() if l.strip())
+    registradas = [json.loads(l)["versao"]
+                   for l in (ROOT / "submissions.jsonl").read_text().splitlines() if l.strip()]
+    versao = 1 + max(registradas + [champ["enviada"]["versao"]])  # enviada antes de entrar no registro
     while memoria_livre_gb() < MEMORIA_MIN_GB:
         time.sleep(60)
     fila.meta("ultimo_arquivo_em", str(time.time()))  # a trava de 6 h vale também para a falha

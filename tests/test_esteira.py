@@ -247,6 +247,16 @@ def test_talvez_enviar_espera_memoria(tmp_path, monkeypatch):
     assert dormiu == [60, 60] and cmds[0][-3:] == ["src/train.py", "submit", "33"]
 
 
+def test_talvez_enviar_nao_reusa_a_versao_enviada_fora_do_registro(tmp_path, monkeypatch):
+    """`esteira.py enviado 33` antes de o registro ganhar a linha da v33: o próximo é v34, não v33."""
+    f = esteira.Fila(tmp_path / "e.db")
+    champ = _pronta(tmp_path, monkeypatch, f)
+    champ["enviada"] = {"versao": 33, "sem_loteria": 233.0}
+    cmds = []
+    assert esteira.talvez_enviar(f, champ, lambda argv, **kw: cmds.append(argv))
+    assert cmds[0][-1] == "34" and "_v34.parquet" in f.meta("pronto")
+
+
 def test_passo_sem_aprovacao_ainda_gera_o_arquivo(tmp_path, monkeypatch):
     f = esteira.Fila(tmp_path / "e.db")
     champ = _pronta(tmp_path, monkeypatch, f)
