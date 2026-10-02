@@ -1,768 +1,472 @@
-# PRC Data Challenge 2026: taxi-out time
+# PRC Data Challenge 2026 — taxi-out time
 
-Competição da EUROCONTROL Performance Review Commission (PRC) com a
-OpenSky Network (OSN). Não é Kaggle.
-
-- Site: <https://ansperformance.eu/study/data-challenge/dc2026/>
-- Dados: <https://prc-data-challenge-2026.netlify.app/data.html>
-- Termos/elegibilidade: <https://prc-data-challenge-2026.netlify.app/eligibility.html>
-- Discord: servidor OpenSky (<https://discord.gg/RPh89jpVVz>), canal `#prc-data-competition`
-
-Mapa curto do projeto: `docs/mapa.md`.
-
-## Problema
-
-Prever o taxi-out de cada decolagem: segundos entre sair do
-portão (off-block) e decolar.
+Team **`outgoing-boat`** (solo team). Solution for the EUROCONTROL Performance
+Review Commission / OpenSky Network [PRC Data Challenge 2026](https://ansperformance.eu/study/data-challenge/dc2026/):
+predict the taxi-out time of every departure at 10 major European airports.
 
 ```
-TAXITIME_SEC_mvt = MVT_TIME_UTC_mvt - BLOCK_TIME_UTC_mvt   (PHASE_mvt == "DEP")
+TAXITIME_SEC_mvt = MVT_TIME_UTC_mvt - BLOCK_TIME_UTC_mvt      (PHASE_mvt == "DEP")
 ```
 
-Regressão tabular. Sem LLM, sem GPU obrigatória.
+Metric: RMSE in seconds on the ranking set (January and July 2026 movements).
 
-## Regras-chave
-
-| Item | Valor |
+| | |
 |---|---|
-| Período | 01/09/2026 → **11/10/2026 23:59:59 CET** |
-| Métrica | RMSE (segundos), menor é melhor |
-| Conjunto de ranking | movimentos de **jan e jul de 2026** |
-| Prêmio | 5.000 EUR somados entre os 3 primeiros |
-| Condição do prêmio | repositório público no GitHub sob **GPLv3** |
-| Opcional | artigo open access na JOAS (Journal of Open Aviation Science) |
+| Best official score | **243.9755 s** (v36) |
+| Simulation of the same model (Jan+Jul 2025) | 295.63 s full · 228.69 s without the lotteries |
+| Airports | EDDF, EDDM, EGLL, EHAM, LEBL, LEMD, LFPG, LIRF, LTFM, LSZH |
+| Stack | Python 3, pandas/pyarrow, LightGBM, CatBoost (XGBoost optional) |
+| Hardware | 6 physical cores, 15 GB RAM, no GPU required |
+| License | GNU GPL v3 — see [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE) |
 
-## Inscrição
+The work diary, in Portuguese and in chronological order, is [`docs/diario.md`](docs/diario.md);
+the individual studies are in [`docs/research/`](docs/research); the design documents and
+the plans that were executed are in [`docs/superpowers/`](docs/superpowers).
 
-1. [x] Preencher o [formulário de criação de equipe](https://docs.google.com/forms/d/e/1FAIpQLScgRRk0j5Giot8puUAjzXC7ScR926Oupd62LbRVS1g8Y2p4hw/viewform) (aprovação manual). Enviado em 23/09/2026, equipe solo.
-2. [x] Equipe aprovada em 24/09/2026: `outgoing-boat`, bucket de envio `prc-2026-outgoing-boat`.
-3. [x] Chaves do MinIO geradas (`minio-credentials.json`, fora do git) e `.env` preenchido.
-4. [ ] Entrar no Discord da OpenSky.
+Official score history (RMSE on the public leaderboard). Every submission is one line
+of `submissions.jsonl`, with the date, the reason and the simulated score it was chosen by:
 
-## Dados
-
-Aeroportos (10): EDDF (FRA), EDDM (MUC), EGLL (LHR), EHAM (AMS),
-LEBL (BCN), LEMD (MAD), LFPG (CDG), LIRF (FCO), LTFM (IST), LSZH (ZRH).
-
-Distribuídos via bucket da OSN (cliente MinIO; instruções em
-<https://ansperformance.eu/study/data-challenge/dc2024/data.html#using-minio-client>).
-
-| Arquivo | Conteúdo | Tamanho |
+| Version | Change | Official RMSE |
 |---|---|---|
-| `training_2025-MM-01_....parquet` (12) | movimentos de 2025, com alvo | ~20–25 MB cada |
-| `ranking.parquet` | jan + jul 2026; `BLOCK_TIME_UTC_mvt` e `TAXITIME_SEC_mvt` apagados nas DEP | 27 MB |
-| `submitting.parquet` | template: `MVT_ID_mvt`, `TAXITIME_SEC_mvt` | 1.1 MB |
+| v1 | first model, outliers dropped from training | 514.53 |
+| v2 | outliers kept, unit bug in congestion windows fixed | 384.74 |
+| v3 | two-stage model (copy classifier + regressor) | 338.67 |
+| v5 | per-airport lines for flights without a Network Manager record | 330.95 |
+| v6 | ADS-B features from adsb.lol | 314.76 |
+| v9 | cross-fitted corrector + LOBT window | 275.90 |
+| v11 | arrival context and neighbour features in the corrector | 266.81 |
+| v13 | Rome post-rule | 264.35 |
+| v17–v30 | weather (METAR), EUROCONTROL daily series, OPDI, airport map, per-airport regressor | 247.76 |
+| v32 | mixture of two correctors over the same base | 247.11 |
+| v33 | base with weather/rotation/NM-consistency features, both correctors rebuilt on it | 244.89 |
+| v34 | gate-retention block (`--retencao`) in corrector 1 | 244.18 |
+| v35 | corrector 1 no longer trains on the rule-served rows (`--corretor-sem-regra`) | 244.13 |
+| v36 | third corrector member (`--pista --retencao --corretor-sem-regra`) | **243.9755** |
 
-~4,17 milhões de movimentos (ARR + DEP). Linhas de movimento
-(`*_mvt`) com left join dos dados de voo do Network Manager (`*_flt`).
-Dado real, com inconsistências entre `_mvt` e `_flt`.
+## 1. Model design
 
-Colunas mais úteis: `ADEP_mvt`, `RUNWAY_mvt`, `STAND_mvt`,
-`AIRCRAFT_TYPE_mvt`, `WK_TBL_CAT_flt`, `MARKET_SEGMENT_flt`,
-`AIRCRAFT_OPERATOR_flt`, `SCHED_TIME_UTC_mvt`, `MVT_TIME_UTC_mvt`,
-`EOBT_1_flt`, `AOBT_3_flt`.
+The design is driven by one property of the target: **the label is not a single
+population**. A fraction of the official off-block timestamps is a *copy* of a planned
+time, which produces true taxi-out values of several hours. In the 2025 holdout, 84.7 % of
+the flights with `y > 3 h` satisfy `|BLOCK − SCHED| ≤ 60 s`; those outliers are ~37 % of the
+squared error. They are kept in training and in validation — removing them (version v1)
+makes the model blind to them and makes validation optimistic.
 
-Vazamento (verificado em 24/09): `AOBT_3_flt` (off-block real do NM)
-está preenchido em 98,5% das DEP do ranking, então pode ser usado. Ele
-bate com o off-block oficial (±2 min) em 38% dos voos; EOBT/LOBT em ~20%;
-SCHED em 17%. O BLOCK oficial tem resolução de segundo e AOBT_3/EOBT/SCHED
-de minuto, então a proximidade de 38% com AOBT_3 não é cópia. Cópia existe só na
-cauda, e do SCHED: 84,7% dos y > 3 h têm |BLOCK − SCHED| ≤ 60 s
-(`docs/research/2026-09-24-forense-dados.md`).
+So the model is a mixture of two regimes plus a learned residual, not one regressor:
 
-Outliers entram na nota: a verdade oficial mantém taxi-outs de horas
-(até 36 h). Eles são ~37% do erro quadrático. Cortá-los do treino/validação
-deixa a validação otimista e o modelo cego para eles (erro da v1).
+```
+organiser data (2025 + 2026 ranking)
+ADS-B, METAR, OPDI, EUROCONTROL series, X-Plane apt.dat
+            │
+            ▼
+      feature cache  ──►  BASE model (shared by every member)
+                              stage 1: copy classifier  p = P(|BLOCK − SCHED| ≤ 60 s)
+                              stage 2: L2 regressor on the normal flights only
+                              mixture by expectation, never argmax
+                              + per-airport lines for flights without an NM record
+                              + LOBT window projection
+                              │
+             ┌────────────────┼────────────────┐
+             ▼                ▼                ▼
+        member e122      member e76_m1     member e140      (cross-fitted, out-of-block)
+             └────────────────┼────────────────┘
+                              ▼
+                     simple average of members
+                              ▼
+                 LOBT window projection (± 3606 s)
+                              ▼
+                 post-rule "Rome"  ──►  submission parquet
+```
 
-## Modelo atual (`src/`)
+The exact configuration that produced the current submission is `champion.json`
+(fields `base`, `oof`, `membros`, `pos_regras`) and is rebuilt end-to-end by
+`src/train.py submit`.
 
-Melhor nota oficial: **v33 = 244,89** (30/09 20h44 UTC) = base com plano 13 (`--base-p13`, id `20260930-130008-e76_base`) + os dois corretores da campeã refeitos sobre ela (`20260930-130921-e76_m0`, `20260930-140011-e76_m1`), achada pela esteira, + pós-regra de Roma. Antes: v32 = 247,11 (30/09 02h23 UTC) = média simples de dois corretores sobre a mesma base (`20260929-125421-base_ctx_por_apt`): o da v30 (id `20260929-154118-v29_mapa_cf`, 298,05 na simulação) e o `--fila --superficie` (id `20260929-220513-e2_fila_sup`, 298,42 na simulação), + pós-regra de Roma. Desde 30/09 isso está no código: `champion.json` no formato v2 (`base`, `membros`, `pos_regras`; `src/campeao.py`) aponta para esses dois membros, a regra de Roma vive em `src/pos_regras.py` e `train.py submit N` refaz a média e aplica as pós-regras sozinho (refazer a v32 deu rms 7 s contra o arquivo enviado e Roma idêntica). Antes: v30 = 247,76 = v29 + `--mapa` no corretor (colunas `map_*`, `src/mapa.py`) + pós-regra de Roma. Antes: v29 = 247,83 = v28 + `--base-por-apt` (regressor por aeroporto na base) + `--corretor-ref` (colunas `cel_*` da célula aeroporto × stand × pista no corretor) (id `20260929-135844-h1h2_por_apt_ref`, 299,10 na simulação) + pós-regra de Roma; promovida à mão com o ok do usuário depois do oficial (veredito "não comprovado": +0,3 s no completo, mas +1,2 s sem loteria com IC 0,7 a 1,8). Antes: v28 = 249,16 = v26 + `--stand-prefixo` (coluna `stand_p`) + `--corretor-rounds 500` (id `20260929-093849-v28_cf`, 299,41 na simulação) + pós-regra de Roma. Antes: v27 = 251,10 = v26 (id `20260928-195148-v26_cf`, 300,64 na simulação; v20 + `--dist-plano` no corretor) + pós-regra de Roma. Antes: v21 = 252,34 = v20 (id `20260928-131704-v20_cf`, 301,73 na simulação; v18 com a base usando também as colunas `ctx_*` via `--base-ctx`) + pós-regra de Roma. Antes: v19 = 253,95 = v18 (id `20260928-113219-v18_cf`, 303,82 na simulação; v16 + `--plano13`: METAR, rotação no stand, consistência NM e companhia no corretor) + pós-regra de Roma. Antes: v17 = 256,86 = v16 (id `20260927-223230-v16_cf`, 306,65 na simulação; base `--reg-corte 7200`, corretor `--conjunto --externos`) + pós-regra de Roma aplicada ao arquivo. Antes: v13 = 264,35; v12 (id `20260927-160433-v12_cf`, 309,78 na simulação, 264,74 oficial) = v11 com `--conjunto` (média de 3 corretores). A v11 (id `20260927-145005-v11_cf`, 311,09 na simulação, 266,81 oficial) = v9 + colunas `ctx_*` no corretor (`src/contexto.py`: taxi-in das chegadas e vizinhos de `MVT − AOBT_3`, plano 8). A v9 era `stack_cf` com janela do LOBT (id
-`20260927-133718-v9_cf`, 317,23 na simulação, 275,90 oficial). A base é
-`two_stage_nm` (`--nm-min-ms 21600 --janela-lobt`, features `adsb_*`) com corretor
-treinado fora do bloco por meses (`src/crossfit.py`, `stack.py --crossfit`); toda previsão é
-projetada em `MVT − LOBT ± 3606 s`. Promovida à mão com o ok do usuário ("não comprovado"
-na regra: ganho 6,3 s). Envio: `train.py submit N [--corrida <id>]` (~38 min no total, pico 7,10 GB medido em 30/09; ver "RAM" em Uso): lê a campeã v2, refaz cada membro, tira a média e aplica as pós-regras. Não há mais `--forcar` nem trava por `src_hash` (saíram em 30/09 com a campeã v2). Antes dela, a
-v6 (id `20260926-223248-nm_retas_6h_adsb`, 314,76) foi promovida à mão com o ok do usuário
-depois do oficial: no `compare.py` o veredito foi "não comprovado" (ganho 9,4 s, IC
-7,5 a 11,7, abaixo dos 10 s; sem os 10 maiores 8,7; jan e jul > 0). As colunas
-`adsb_*` entram por `cache.load_split` (merge com `events.parquet`, NaN sem evento),
-fora do cache de features. `train.py submit N` precisa do `events.parquet` no SSD.
+### 1.1 Why two stages, and why an expectation mixture
 
-- Estágio 1: classificador LightGBM de `eq = |BLOCK − SCHED| ≤ 60 s`,
-  a cópia que existe na cauda.
-- Estágio 2: regressor L2 treinado só nos voos normais (`~eq`).
-- Combinação pela esperança: `ŷ = p·(MVT − SCHED) + (1 − p)·ŷ_normal`,
-  com piso 0; nunca argmax, porque errar a classe custa horas². Sem SCHED,
-  só o regressor.
-- Voos sem registro NM (`nm_missing`): a previsão acima é trocada por
-  uma reta `y = a + b·(MVT − SCHED)` ajustada por aeroporto (com
-  `--nm-split-ms`, por aeroporto × atraso > 2 h); grupos com < 50 voos usam
-  a reta global; piso 0. Com `--nm-min-ms S`, a reta só troca os voos com
-  `MVT − SCHED` > S (ex.: 21600 = 6 h); os demais ficam com o dois estágios.
-- Janela do LOBT (`--janela-lobt`, plano 7): em 100 % das DEP com LOBT, |BLOCK −
-  LOBT| ≤ 3606 s (regra do dado, vale em 2026). Toda previsão é projetada em
-  `MVT − LOBT ± 3606` (depois o piso 0), e `p` da cópia é zerado quando o SCHED cai fora
-  da janela. Sem LOBT (≈ 1 %, quase todos sem NM) a janela não existe.
-- Corretor (`stack_cf`, plano 5): LightGBM que aprende `y − pred_base` com previsões
-  da base fora do bloco (blocos de 2 meses, split `blind2025` montado como o ranking);
-  entradas `pred`, aeroporto, `nm_missing`, hora, `to_takeoff_from_*`, `adsb_*`,
-  `dist_lo`/`dist_hi` até as bordas da janela; saída projetada na janela.
-- `--seeds N` (plano 6) faz a média de N seeds na base; medido e não usado (+0,3 s).
-- Features: referência P10 por (aeroporto, stand, pista) com fallback,
-  calculada só no fold de treino; tempos entre os horários planejados/NM
-  (SCHED, LOBT, IOBT, EOBT, AOBT_3) e a decolagem; diferenças entre esses
-  horários e flags de arredondamento; congestionamento (decolagens e pousos
-  do aeroporto e da pista, janelas de 10/20/30/60 min); hora, dia da semana,
-  categóricas; `nm_missing` (voo sem linha do Network Manager).
-- LightGBM com `num_threads=12` (6 núcleos físicos × 2; 24 threads é 2 a 4×
-  mais lento, ver `docs/research/2026-09-24-hardware-benchmark.md`).
-- Seeds determinísticas: `--seed N` fixa as seeds do LightGBM com
-  `deterministic` e `force_row_wise`; a mesma seed reproduz o mesmo número.
-  Ruído do treino com 3 seeds da campeã de referência: ≤ 1,5 s no RMSE
-  completo agregado, mas esse número é o piso errado para julgar ganhos.
-  Pareado no `compare.py`, duas seeds da mesma configuração dão IC 95% de
-  ≈−10 a ≈+14 s (s1: −10,5 a 13,9; s2: −7,9 a 14,1), e o ganho "sem os 10
-  maiores voos" fica em ≈−6 s a efeito zero (−6,2 e −5,9): tirar os k voos
-  que mais contribuem sempre favorece a base, então esse critério tem viés
-  negativo embutido.
-- Métricas por fatia (plano 3b): além do RMSE completo, `experiment.py`
-  grava `normais_nm` (y ≤ 1 h com registro NM), `alarmes_falsos` (voo normal
-  previsto > 1 h: `n` e parte do erro²), `cauda_copia` (y > 1 h a ≤ 5 min de
-  algum horário planejado) e `sem_loteria` (RMSE sem os voos com y > 3 h que
-  nenhum horário planejado explica, 11 no holdout, 32 % do erro²).
-  `compare.py` imprime ganho e IC pareados nos voos normais com NM e sem
-  loteria como informação; o veredito continua o do plano 3a.
-- Ruído entre seeds nas fatias novas (`base_3b` seed 0 → `base_3b_s1`
-  seed 1, mesma configuração da campeã): completo 332,86 → 332,83, ganho
-  0,0 s (IC 95% −1,6 a 2,2); voos normais com NM −0,5 s (IC −0,9 a −0,2);
-  sem loteria 0,2 s (IC −1,8 a 2,7). A fatia dos normais é ~5× mais precisa
-  que o RMSE completo, mas o IC dela nem contém zero: só leia como melhoria
-  real um ganho acima de ~1 s. Os alarmes falsos oscilam de 204 para 224 voos
-  (10,0 % → 10,1 % do erro²) só por troca de seed.
-- Treina com todos os voos (sem corte de outliers) e sem limitar a
-  previsão.
-- Validação: `src/experiment.py` simula o ranking (jan+jul/2025 com o alvo
-  apagado como no oficial) e grava a corrida em `experiments.jsonl`;
-  `src/compare.py` decide por bootstrap pareado por dia e atualiza
-  `champion.json` (que também guarda `src_hash` e `git_commit` do código que
-  mediu o campeão). Veredito MELHOR só se tudo valer: ganho ≥ 10 s e IC
-  95% > 0; ganho sem os 10 voos de maior ganho > 0 e ≥ 10% do ganho cheio; IC
-  > 0 em jan e em jul separados. Senão FRÁGIL, que não promove; só
-  `--aceitar-fragil` promove, e ele só se usa depois do `teto.py` e com o ok do
-  usuário. Sob essa regra v2→v3 promoveria e v3→v4 seria barrada. A razão
-  oficial/simulação é pessimista, mas não comparável entre versões: 0,836 na
-  v2 veio da simulação antiga (`sim_ranking.py`) e 0,873 na v3 do holdout
-  novo; a v2 medida no holdout novo daria 0,846.
-- `src/teto.py` estima, antes de enviar, o teto do ganho oficial: compara
-  dois arquivos de envio nas linhas que diferem (opcionalmente só com
-  `MVT − SCHED` > `--min-ms`) contra um oráculo otimista `y = MVT − SCHED`;
-  ganho simulado > 2 × teto = a simulação mede folga que o modelo final não
-  tem. `--salvar` grava um candidato (base + novo só nessas linhas).
-- `src/train.py submit N` refaz a campeã (`champion.json` v2) no ano inteiro: a base
-  comum com as rodadas × 1,2 (full2025 tem 2,085 M linhas contra 1,741 M do treino),
-  um corretor por membro, a média simples deles e as `pos_regras` (Roma) — tudo em
-  código — e só gera o arquivo; o envio é um comando à parte. Com `--corrida <id>`,
-  a receita é a daquela corrida sozinha, com a regra de Roma. O `src_hash` atual fica
-  no registro do envio. A previsão da base fora do bloco (~50 min com `--base-por-apt`)
-  fica em `data/cache/oof_base/<chave>.parquet`, com a chave feita da config da base,
-  do código que ela usa (`crossfit.py` e seus imports) e dos arquivos de dados; envio
-  que só muda o corretor a reaproveita e cai de ~70 para ~21 min (medido 29/09).
+A single regressor on this target has to interpolate between "22 minutes of taxi" and
+"9 hours because the off-block field was filled with the schedule". It cannot: the loss is
+squared, so it answers with the conditional mean of a bimodal distribution and is wrong in
+both regimes at once.
 
-## Submissões
+* **Stage 1** — LightGBM classifier of `eq = |BLOCK − SCHED| ≤ 60 s` ("the off-block
+  timestamp is a copy of the scheduled time").
+* **Stage 2** — L2 LightGBM regressor trained **only** on the normal flights (`~eq`), with
+  the target clipped at 2 h (`--reg-corte 7200`) so the tail does not distort the body, and
+  optionally one model per airport added to the global one (`--base-por-apt`).
+* **Mixture by expectation** — `ŷ = p·(MVT − SCHED) + (1 − p)·ŷ_normal`, floored at 0.
 
-| Versão | Data | Mudança | Simulação (completo / sem outliers) | Oficial |
-|---|---|---|---|---|
-| v1 | 24/09 | modelo base; treino sem y ≥ 3 h, previsão limitada a 3 h | 535,9 / 264,4 | 514,5 |
-| v2 | 24/09 | treino com outliers, sem limite; bug de unidade das janelas de congestionamento corrigido; features de diferença e arredondamento | 460,4 / 290,2 | **384,7** |
-| v3 | 24/09 | dois estágios (classificador da cópia do SCHED + regressor) e `nm_missing`; base de experimentos nova | 388,16 / 269,87 | **338,7** |
-| v4 | 24/09 | `two_stage_nm`: retas por aeroporto em `MVT − SCHED` para os voos sem NM | 345,89 / 285,52 | **337,2** |
-| v5 | 24/09 | v3 + retas só em NM ausente com atraso > 6 h (96 linhas) | 332,86 (com o novo código) / 269,66 | **331,0** (−7,7 s sobre a v3; teto calculado 8,5 s) |
-| v6 | 26/09 | configuração da v5 + features `adsb_*` (adsb.lol, 2025 inteiro + jan/jul 2026; 57 % do ranking com evento) | 323,50 / 257,91 | **314,76** (−16,2 s sobre a v5; relação oficial/simulação 0,973) |
-| v9 | 27/09 | v7 (corretor com cross-fitting por mês) + janela do LOBT (projeção em `MVT − LOBT ± 3606`, `p` zerado fora dela) | 317,23 / 254,24 | **275,90** (−38,9 s sobre a v6; relação 0,870) |
-| v11 | 27/09 | v9 + taxi-in das ARR e vizinhos de `MVT − AOBT_3` no corretor (plano 8) | 311,09 / 245,81 | **266,81** (−9,1 s sobre a v9; relação 0,858) |
-| v12 | 27/09 | v11 com a média de 3 corretores (`--conjunto`, plano 9) | 309,78 / 243,96 | **264,74** (−2,1 s sobre a v11) |
-| v33 | 30/09 | base com plano 13 (`--base-p13`: METAR, rotação no stand, consistência NM e companhia na base) + os 2 corretores da campeã refeitos sobre ela (esteira, candidato 76: `20260930-130921-e76_m0` + `20260930-140011-e76_m1`) + regra de Roma; primeira versão achada pela esteira | 296,76; sem loteria +1,45 sobre a campeã (IC +0,09 a +3,05) | **244,89** (−2,22 s sobre a v32) |
-| v32 | 30/09 | média simples de dois corretores sobre a base da v30: o da v30 e `--fila --superficie` (id `20260929-220513-e2_fila_sup`) + regra de Roma; média feita fora do código | 298,05 e 298,42 sozinhos; média: sem loteria +0,95 sobre a v30 | **247,11** (−0,65 s sobre a v30) |
-| v30 | 29/09 | v29 + `--mapa` no corretor (colunas `map_*` do apt.dat X-Plane; id `20260929-154118-v29_mapa_cf`) + regra de Roma | 298,05 / 229,74 | **247,76** (−0,07 s sobre a v29; simulação previa −1,1) |
-| v29 | 29/09 | v28 + `--base-por-apt` (regressor por aeroporto na base) + `--corretor-ref` (célula aeroporto × stand × pista; id `20260929-135844-h1h2_por_apt_ref`) + regra de Roma. Portão reprovado no completo (+0,3 s, IC −0,7 a 1,3); enviada com ok do usuário pelo ganho em sem loteria (+1,2 s, IC 0,7 a 1,8) | 299,10 / — | **247,83** (−1,33 s sobre a v28; simulação previa −0,3) |
-| v28 | 29/09 | v26 + `--stand-prefixo` (coluna `stand_p` do bloco fila) + `--corretor-rounds 500` (laço fiel 2; id `20260929-093849-v28_cf`) + regra de Roma | 299,41 / 231,53 | **249,16** (−1,94 s sobre a v27; simulação previa −1,2) |
-| v27 | 29/09 | v26 (v20 + `--dist-plano`: distância da previsão a cada horário planejado no corretor; laço fiel) + regra de Roma | 300,64 / 232,84 | **251,10** (−1,24 s sobre a v21) |
-| v21 | 28/09 | v20 (base com `ctx_*`: `--base-ctx`; corretor da v18) + regra de Roma | 301,73 / 233,04 | **252,34** (−1,61 s sobre a v19) |
-| v19 | 28/09 | v18 (plano 13: METAR, rotação no stand, consistência NM, companhia no corretor) + regra de Roma | 303,82 / 235,25 | **253,95** (−2,91 s sobre a v17) |
-| v17 | 28/09 | v16 (plano 11 + 12: regressor com alvo cortado em 2 h; companhia, séries diárias EUROCONTROL e OPDI no corretor) + regra de Roma | 306,65 / 238,65 | **256,86** (−7,49 s sobre a v13) |
-| v13 | 28/09 | v12 + pós-regra de Roma (4 voos) | — | **264,35** (−0,39 s sobre a v12) |
-| v14 | 28/09 | v12 sem `adsb_lat0`/`adsb_lon0` (plano 10) | 311,88 / — | 266,28 (+1,54 s: a deriva não atrapalha) |
-| v10 | 27/09 | diagnóstico: v6 + só as 117 linhas projetadas na janela (garantia ≤ 288,01) | 320,30 / — | 284,17 (a regra vale em 2026) |
+The last point is the design decision that matters most, and it is deliberate:
+**never `argmax`**. Choosing the most likely class and committing to it minimises
+classification error, not RMSE. A missed copy at `p = 0.45` costs `(MVT − SCHED)²` —
+hours squared. The expectation spends `p · (MVT − SCHED)` seconds of prediction on a
+possibility, which is exactly what a squared loss asks for. The flip side is false alarms
+(normal flights predicted above 1 h); they are tracked as a dedicated slice
+(`alarmes_falsos`), and the two attempts to reduce them with a sharper decision rule both
+failed (§3).
 
-A simulação da v3 e da v4 vem do holdout novo (`experiment.py`), mais rigoroso que o
-`sim_ranking.py` que mediu a v1 e a v2. A da v5 é a de `nm_retas_6h` (seeds
-determinísticas, código do plano 3a).
+Two more pieces are not learned but derived from the data and verified:
 
-Candidato v5: `teto.py` v3→v4 com `ms` > 6 h acha 96 linhas e teto de
-8,53 s. O candidato é a v3 com essas 96 linhas da v4
-(`submissions/outgoing-boat_v5.parquet`); veredito FRÁGIL no `compare.py`,
-enviado com o ok do usuário depois do `teto.py`. O oficial deu 331,0 s,
-−7,7 s sobre a v3: dentro do teto de 8,53 s e a primeira vez que um ganho
-simulado se confirmou no placar.
+* **Flights without a Network Manager record** (`nm_missing`) — the prediction is replaced
+  by a per-airport line `y = a + b·(MVT − SCHED)`, fitted inside the training fold, and only
+  where `MVT − SCHED` exceeds `--nm-min-ms` (6 h in the champion). Applying it to all
+  `nm_missing` flights was measured and is worse (it was version v4: simulated −42 s,
+  official −1.5 s; diagnosis in
+  [`docs/research/2026-09-24-diagnostico-v4.md`](docs/research/2026-09-24-diagnostico-v4.md)).
+* **LOBT window** (`--janela-lobt`) — in **100 %** of the 2,062,577 departures of 2025 that
+  have a LOBT, `|BLOCK − LOBT| ≤ 3606 s`. Every prediction is projected onto
+  `MVT − LOBT ± 3606 s`, and the copy probability `p` is zeroed when SCHED falls outside the
+  window. This is a hard property of the data, not a model: measurement in
+  [`docs/research/2026-09-27-janela-lobt.md`](docs/research/2026-09-27-janela-lobt.md).
+  It was confirmed to hold in 2026 by a single diagnostic submission (v10, §2.3).
 
-Alerta v4: a simulação previa −42 s e o oficial deu só −1,5 s (relação
-oficial/simulação 0,975, fora de 0,84 ± 0,05). Diagnóstico em
-`docs/research/2026-09-24-diagnostico-v4.md`: o ganho simulado vinha de 10 voos
-do LIRF (120,9 % do ganho; sem eles a v4 é 9,7 s pior) e media folga que a v3
-enviada não tinha (cobertura de `ms` nos extremos do LIRF: 0,905 no ranking
-contra 0,679 no holdout); o teto do ganho oficial era −8,5 s. Recomendação:
-aplicar as retas só em `nm_missing` com `MVT − SCHED` > 6 h (holdout 334,51 s) e
-endurecer a regra de promoção (ganho fora dos 10 maiores voos, ganho em jan e em
-jul separados, teto no ranking).
+### 1.2 Why the corrector is cross-fitted, and against what
 
-## Roadmap
+A second family of models learns the residual `y − pred_base`. The naive version — train the
+corrector on the base's own predictions — learns the base's *training* error, which is not
+the error it will have on the ranking set. The correct input is an **out-of-block** base
+prediction: the year is split into 2-month blocks and the base is retrained without the
+block it predicts (`src/crossfit.py`), mirroring exactly how the ranking set is built
+(January and July held out of a year of training).
 
-Feito:
+This is the single change that forced the pipeline to be honest, and it moved the official
+score from 314.76 (v6) to 275.90 (v9) together with the LOBT window.
 
-- [x] Inscrição, credenciais e download dos 14 arquivos (com retentativa, a conexão da OSN cai).
-- [x] Primeira submissão (v1) e diagnóstico da diferença validação × oficial.
-- [x] Correção: outliers no treino; bug de unidade de tempo nas janelas (`// 10**9` com timestamps em µs virava janela de ~7 dias).
-- [x] Features de diferença entre horários e arredondamento (v2).
-- [x] Base de experimentos: `bin/run` (metade do PC), cache de features, progresso com ETA e RAM, `experiments.jsonl` e `compare.py` com bootstrap pareado.
-- [x] Item 0 da parte 2, linha de base na base nova (`base_v2`, 400 rodadas): **454,93 s**, 2m15s, pico de 2,38 GB, `best_iter` 300.
-- [x] Item 2 da parte 2, `nm_missing` (`base_nm`): 454,49 s, ganho de 0,4 s (IC 95% −1,8 a 2,5) → não promovido sozinho; ficou no código por entrar sem custo.
-- [x] Item 1 da parte 2, dois estágios (`dois_estagios`, 400+400 rodadas): **388,16 s**
-  (sem outliers 269,87; NM presente 242,2; NM ausente 2442,18; LIRF 1280,8 → 957,1),
-  ganho de 66,8 s (IC 95% 26,3 a 111,0) → novo campeão. Virou a v3
-  (480+480 rodadas, 5m23s): **338,7 s** oficiais.
-- [x] Re-medida da campeã no código novo (`dois_estagios_r`): 388,16 s, idêntica à v3.
-- [x] Item 3 da parte 2, retas por aeroporto em `ms = MVT − SCHED` para os
-  voos `nm_missing` (`nm_retas`, `two_stage_nm`): **345,89 s** (NM ausente
-  2442 → 1993; LIRF 957 → 717), ganho de 42,3 s (IC 95% 2,0 a 86,5) →
-  novo campeão. Virou a v4 (480+480 rodadas): **337,2 s** oficiais, com ganho
-  oficial de só 1,5 s (ver alerta em Submissões).
-- [x] Item 4 da parte 2, célula aeroporto × `ms` > 2 h (`nm_retas_2h`,
-  `--nm-split-ms`): 341,49 s (NM ausente 1944; LIRF 687), ganho de 4,4 s
-  sobre `nm_retas` (IC 95% 1,5 a 7,7) → não comprovado (abaixo de 10 s);
-  re-testado com seed no plano 3a: FRÁGIL.
+Corrector inputs: the base prediction, airport, `nm_missing`, hour,
+`to_takeoff_from_*`, `adsb_*`, the external-data columns (`ext_*`, `met_*`, `map_*`,
+`sup_*`, `cel_*`, `pista_*`, `ret_*`) and the distances to both edges of the LOBT window
+(`dist_lo`, `dist_hi`). The output is projected back onto the window.
 
-Próximo (30/09): a esteira de experimentos está **no ar** (serviço `prc-esteira` desde 30/09 ~00h57
--03, estreia supervisionada em curso) e é ela que testa os candidatos baratos do corretor; o agente
-audita os 10 primeiros vereditos e calibra a régua. Em paralelo: informação nova de fora (o resíduo
-que sobra não é explicável pelas colunas que temos, ver `docs/research/2026-09-29-retrospectiva.md`)
-e as loterias (38 % do erro²). Envio só com ok do usuário. Ver `docs/mapa.md`.
+Each corrector run (`--conjunto`) is itself the average of a global LightGBM, a per-airport
+LightGBM and a CatBoost model — the gain comes from the average, not from any single one of
+them (CatBoost alone: 309.53 against 309.27 for the LightGBM).
 
-Achados de 28/09 (scripts descartáveis): (1) outras janelas não são exatas como a do LOBT:
-|BLOCK − IOBT| passa de 3606 s em 0,003 % das DEP (máx. 10.737), EOBT_1 e AOBT_3 bem mais;
-projetar a v13 em `MVT − IOBT ± 3606` mexe em 10 voos e vale no máximo −0,2 s. (2) Voos sem NM
-parecem ser os em que o casamento com o NM falhou por |BLOCK − LOBT| > 3606: nos 918 (4 %) cuja
-chegada em outro dos 10 aeroportos tem NM, BLOCK − LOBT da chegada tem mediana +4.384 s e só
-2,5 % cabem na janela. Esses 918 cobrem 3,8 % do Σy² dos sem NM: recuperar o AOBT_3 pela chegada
-(|y − proxy| mediano 184 s) não é salto grande. A v12 (`--conjunto`) fica guardada para o envio final. Evidência em
-`docs/research/2026-09-27-concorrentes.md`. Plano 3b segue pausado (itens 5 a 8).
+### 1.3 The current champion (`champion.json`)
 
-Antes de 11/10 (abrir entre 08 e 10/10, decisão de 27/09): repositório público
-GPLv3 (condição do prêmio).
+Base `20260930-130008-e76_base`, shared by the three members:
 
-Plano 3a (feito), regra robusta, seeds e variante > 6 h:
+```
+--model two_stage_nm --seed 0 --nm-min-ms 21600 --janela-lobt --reg-corte 7200
+--base-ctx --base-p13 --base-por-apt          (400 + 400 rounds)
+```
 
-- [x] `compare.py` com a regra nova (ganho ≥ 10 s, IC > 0, ganho sem os 10
-  maiores voos, IC > 0 em jan e em jul; senão FRÁGIL; `--aceitar-fragil`).
-- [x] `teto.py`: teto do ganho oficial e gravação de candidato.
-- [x] Seeds determinísticas (`--seed`). Campeã de referência
-  `ref_dois_estagios_s0`: 383,09 s; seeds 1 e 2: 382,24 e 381,61 → ruído do
-  treino ≤ 1,5 s.
-- [x] Variante > 6 h (`nm_retas_6h`, `--nm-min-ms 21600`): **332,86 s**, ganho
-  de 50,2 s (IC 95% 11,5 a 92,6); sem os 10 maiores voos só +1,5 s (3%); IC
-  jan 0,2 a 33,2, jul 19,2 a 145,4 → FRÁGIL (reprova no critério dos 10
-  maiores). Gerou o candidato v5 (ver Submissões).
-- [x] Promoção da v5 a campeã: re-medida no código final (`nm_retas_6h_r`,
-  332,86 s, ganho 0,0 s contra `nm_retas_6h`) e promovida com
-  `--aceitar-fragil`, com teto de 8,53 s, ok do usuário e oficial de −7,7 s já
-  confirmados.
-- [x] Re-teste de `nm_retas_2h` com seed (`nm_retas_2h_s0`): 339,79 s; sem os
-  10 maiores voos −6,3 s; IC de jan com limite inferior −7,0 → FRÁGIL.
+Out-of-block base predictions computed once by `20260930-130921-e76_m0` and reused by
+every member (`--reusar-oof`). Three corrector members, averaged with equal weights:
 
-Plano 3b (pausado em 25/09 depois da tarefa 4; 1 feita, 2 a 4 descartadas), saltos, em ordem de teto (análise de 25/09 na campeã):
+| Member | Blocks on top of the common recipe |
+|---|---|
+| `20261001-185827-e122` | `--corretor-sem-regra --retencao` |
+| `20260930-140011-e76_m1` | `--fila --superficie --corretor-params '{"num_leaves": 127}'` |
+| `20261002-015703-e140` | `--pista --retencao --corretor-sem-regra` |
 
-Onde está o erro (holdout, 332,86): voos normais com NM = 43 % do erro²
-(RMSE 220,7); 204 alarmes falsos (voo normal previsto > 1 h) = 10 %; cauda
-que é cópia de um horário = ~10 %; 11 voos "loteria" (sem cópia) = 32 %, dos
-quais 2 voos do LFPG = 27 %. Achado: voos LIRF sem NM que decolam no dia
-seguinte ao programado são 79 % cópia do SCHED, 16 % "24 h + taxi" (off-block
-gravado na data do SCHED) e 4,5 % normais; 25 desses no ranking 2026.
+Common recipe of every member: `--crossfit --conjunto --corretor-rounds 500 --externos
+--plano13 --dist-plano --mapa --corretor-ref --seed 0`.
+Post-rules: `roma`.
 
-- [x] 1. Medir melhor: `normais_nm`, `alarmes_falsos`, `cauda_copia` e
-  `sem_loteria` no `experiment.py`; ganho e IC das duas fatias úteis no
-  `compare.py` (informativo, veredito intocado). Campeã re-medida
-  (`base_3b`): completo 332,86 (idêntico), normais com NM **220,68**,
-  alarmes falsos **204 voos = 10,0 % do erro²**, cauda que é cópia 2.287,20
-  (576 voos), **sem loteria 274,42** (as 11 loterias são 32,0 % do erro², daí
-  a queda de 332,86 → 274,42). Ruído entre seeds nas fatias novas: ver
-  "Modelo atual".
-- [x] 2. Alarmes falsos (teto −15 s): os dois experimentos foram descartados e a
-  campeã não mudou. Nenhum dos dois mecanismos consegue o que a tarefa pedia
-  (baixar `alarmes_falsos.parte_erro2` sem piorar a cauda).
-  - 2a, calibração de `p` por célula (`cal_celula`, `--calibrar`): descartado, com
-    ganho 0,1 s (IC 95% −0,1 a 0,3), "não comprovado". Isotônica fora do fold
-    (5 folds por dia) por célula (LIRF × `nm_missing` × faixa de `ms`) em cima da
-    campeã: 332,79 (contra 332,86), `normais_nm` 220,81 (contra 220,68), alarmes
-    falsos 207 voos = 10,2 % do erro² (contra 204 = 10,0 %). Motivo: o
-    classificador já é calibrado, com `p` médio fora do fold 0,0949 contra taxa
-    real de cópia 0,0972, e só 5 das 20 células têm cópias suficientes (≥ 20)
-    para ajustar um calibrador; os alarmes falsos não vêm de `p` enviesado na
-    média da célula, vêm de voos isolados com `p·ms` grande. Código removido.
-  - 2b, híbrido `ŷ = p·reta + (1 − p)·ŷ_regressor` nos voos sem NM
-    (`nm_hibrido`, `nm_hibrido_6h`, `--nm-hibrido`): descartado, com −46,5 s sem
-    limiar (379,37) e −48,0 s só acima de 6 h (380,90). Sem limiar ele até faz o
-    que prometia na fatia-alvo (alarmes falsos 204 → 173 voos, 10,0 % → 5,6 % do
-    erro², voos normais com NM intactos), mas paga caro na cauda: cauda que é
-    cópia 2.287 → 3.540, LIRF 634,5 → 912,1. Medido nas 52 linhas trocadas pela
-    variante de 6 h: cobertura mediana `híbrido/reta` = 0,83, e nas 16 cópias
-    verdadeiras (|y − ms| ≤ 60 s) o RMSE vai de 816 para 15.101 s: cortar 17 %
-    de um `ms` de 10 h custa milhares de segundos ao quadrado. Nos 30 voos normais
-    dessas linhas o híbrido também piora (565 → 734), porque `p` ≈ 0,83 é alto
-    demais para proteger normal e baixo demais para não estragar cópia. Código
-    removido. Achado para o item 3: o que falta não é escala em `p`, é saber qual
-    horário foi copiado, que é exatamente a mistura multiclasse do item 3.
-- [x] 3. Mistura por horário copiado (teto −13 s): descartada, perde 4,0 s com a
-  reta da campeã (336,87) e 37,8 s sem ela (370,65); a campeã não mudou.
-  `copy_mix` (`CopyMixture`): classificador LightGBM `multiclass` de qual horário o
-  BLOCK copiou (0 normal 1.167.071 · SCHED 169.206 · EOBT 87.506 · LOBT 12.028 ·
-  AOBT_3 304.811 voos do treino), regressor só na classe 0, `ŷ = Σ p_k·(MVT −
-  horário_k)` com a massa de horário nulo voltando ao normal, mais `days_shift`
-  como feature. A classe "24 h + taxi" tem 6 exemplos em train2025, longe do
-  que o multiclasse precisa, então usou-se a taxa empírica de 2025 na única célula
-  onde ela existe (LIRF × sem NM × `days_shift` ≥ 1) = 0,164, como manda o plano.
+Equal weights are a decision, not an oversight: fitted blend weights were tested and the
+members are strongly correlated, so a fitted weight buys noise. What the ensemble is
+actually exploiting is *decorrelation of the blocks* — each member reads a different part of
+the airport state.
 
-  | métrica | campeã | copy_mix | sem reta |
-  |---|---|---|---|
-  | completo | 332,86 | 336,87 | 370,65 |
-  | normais_nm | 220,68 | 220,80 | 220,80 |
-  | y_gt_1h | 4.164,31 | 4.337,89 | 5.216,81 |
-  | cauda_copia | 2.287,20 | 2.779,10 | 3.316,82 |
-  | alarmes_falsos | 204 voos = 10,0 % | **188 = 8,7 %** | 188 = 7,2 % |
+### 1.4 The feature blocks
 
-  Ganho pareado: −4,0 s (IC 95% −9,4 a 0,9), sem os 10 maiores −6,5 s, jan −1,3 e
-  jul −6,4 → não comprovado. A parte multiclasse em si não é o problema: ela
-  baixa os alarmes falsos (10,0 % → 8,7 % do erro²) sem mexer nos voos normais com
-  NM (−0,1 s, IC −0,6 a 0,4). Quem custa é a taxa fixa de 0,164 da classe 5:
-  ela soma 0,164 × 86.400 ≈ 14.170 s a *todo* voo da célula, e nos 20 voos LIRF sem
-  NM com troca de data do holdout (14 cópias puras do SCHED, 5 "24 h + taxi", 1
-  normal) o RMSE vai de 9.311 para 12.417, o que sozinho vale ≈ +5,8 s no RMSE
-  completo, mais do que os 4,0 s perdidos. Nas cópias de `ms` pequeno (ex.: y =
-  5.950 s) a previsão pula de 4.854 para 18.876 s; nos 5 voos que são mesmo "24 h +
-  taxi" o componente do SCHED já entregava a ordem certa (ms 58 a 93 k contra y ≈
-  87 k), então a classe 5 quase não tem o que ganhar. Código removido (`copy_mix`,
-  `copy_class`, `days_shift` e os testes); `experiments.jsonl` guarda as duas corridas
-  e o cache foi refeito com as 58 features da campeã.
-- [x] 4. Alvo residual sobre `MVT − AOBT_3` (teto do cenário: −13 s): descartado, as
-  duas formas empatam com a campeã e a campeã não mudou. `ref = MVT − AOBT_3` quando
-  cai em [0, 7200] s, senão `MVT − EOBT_1`, `MVT − LOBT`, `ref_p10`, senão 0 (cobre
-  98,4 % dos voos, igual no holdout e no ranking).
-  - 4a, alvo residual (`residual_aobt`, `--residual alvo`): o regressor normal aprende
-    `y − ref` e prevê `ref + ŷ_res`. Completo 333,06 (contra 332,86), `normais_nm`
-    221,02 (contra 220,68), alarmes falsos 229 voos = 10,4 % (contra 204 = 10,0 %);
-    ganho −0,2 s (IC 95% −1,1 a 0,8), nos voos normais com NM −0,3 s (IC −0,9 a 0,1) →
-    "não comprovado".
-  - 4b, `ref` como feature extra do regressor (`residual_feat`, `--residual feature`):
-    completo 333,43, `normais_nm` 221,08; ganho −0,6 s (IC 95% −1,2 a 0,1), normais com NM
-    −0,4 s (IC −0,7 a −0,1) → "não comprovado".
-  - Motivo: `ref` já é feature do regressor (`to_takeoff_from_AOBT_3_flt`) e ele já a
-    usa. A correlação entre `ŷ − ref` da campeã e `y − ref` é 0,806, e `ref` sozinha
-    erra 372,7 s contra 220,7 da campeã nessa fatia. Reescrever o alvo em torno dela só
-    troca a parametrização (e tira do LightGBM a liberdade de ignorar `ref` onde ela é
-    ruim, daí os alarmes falsos subirem em 4a). Código removido (`residual_ref`, a flag
-    `--residual` e os testes); `experiments.jsonl` guarda as duas corridas.
-- [ ] A. adsb.lol → plano 4 (prioridade 1). Discord do desafio: o 3º colocado
-  (SoK) usa adsb.lol + clima + stands do X-Plane; GREKI "subiu muito" com jan+jul
-  completos; o organizador confirmou que dado aberto declarado vale.
-  Teste de 1 dia (EDDM, 15/01/2025): 357 de 361 decolagens casadas por callsign +
-  decolagem (mediana 19 s do MVT); off-block = 1º ponto no chão do rastro: |erro|
-  mediana 82 s, 41 % a ±60 s, 75 % a ±300 s, contra `MVT − AOBT_3` nos mesmos
-  voos: mediana 356 s, 14 % a ±60 s.
-  - [x] `src/adsb.py`: recorte diário (caixa ~11 km, chão ou ≤ 3.000 ft, parquet
-    zstd, retomável). Jan+jul 2025/2026: 124 dias, ~1,7 GB, ~7 h com 5 processos
-    (download ~1,5 a 3 min/dia, leitura 14 a 30 min/dia). Sobreviveu a uma queda de
-    energia (dias prontos íntegros; retomar pula os feitos). 29/01/2026 tinha um
-    rastro corrompido (`zlib.error`): agora o rastro é pulado e contado.
-  - [x] Resto de 2025 (serviço `prc-adsb`, 10 processos): 427 dias completos
-    (2025 inteiro + jan/jul 2026), 5,7 GB, 0 rastros corrompidos; sobreviveu a 3
-    quedas de energia (espera a rede, reinicia sozinho). 2025-12-31 está no
-    repositório de 2026.
-  - [x] Plano 4, tarefas 1 a 3 (`src/adsb_events.py`;
-    `docs/research/2026-09-26-adsb-cobertura.md`): cobertura boa em EHAM, LEBL,
-    EDDF, LSZH, EDDM; nula em LTFM; fraca em LEMD, LFPG, EGLL. Avião visto parado:
-    erro mediano 20 a 50 s. Troca direta não ganha; empilhamento fora do fold
-    332,86 → 317,44 (−15,4 s), normais 248,2 → 223,9, jan e jul melhoram.
-  - [x] Plano 4, tarefa 4: controle do empilhamento sem `adsb_*` 327,25 (a antena
-    vale ~10 s); eventos do ano inteiro (1,26 M decolagens); `adsb_*` no treino da
-    campeã → 323,50 (**v6, 314,76 oficial**). Empilhamento sobre ela
-    (`src/stack.py`) 317,57, MELHOR, mas ainda não enviável (o corretor só existe para
-    jan/jul; exige base treinada sem esses meses).
-  - [x] Plano 5 (`docs/superpowers/plans/2026-09-27-plano5-v7-crossfit.md`), v7 com
-    cross-fitting por mês: split `blind2025` (ano montado como o ranking),
-    `src/crossfit.py` (base fora do bloco, meses 2 a 2, P10 por bloco),
-    `stack.py --crossfit`, `train.py submit` para campeã `stack_cf`.
-    `v7_cf` (corretor treinado em 10 meses fora do bloco; 16 min, pico 6,29 GB):
-    **320,67**, normais com NM 205,57 (contra 220,7), sem loteria 260,12. Contra a
-    campeã: ganho 2,8 s (IC 95% 1,5 a 4,5), sem os 10 maiores 1,3, jan 3,1
-    (1,7 a 5,7), jul 2,6 (0,5 a 4,7) → não comprovado (< 10 s), mas positivo em
-    todos os critérios. Contra o corretor só no holdout (317,57): −3,1 s; o ganho
-    extra dele estava na cauda de jan/jul (folds por dia dentro dos mesmos meses);
-    nos normais o cross-fitting é melhor (+0,7 s). Envio da v7 pede
-    `--aceitar-fragil`, `teto.py` e ok do usuário; `train.py submit 7 --forcar`
-    (a `v7_cf` foi medida em `4822e01`; depois só `train.py` mudou).
-  - [x] Plano 6 (`docs/superpowers/plans/2026-09-27-plano6-seeds.md`), média de seeds
-    (`--seeds N`, `models.build_model`/`SeedAvg`): base com 5 seeds `seeds5` 323,29
-    (ganho 0,2 s, IC −1,9 a 1,7; normais com NM +1,3 s), 15 min. `v8_cf` (v7 + 5
-    seeds, 65 min, pico 6,46 GB): **320,36**, contra a v6 ganho 3,1 s (IC 1,3 a 4,9;
-    jul −0,5 a 5,4), contra a v7 só 0,3 s (IC −1,8 a 1,8; normais +0,9) → as
-    seeds não pagam 5× o custo; a v7 (1 seed) fica como candidata.
-  - [x] Detector (tarefa 5), teste barato de 27/09: descartado (0,8 s < portão de 3 s).
-    Coordenadas dos stands aprendidas dos voos vistos parados (mediana lat/lon por
-    aeroporto × `STAND_mvt`, ≥ 3 voos: 1.440 stands, 77 % dos voos). Nos voos vistos
-    andando do holdout (109 mil), `move + a + b·dist` por aeroporto: |erro| mediano
-    311 → 157 s, RMSE 746 → 614 (a constante `a` sozinha já leva a 172/655). Corretor
-    barato (5 folds por dia) com `adsb_dist_stand` e `adsb_visto_parado`: 317,57 →
-    316,81, normais 206,27 → 205,41; o corretor já aprende o atraso do "visto
-    andando" com `adsb_gs0`/`adsb_lat0`/`adsb_lon0`. Scripts descartados.
-  - [x] Fila vista pelo ADS-B (`fila_adsb`), teste barato de 27/09: descartado (0,2 s).
-    Aviões distintos no chão e andando (gs > 1 kt) por aeroporto × minuto nos recortes,
-    lidos no off-block estimado (`MVT − pred`), no meio do táxi e 1 min antes do MVT
-    (66,5 % dos voos com contagem). Corretor barato: 317,57 → 317,36, normais 206,27 →
-    206,07. As janelas de congestionamento do NM (decolagens e pousos de 10 a 60 min) já
-    carregam essa informação. Script descartado.
-  - [x] Plano 7 (`docs/superpowers/plans/2026-09-27-plano7-janela-lobt.md`), janela do
-    LOBT: em 100 % das 2.062.577 DEP de 2025 com LOBT, |BLOCK − LOBT| ≤ 3606 s
-    (`docs/research/2026-09-27-janela-lobt.md`). `--janela-lobt`: previsão projetada em
-    `MVT − LOBT ± 3606` e `p` da cópia zerado com o SCHED fora da janela; o corretor
-    ganha `dist_lo`/`dist_hi`. Base `janela` 320,29 (ganho 3,2 s, IC 0,4 a 8,7);
-    `v9_cf` (v7 + janela, 17 min, pico 6,58 GB) **317,23**: contra a v6 ganho 6,3 s (IC
-    2,6 a 12,5; jan 3,3, jul 9,0) e contra a v7 3,4 s → não comprovado (< 10 s). O holdout
-    de 2025 quase não tem previsões fora da janela; no ranking a v6 tem 117, e só
-    projetá-las garante v6 ≤ 288,0 oficial (se a regra valer em 2026).
-    **Oficial (27/09): v9 = 275,90** (−38,9 s sobre a v6; relação oficial/simulação 0,870)
-    e v10 (diagnóstico: v6 só com as 117 linhas projetadas) = 284,17 ≤ 288,01 → a regra
-    vale em 2026; a janela sozinha valeu −30,6 s e o corretor + base nova −8,3 s.
-  - [x] Plano 8 (`docs/superpowers/plans/2026-09-27-plano8-contexto-arr.md`), contexto
-    no corretor (`src/contexto.py`, colunas `ctx_*`): taxi-in das chegadas por aeroporto e
-    pista (15/60 min), última chegada no mesmo stand, média de `MVT − AOBT_3` das DEP
-    vizinhas antes e depois. Teste barato −3,5 s; `v11_cf` 311,09 (ganho 6,1 s sobre a v9,
-    IC 4,0 a 8,7, normais +4,9). **Oficial: v11 = 266,81** (−9,1 s sobre a v9).
-  - [x] CatBoost como corretor (teste barato 27/09): sozinho 309,53 contra 309,27 do
-    LightGBM; corte do alvo em ±7200 s só ajuda o LightGBM (−0,4). Descartado sozinho.
-  - [x] Plano 9 (`docs/superpowers/plans/2026-09-27-plano9-conjunto-corretor.md`), média de
-    três corretores (LightGBM global, LightGBM por aeroporto, CatBoost; `--conjunto`).
-    Teste barato −3,5 s; `v12_cf` 309,78, só 1,3 s sobre a v11 (IC 0,5 a 2,2; jan com IC
-    incluindo zero). Não promovida; guardada para o envio final.
-  - [x] Média mensal oficial (ansperformance, 27/09): descartada. A média exclui voos sem
-    referência (degelo) e a fração válida caiu em jan/2026 (EDDM 0,77 → 0,67); corrigir o viés
-    por ela piora o holdout (311,09 → 311,56). A v11 já não tem viés por aeroporto × mês.
-  - [x] Pós-regra de Roma sem NM com `MVT − SCHED` em (15 h, 30 h] ("24 h + táxi" × cópia,
-    q = 0,62 ajustado fora de jan/jul): holdout 311,09 → 307,21; no ranking são 4 voos.
-    Arquivo pronto: `submissions/outgoing-boat_v13.parquet` (v12 + regra). Rejeitado em 27/09 pelo
-    limite diário (5 envios por dia UTC, a v6 da madrugada contou); reenviado em 28/09 00:00 UTC: **264,35** (−0,39 s sobre a v12; esperado −6 s).
-  - [x] Plano 10 (`docs/superpowers/plans/2026-09-27-plano10-sem-latlon.md`), v14 = v12 sem
-    `adsb_lat0`/`adsb_lon0` (deriva 2025 → 2026, dica do GREKI): `20260927-182244-v14_cf` 311,88,
-    −2,1 s no holdout (IC −3,5 a −1,0), o que o holdout não consegue medir. Arquivo pronto
-    (`submissions/outgoing-boat_v14.parquet`). Oficial (28/09): v14 = 266,28, **1,54 s pior** que a v12 → descartada; v13 (regra de Roma) =
-    264,35, −0,39 s. v15 não se justifica.
-  - [x] README "Dados externos" e "Reprodução" (tarefa 6, 27/09); `PRC_ADSB_RAIZ` configurável.
-- [ ] 5. Features de vizinhos (item 6).
-- [ ] 6. Ensemble XGBoost CUDA + seeds LightGBM (item 7), baixa prioridade:
-  no Discord, XGBoost ganhou peso zero e pesos de blend ajustados perderam 4/4.
-- [ ] 7. `sweep.py` (polimento), baixa prioridade: tuning não significativo
-  em LightGBM/CatBoost/XGBoost (relato no Discord).
-- [ ] 8. `ablation.py` (poda de features) e `mutmut` (teste do teste).
+| Module | Columns | What it reads |
+|---|---|---|
+| `src/features.py` | base features | P10 reference per (airport, stand, runway) computed inside the training fold only; time from each planned/NM timestamp (SCHED, LOBT, IOBT, EOBT, AOBT_3) to the take-off; differences between those timestamps and rounding flags; airport and runway congestion in 10/20/30/60 min windows; hour, weekday, categoricals; `nm_missing` |
+| `src/adsb_events.py` | `adsb_*` | off-block and take-off observed in the adsb.lol trace, ground speed at the first point, points and gaps on the ground |
+| `src/contexto.py` | `ctx_*` | taxi-in of the arrivals per airport and runway, last arrival at the same stand, neighbour departures' `MVT − AOBT_3` |
+| `src/plano13.py` | `met_*`, queue counts | METAR up to 2 h before the movement, de-icing proxy, stand rotation, NM consistency, airline |
+| `src/externos.py` | `ext_*` | EUROCONTROL daily series (regulated flights, off-slot departures, pre-departure delay), OPDI ground time since the previous landing, SCHED-copy rate per airline |
+| `src/mapa.py` | `map_*` | stand → runway-threshold taxi distance from the X-Plane `apt.dat` geometry |
+| `src/refcel.py` | `cel_*` | median, P90, spread and size of the (airport × stand × runway) cell |
+| `src/superficie.py` | `sup_*` | aircraft on the surface at the *estimated* push-back (`MVT − pred`) |
+| `src/pista.py` | `pista_*` (`--pista`) | runway configuration of the airport in a ±60 min window and whether it changed in the last hour, dominant runway, same-runway queue between `AOBT_3` and take-off weighted by wake category, cadence of the last 20 departures |
+| `src/pista.py` | `ret_*` (`--retencao`) | gate retention at the *real* push clock (`AOBT_3`): departures already past their EOBT that have not pushed, departures active on the same runway, mean `AOBT_3 − SCHED` of the previous 15 min, EWMA of departures |
+| `src/roma.py` | `roma_*` (`--roma-tdg`) | `T = D − G` decomposition at LIRF — **measured and switched off**, see §3 |
 
-Pesquisa de 25/09 (Discord do desafio), para não repetir:
+Two flags change *what is trained on* rather than what is read:
 
-- Âncora `MVT − AOBT_3` foi o único passo grande de um time; o resto < 1 s cada.
-- Não funcionou para outros times no placar: tuning de hiperparâmetros, pesos de
-  blend ajustados no holdout (pesos iguais ganharam 4/4), XGBoost como 3º modelo
-  (peso zero), tirar colunas sazonais, pesar linhas por (aeroporto, mês).
-- Funcionou: clima com temperatura e spread de ponto de orvalho (degelo em manhãs
-  limpas) > flag de neve; um time ganhou 3,4 s consertando fuso no join do clima.
-  Sequência de esteira: +0,25 s.
-- Regras de validação sugeridas: jan e jul melhorando separados (já temos) e
-  rejeitar ganho concentrado em < 100 voos.
-- Organização pode criar fase 2 se houver "engenharia reversa do placar".
-- Atualização de 26/09: o organizador reafirmou que dado aberto vale ("open data
-  sources can be usable to devise a better model"), sem vetar posições de chão
-  depois do pushback. Pode haver uma etapa final oculta ("possibly a 1 final
-  submission"), com formato (arquivo novo ou código rodado por eles) e período não
-  decididos. Consequência: o pipeline inteiro (download do adsb.lol →
-  `adsb_events.py` → features → modelo) precisa rodar em outro período/aeroportos
-  com um comando, e o ganho tem que vir de generalização, não do placar atual.
-- Atualização de 27/09 (Discord e repositórios; detalhes em
-  `docs/research/2026-09-27-concorrentes.md`): o organizador liberou usar a média mensal
-  publicada de taxi-out por aeroporto (ansperformance.eu), inclusive jan/jul 2026; `_mvt`
-  vem do APDF. GREKI (topo): validar treinando em jan e testando em jul (e vice-versa);
-  checar deriva 2025 → 2026 de cada entrada (a rede do adsb.lol mudou: features de *onde*
-  o avião foi ouvido não transferem, as de *movimento* sim); corrigir uma base forte com
-  uma 2ª família de modelos. Janela do LOBT veio do código do elegant-alligator.
+* `--corretor-sem-regra` — the corrector does not train on the rows that the base hands to a
+  fixed rule (the `nm_missing` lines and the Rome rule, `models.linhas_de_regra`) and leaves
+  the base prediction untouched there. Without it the corrector learns to "correct" the
+  output of a deterministic rule, which is noise. Worth −0.05 s official (v35) and it is in
+  two of the three members.
+* `--treino-sem-regra` — the same idea one level down: the classifier and the regressor of
+  the base skip those rows (207 of the 2.085 M departures of 2025). The lines themselves stay
+  fitted on all `nm_missing` rows.
 
-## Dados externos
+## 2. Validation: how a candidate is accepted
 
-Condição do prêmio (`eligibility.html`): todo dado externo aberto e documentado. Usamos cinco:
+The public leaderboard is a single scalar on a hidden set, with 5 submissions per UTC day.
+It cannot be used as a validation signal without overfitting it, and the organisers monitor
+attempts to do so. So the entire decision procedure is local, and it is the part of this
+repository that took the most work.
 
-| Fonte | O que é | Licença | Como obter |
+### 2.1 The simulation
+
+`src/experiment.py` builds the ranking set *as the organisers do*: January and July of 2025
+are taken out of the training year and their target is blanked, with the same column
+treatment and the same per-month composition. One run appends one line to
+`experiments.jsonl` (predictions in `runs/<id>.parquet`) with the full RMSE and four slices:
+
+* `normais_nm` — normal flights (`y ≤ 1 h`) that have an NM record: 43 % of the squared
+  error, and the only slice that is ~5× more precise than the full RMSE;
+* `alarmes_falsos` — normal flights predicted above 1 h: count and share of the squared error;
+* `cauda_copia` — tail flights (`y > 1 h`) within 5 min of some planned timestamp;
+* `sem_loteria` — RMSE excluding the flights with `y > 3 h` that no planned timestamp
+  explains (11 flights in the holdout, 32 % of the squared error).
+
+The full RMSE is reported but is **not** the decision metric, because a handful of
+unexplainable multi-hour flights dominate it and move it by tens of seconds for reasons no
+feature can see. `sem_loteria` is the metric the acceptance rule uses.
+
+### 2.2 The A/B ruler: halves of days, bootstrap, and a gate
+
+`src/compare.py` compares two runs with a **paired day-level bootstrap** (the pairing is
+what gives the resolution: the same flights, two models). Its promotion rule — the one used
+for every manual decision — accepts a challenger only if **all** of the following hold:
+
+1. gain ≥ 10 s with a 95 % CI strictly above zero;
+2. the gain survives removing the 10 most-improved flights, and is ≥ 10 % of the full gain;
+3. the CI is positive in January **and** in July separately.
+
+Anything else is `FRÁGIL` and does not promote; `--aceitar-fragil` promotes explicitly and is
+only used after `src/teto.py` has bounded the achievable official gain and the human has
+agreed. Both exceptions are recorded in the diary.
+
+Criterion 2 exists because of a measured failure: version v4's simulated gain of 42 s came
+from 10 LIRF flights (120.9 % of the gain; without them v4 was 9.7 s *worse*), and the
+official gain was 1.5 s. Criterion 3 exists because the ranking set is two very different
+months.
+
+`src/regua.py` is the automated version used by the 24/7 experiment queue
+(`src/esteira.py`). It splits the days of the holdout into two halves:
+
+* in half **A** a candidate is only *selected* with `sem_loteria` gain ≥ **0.3 s** and the
+  lower CI bound > 0;
+* the proposal selected in A is confirmed **blind** in half **B** with gain > 0 — B never
+  selects, it only confirms;
+* on all days together, the `sem_loteria` gain needs a lower CI bound > 0 and the full RMSE
+  must not drop more than 0.5 s.
+
+B is a budget on multiple comparisons: the queue runs ~75 candidates per day, and without a
+held-back half the best of 75 is a winner by selection alone. Queries to half B are counted
+and reported in `docs/esteira.md`; the split is reseeded (`esteira.py semente N`) when the
+count gets high.
+
+### 2.3 Submissions were decided by the simulation, not by the score
+
+No model choice in this repository was made by reading the leaderboard. `champion.json` is
+updated by `compare.py`/`regua.py` from the 2025 simulation; `train.py submit N` then rebuilds
+exactly that champion on the full year. The official score is used afterwards, as a check on
+the simulation ratio (official/simulated has been 0.82–0.87 since v9), and every submission
+is recorded in `submissions.jsonl` with its simulated score and the reason it was sent.
+
+Two submissions are documented as deliberate diagnostics rather than improvements, and are
+labelled as such in `submissions.jsonl`:
+
+* **v10** — version v6 with *only* the 117 rows that the LOBT window would move. It returned
+  284.17, below the guaranteed bound of 288.01, which proved that the window rule derived on
+  2025 also holds on the 2026 ranking set. One submission bought a fact the holdout could not
+  give.
+* **v14** — version v12 without `adsb_lat0`/`adsb_lon0`, to test a 2025 → 2026 drift that a
+  2025 holdout cannot see by construction. It came back 1.54 s **worse** and was discarded.
+
+Everything else was promoted locally first.
+
+## 3. What did not work
+
+Negative results, with the measurement that killed each one. All of them are reproducible
+from this repository; the code of the discarded mechanisms was removed, but
+`experiments.jsonl` keeps the runs.
+
+| Idea | Measured result | Where |
+|---|---|---|
+| **`T = D − G` decomposition at LIRF** (`src/roma.py`, `--roma-tdg`): predict the gate delay `G = BLOCK − SCHED` and serve `T̂ = max(D − Ĝ, 0)` | The reparametrisation itself is real (643.5 vs 1220.3 s at LIRF, same columns), and the cheap 5-fold screen gained +0.46 s `sem_loteria`. The decision run (`--crossfit`, against champion member `e122`) **lost 1.479 s** of `sem_loteria`, CI −2.580…−0.395, entirely below zero. Cause: `T̂` is a *rival prediction*, not context, so a corrector trained against the weaker out-of-block base over-trusts it. Flag kept, off by default, out of the queue's search space | [`docs/research/2026-10-02-roma-t-d-g.md`](docs/research/2026-10-02-roma-t-d-g.md) |
+| **Arrival mirror**: score a taxi-in model trained on 2025 against the ARR rows of `ranking.parquet` (the only true 2026 label) and feed the residual to the corrector | The drift measurement works (EHAM January 2026 residual RMSE 436.5 vs 129.6 in July, and it is a handful of disruption days, not a new level). As a feature it is worthless: \|r\| ≤ 0.055 against our own error at every airport, signs disagreeing per airport at day level, and an **in-sample** linear ceiling of +0.28 s `sem_loteria` — below the 0.3 s gate. It predicts the *magnitude* of our error, not its *direction*, and a squared loss only pays for direction | [`docs/research/2026-10-02-espelho-chegadas.md`](docs/research/2026-10-02-espelho-chegadas.md) |
+| **Seed averaging** (`--seeds N`) | Base with 5 seeds: 323.29 vs 323.50, gain 0.2 s (CI −1.9…1.7). Full pipeline `v8_cf` 320.36 vs `v7_cf` 320.67: 0.3 s (CI −1.8…1.8) for 5× the compute. Not adopted | `docs/diario.md`, plan 6 |
+| **Map columns in the base** (`--base-mapa`) | 298.97 against 298.05 for the same `map_*` columns only in the corrector — 0.9 s worse. `--mapa` stayed in the corrector, `--base-mapa` is off | `experiments.jsonl` (`v30_base_mapa`) |
+| **XGBoost** | As the base engine (`--motor xgb`, GPU): 318.70 against LightGBM; a 0.8/0.2 blend ties at 311.11. As a 4th corrector (`--corretor-xgb`): −0.2 s. LightGBM on GPU: same error (310.84 vs 311.18) and only 15 % faster. Default stays CPU LightGBM, which is bit-for-bit deterministic | `docs/diario.md`, "GPU" |
+| **Multiclass copy mixture** (`copy_mix`): classify *which* timestamp the off-block copied | −4.0 s (CI −9.4…0.9). The multiclass part works (false alarms 10.0 % → 8.7 % of the squared error with normal flights untouched); what kills it is the fixed 0.164 rate of the "24 h + taxi" class, which adds ~14,170 s to *every* flight of that cell. Code removed | `docs/diario.md`, plan 3b item 3 |
+| **Residual target on `MVT − AOBT_3`** | −0.2 s as a target reparametrisation, −0.6 s as an extra feature. `ref` is already a feature (`to_takeoff_from_AOBT_3_flt`) and the model already uses it; rewriting the target only removes the freedom to ignore it. Code removed | `docs/diario.md`, plan 3b item 4 |
+| **Hybrid `p·line + (1−p)·regressor` for `nm_missing`** | −46.5 s. It does reduce false alarms (204 → 173 flights) but destroys the tail: on the 16 true copies in the changed rows the RMSE goes from 816 to 15,101 s. Code removed | `docs/diario.md`, plan 3b item 2b |
+| **Per-cell isotonic calibration of `p`** | +0.1 s (CI −0.1…0.3). The classifier is already calibrated (mean out-of-fold `p` 0.0949 against a true copy rate of 0.0972); false alarms come from isolated flights with large `p·ms`, not from a biased cell mean. Code removed | `docs/diario.md`, plan 3b item 2a |
+| **Bias correction from the official published monthly taxi-out means** | 311.09 → 311.56. The published mean excludes flights without a reference and its valid fraction moved between 2025 and 2026 (EDDM 0.77 → 0.67) | `docs/diario.md` |
+| **ADS-B stand-position detector** and **ADS-B queue counts** | +0.8 s and +0.2 s in the cheap screen, against a 3 s gate. The corrector already learns the "seen moving" delay from `adsb_gs0`/`adsb_lat0`/`adsb_lon0`, and NM congestion windows already carry the queue | `docs/diario.md` |
+| **CatBoost alone as the corrector** | 309.53 against 309.27 for LightGBM. It only pays inside the `--conjunto` average | `docs/diario.md` |
+| **Dropping `adsb_lat0`/`adsb_lon0`** (anti-drift) | Simulation said −2.1 s, the official score said +1.54 s (v14 = 266.28 against 264.74). Documented as a failed bet, not a measurement | `submissions.jsonl`, v14 |
+
+Two open datasets were surveyed in depth and **not built** — they are hypotheses in the
+research notes, never measured, and nothing in the solution depends on them: OPDI
+`flight_events` v0.0.2 (ground milestones from the OpenSky network: the same network has
+almost no ground coverage at LFPG, EGLL, LIRF, EDDM and LTFM, which are exactly the airports
+we are blind at, for ~24 GB of download) and the EUROCONTROL APT-DLY daily cause codes
+(de-icing, aerodrome capacity, strikes — day × airport granularity only). See
+[`docs/research/2026-10-01-dados-abertos-aeroportos.md`](docs/research/2026-10-01-dados-abertos-aeroportos.md)
+and [`docs/research/2026-10-01-regras-e-precedentes.md`](docs/research/2026-10-01-regras-e-precedentes.md).
+
+## 4. External datasets
+
+All external data is openly licensed and downloadable with the commands below.
+None of the 2026 organiser ground truth is used; 2026 months enter only as model
+input (ADS-B traces and weather), like any other feature. Attributions: [`NOTICE`](NOTICE).
+
+| Source | What we use | License | How to download |
 |---|---|---|---|
-| adsb.lol `globe_history_2025` e `globe_history_2026` (<https://github.com/adsblol/globe_history_2025>, <https://github.com/adsblol/globe_history_2026>) | rastros ADS-B/MLAT diários de todo o mundo, um release por dia (2–4 GB) | **ODbL 1.0** | `bin/run src/adsb.py baixar --dias 2025-01,…,2026-07` escolhe a réplica em `PREFERRED_RELEASES.txt`, lê o tar em fluxo e guarda só os pontos no chão ou ≤ 3.000 ft a ±0,10° dos 10 aeroportos (`PRC_ADSB_RAIZ/cut/AAAA-MM-DD.parquet`, ~7–19 MB/dia; 427 dias = 5,7 GB, ~1 dia de download com 10 processos) |
-| Séries diárias da EUROCONTROL (<https://ansperformance.eu/csv/>): `atfm_slot_adherence`, `all_pre_departure_delays` e `atc_pre_departure_delays` de 2025 e 2026 | por aeroporto e dia: voos regulados, saídas fora do slot, atraso pré-partida total e de ATC por voo | dados públicos da EUROCONTROL (uso livre com atribuição) | `bin/run src/externos.py baixar` → `data/externo/*.csv` (~33 MB) |
-| OPDI v0.0.2 (EUROCONTROL/OpenSky, <https://www.opdi.aero/>), flight lists de 2025-01…2025-12, 2026-01 e 2026-07 | um voo por linha: `icao24`, `adep`, `ades`, `first_seen`, `last_seen` (ADS-B tratado) | open data, "freely used … provided that the data source is attributed" | `bin/run src/externos.py baixar` → `data/externo/opdi/flight_list_AAAAMM.parquet` (~30–55 MB/mês) |
-| METAR do IEM ASOS (Iowa State University, <https://mesonet.agron.iastate.edu/request/download.phtml>), 2025-01-01…2026-08-01 dos 10 aeroportos | observação de superfície a cada 30 min: temperatura, ponto de orvalho, vento, rajada, visibilidade, fenômenos (`wxcodes`) e teto | dados públicos do IEM/NOAA (uso livre com atribuição) | `bin/run src/plano13.py baixar` → `data/externo/metar/<ICAO>.csv` (~1,5 MB/aeroporto) |
-| `apt.dat` do X-Plane Airport Scenery Gateway (<https://gateway.x-plane.com/api>), os 10 aeroportos | stands, taxiways e cabeceiras de cada aeroporto | **GNU GPL**: "The GNU GPL (general public License) under which this data is released…" (especificação oficial do formato, <https://developer.x-plane.com/article/airport-data-apt-dat-file-format-specification/>); manter o aviso de copyright ao redistribuir | `src/mapa.py` baixa para `data/mapa/` e gera `distancias.parquet` (colunas `map_*`) |
+| **adsb.lol** global history: [`globe_history_2025`](https://github.com/adsblol/globe_history_2025), [`globe_history_2026`](https://github.com/adsblol/globe_history_2026) | daily worldwide ADS-B/MLAT traces (one release per day, 2–4 GB); we keep only points on the ground or ≤ 3000 ft within ±0.10° of the 10 airports | **ODbL 1.0** | `bin/run src/adsb.py baixar --dias 2025-01,…,2026-07 --procs 10` — picks a mirror from `PREFERRED_RELEASES.txt`, streams the tar and writes `data/adsb/cut/YYYY-MM-DD.parquet` (~7–19 MB/day; 427 days ≈ 5.7 GB) |
+| **EUROCONTROL daily series** — <https://ansperformance.eu/csv/>: `atfm_slot_adherence`, `all_pre_departure_delays`, `atc_pre_departure_delays` (2025, 2026) | per airport and day: regulated flights, departures off slot, total and ATC pre-departure delay per flight | public EUROCONTROL data, free use with attribution | `bin/run src/externos.py baixar` → `data/externo/*.csv` (~33 MB) |
+| **OPDI v0.0.2** (EUROCONTROL / OpenSky) — <https://www.opdi.aero/> — flight lists 2025-01…2025-12, 2026-01, 2026-07 | one flight per row: `icao24`, `adep`, `ades`, `first_seen`, `last_seen` (processed ADS-B); used for aircraft ground time since the previous landing | open data, "freely used … provided that the data source is attributed" | `bin/run src/externos.py baixar` → `data/externo/opdi/flight_list_YYYYMM.parquet` (~30–55 MB/month) |
+| **METAR** from IEM ASOS, Iowa State University — <https://mesonet.agron.iastate.edu/request/download.phtml> — 2025-01-01…2026-08-01, 10 airports | half-hourly surface observations: temperature, dew point, wind, gusts, visibility, `wxcodes`, ceiling; de-icing proxy | public IEM/NOAA data, free use with attribution | `bin/run src/plano13.py baixar` → `data/externo/metar/<ICAO>.csv` (~1.5 MB/airport) |
+| **X-Plane `apt.dat`** from the Airport Scenery Gateway — <https://gateway.x-plane.com/api> — the 10 airports | stand, taxiway and runway-threshold geometry → stand-to-runway distances | **GNU GPL** (per the [official apt.dat format specification](https://developer.x-plane.com/article/airport-data-apt-dat-file-format-specification/)); the copyright notice is kept in [`NOTICE`](NOTICE) | `bin/run src/mapa.py` → `data/mapa/distancias.parquet` (`map_*` columns) |
 
-Do adsb.lol só saem features derivadas por voo (`adsb_*`, `src/adsb_events.py` →
-`PRC_ADSB_RAIZ/events.parquet`): off-block e decolagem observados, velocidade no 1º ponto,
-pontos e lacunas no chão. Das duas fontes da EUROCONTROL sai parte das colunas `ext_*` do
-corretor (`src/externos.py`, só com `--externos`; as outras, `ext_taxa_cia*`, saem só dos
-dados do organizador): das séries diárias, a fração de voos
-regulados do dia, a fração deles que saiu fora do slot e os minutos de atraso pré-partida
-total e de ATC; do OPDI, quanto tempo a aeronave ficou em solo desde o pouso anterior e se
-esse pouso foi no mesmo aeroporto (casando callsign e horário a ±600 s, ou só aeroporto a
-±90 s). Do METAR saem as colunas `met_*` do corretor (`src/plano13.py`, só com `--plano13`):
-a observação mais recente do aeroporto até 2 h antes do movimento e `met_degelo` (frio com
-ar úmido ou precipitação). Nenhum dado de 2026 do organizador (verdade) é usado; os meses
-do ranking entram só como entrada (rastros de jan/jul 2026 e METAR), como qualquer feature.
+The challenge data itself (12 monthly training files, `ranking.parquet`,
+`submitting.parquet`) is distributed by the organisers through an OpenSky MinIO
+bucket and requires the per-team credentials they issue; it is **not** redistributed
+here. See the organisers' [data page](https://prc-data-challenge-2026.netlify.app/data.html).
 
-Não usamos layout de aeroporto nem dados de placar.
-
-## Reprodução (da v12, 264,74)
+## 5. Reproducing the submission
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-cp .env.example .env                      # chaves MinIO da OSN e TEAM_NAME
-export PRC_ADSB_RAIZ=/caminho/com/6GB     # recortes do adsb.lol e events.parquet
-.venv/bin/python src/s3.py download       # dados do organizador em data/
+cp .env.example .env                       # BUCKET_ACCESS_KEY/SECRET from the organisers, TEAM_NAME
+
+# 1. Raw data
+.venv/bin/python src/s3.py download        # organiser parquet files → data/
 bin/run src/adsb.py baixar --dias 2025-01,2025-02,2025-03,2025-04,2025-05,2025-06,2025-07,2025-08,2025-09,2025-10,2025-11,2025-12,2026-01,2026-07 --procs 10
-bin/run src/adsb_events.py                # eventos por voo → $PRC_ADSB_RAIZ/events.parquet
-bin/run src/cache.py                      # features dos 5 splits (inclui ctx_* de src/contexto.py)
-bin/run src/experiment.py janela --model two_stage_nm --nm-min-ms 21600 --seed 0 --janela-lobt
-bin/run src/stack.py v12_cf --crossfit --conjunto --base <id da corrida janela>
-bin/run src/compare.py <id da v12_cf> --promover   # ou champion.json já versionado
-bin/run src/train.py submit 12            # submissions/<TEAM>_v12.parquet (~38 min, pico 7,1 GB)
+bin/run src/externos.py baixar             # EUROCONTROL daily series + OPDI flight lists
+bin/run src/plano13.py baixar              # METAR of the 10 airports
+bin/run src/mapa.py                        # X-Plane apt.dat → data/mapa/distancias.parquet
+
+# 2. Derived inputs
+bin/run src/adsb_events.py                 # per-flight ADS-B events → data/adsb/events.parquet
+bin/run src/cache.py                       # feature cache for the splits
+
+# 3. Base model (configuration of the champion)
+bin/run src/experiment.py base --model two_stage_nm --seed 0 \
+    --nm-min-ms 21600 --janela-lobt --reg-corte 7200 \
+    --base-ctx --base-p13 --base-por-apt
+
+# 4. Corrector members, cross-fitted on that base (ids printed by the previous step)
+bin/run src/stack.py m0 --crossfit --base <base-id> --corretor-rounds 500 \
+    --conjunto --externos --plano13 --dist-plano --mapa --corretor-ref \
+    --corretor-sem-regra --retencao
+bin/run src/stack.py m1 --crossfit --base <base-id> --corretor-rounds 500 \
+    --conjunto --externos --plano13 --dist-plano --mapa --corretor-ref \
+    --fila --superficie --corretor-params '{"num_leaves": 127}' --reusar-oof <m0-id>
+bin/run src/stack.py m2 --crossfit --base <base-id> --corretor-rounds 500 \
+    --conjunto --externos --plano13 --dist-plano --mapa --corretor-ref \
+    --pista --retencao --corretor-sem-regra --reusar-oof <m0-id>
+
+# 5. Decide against the current champion (writes champion.json when it wins)
+bin/run src/compare.py <run-id> --promover
+
+# 6. Rebuild the champion on the full year and write the submission file
+bin/run src/train.py submit 36             # → submissions/<TEAM_NAME>_v36.parquet
+.venv/bin/python src/s3.py submit submissions/<TEAM_NAME>_v36.parquet
 ```
 
-Seeds fixas (`deterministic`, `force_row_wise`): a mesma máquina reproduz o mesmo número no LightGBM; o CatBoost do `--conjunto` roda na GPU e pode variar na última casa.
-Hardware usado: Xeon E5-2670 v3 (6 núcleos físicos via `bin/run`), 15 GB de RAM.
+`champion.json` is versioned, so steps 3–5 can be skipped: `src/train.py submit N`
+reads it, retrains the base and every corrector member on the full year, averages
+the members and applies the post-rules. `src/train.py submit N --corrida <id>`
+rebuilds a single run instead of the champion ensemble.
 
-## Uso
+The ADS-B cut-outs and `events.parquet` (~6 GB) default to `data/adsb`, which may be a
+symlink to another disk; set `PRC_ADSB_RAIZ` to put them elsewhere.
+
+Useful extras:
 
 ```bash
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-cp .env.example .env                              # chaves e TEAM_NAME
-.venv/bin/python src/s3.py download               # dados em data/
-bin/run src/cache.py                              # features em cache (uma vez, sozinho)
-bin/run src/experiment.py <nome> --model two_stage [--seed N] [--seeds N]
-bin/run src/experiment.py <nome> --model two_stage_nm [--nm-split-ms] [--nm-min-ms 21600] [--janela-lobt] [--reg-corte 7200] [--reg-sem-lirf-nm] [--base-ctx] [--base-p13] [--base-mapa] [--base-ret] [--base-ext] [--treino-sem-regra] [--base-por-apt] [--cat-max 256] [--motor lgb|xgb] [--seed N] [--seeds N] [--sem-feature COLUNA]   # --base-ret = a base também usa as colunas ret_* de src/pista.py (fila de portão no AOBT_3; mesma função do corretor --retencao); --base-ext = a base também usa as colunas ext_* de src/externos.py (taxa de cópia por companhia, séries diárias e OPDI). A taxa de cópia é a única que olha o BLOCK de outros voos: na base ela só conta os meses presentes no treino daquele quadro (no crossfit, os meses fora do bloco) e nunca o mês da própria linha, e a tabela de 2025 é ajustada uma vez por processo (~1 min lendo os 12 parquets). --treino-sem-regra = o classificador e o regressor não treinam nas linhas que a previsão entrega a uma regra fixa (a reta dos sem NM com MVT−SCHED > --nm-min-ms e a regra de Roma, `models.linhas_de_regra`); as retas continuam ajustadas em todas as linhas sem NM e a previsão não muda de forma (ideia do route_train_exclude do genuine-cabbage e do MB3 do kind-mango; 207 das 2,085 M DEP de 2025, 0,0099%)
-bin/run src/compare.py <id> --promover            # decide contra o campeão (FRÁGIL não promove)
-bin/run src/compare.py <id> --promover --aceitar-fragil   # só após teto.py e ok do usuário
-bin/run src/teto.py <base.parquet> <novo.parquet> --oficial-base <RMSE> [--min-ms 21600] [--salvar submissions/<TEAM>_vN.parquet]
-bin/run src/train.py submit N [--corrida <id>]   # gera a vN (não envia); sem --corrida usa a campeã (média dos membros + pós-regras); --corrida usa a receita daquela corrida do experiments.jsonl, sem mexer no champion.json
-.venv/bin/python src/s3.py submit submissions/<TEAM>_vN.parquet   # só após aprovação
-bin/run src/adsb.py baixar [--dias 2025-01,2025-07] [--dia AAAA-MM-DD] [--procs 5]   # recortes adsb.lol no SSD
-bin/run src/adsb_events.py                        # eventos por voo → <SSD>/events.parquet
-bin/run src/stack.py <nome> [--base <id>] [--sem-adsb] [--crossfit [--seeds N] [--conjunto] [--externos] [--plano13 [--fila | --stand-prefixo]] [--dist-plano] [--superficie] [--pista] [--retencao] [--roma-tdg] [--corretor-sem-regra] [--corretor-ref] [--corretor-xgb] [--reusar-oof <id>]] [--sem-feature COLUNA]   # corretor fora do fold (teste barato) ou fora do bloco no ano (enviável; ~25 min, rodar via systemd-run --user); --conjunto = média de global, por aeroporto e CatBoost; --externos = colunas ext_*; --plano13 = METAR, rotação no stand, consistência NM e a companhia; --fila = contagens de fila do aeroporto e da pista + apt_rwy e stand_p (só com --plano13; --stand-prefixo = só o stand_p); --superficie = colunas sup_* (aviões no solo no push estimado MVT − pred, src/superficie.py); --pista = colunas pista_* (configuração de pista do aeroporto na janela de 60 min e se ela mudou na última hora, pista dominante, fila da mesma pista entre o AOBT_3 e a decolagem com peso de esteira, cadência das últimas 20 decolagens; src/pista.py, receita da esteira {"--pista": true}); --retencao = colunas ret_* (fila de portão no instante do push real AOBT_3: partidas que já passaram do EOBT_1 e não empurraram por pista e por aeroporto, partidas ativas na mesma pista pelo relógio real, atraso AOBT_3 − SCHED médio dos 15 min anteriores e EWMA de decolagens com meia-vida de 10 min; src/pista.py, receita da esteira {"--retencao": true}, ideia de docs/research/2026-10-01-repos-concorrentes.md); --corretor-sem-regra = o corretor não treina nas linhas que a base entrega a uma regra fixa (reta dos sem NM e regra de Roma, `models.linhas_de_regra` com o `nm_min_ms` da própria base) e deixa a previsão da base intacta nelas — hoje, sem a flag, ele aprende nelas e corrige a saída da reta, e só a regra de Roma é reescrita no fim do envio; receita da esteira {"--corretor-sem-regra": true}; --corretor-ref = colunas cel_* (mediana, P90, desvio e tamanho da célula aeroporto × stand × pista, src/refcel.py; medido 29/09, desligado); --reusar-oof = lê o oof daquela corrida em vez de recalcular a base fora do bloco (só com base e base_config idênticas; ~7 min); --roma-tdg = colunas roma_g_hat/roma_t_hat (decomposição T = D − G nas partidas do LIRF: um LightGBM prevê o atraso de portão G = D − T fora do bloco de meses e o corretor recebe Ĝ, T̂ = max(D − Ĝ, 0) e T̂ − pred; nulas fora do LIRF; src/roma.py, medido 02/10 e desligado: −1,48 s de sem_loteria no --crossfit, IC abaixo de zero, fora de esteira.BLOCOS; docs/research/2026-10-02-roma-t-d-g.md)
-bin/run src/externos.py baixar                    # séries diárias da EUROCONTROL e flight lists do OPDI → data/externo/ (pula o que já existe)
-bin/run src/plano13.py baixar                     # METAR dos 10 aeroportos → data/externo/metar/ (pula o que já existe)
-bin/run src/mapa.py                               # apt.dat do X-Plane Gateway (GPL) → data/mapa/distancias.parquet (map_dist/map_dmin/map_extra); usado por stack.py --mapa e experiment.py --base-mapa (medidos 29/09, desligados)
-.venv/bin/python ferramentas/projecao.py          # placar do dia + docs/projecao.md
-.venv/bin/python ferramentas/auditoria.py         # docs/auditoria/AAAA-MM-DD.md
-.venv/bin/python -m pytest -q
+bin/run src/teto.py <base.parquet> <new.parquet> --oficial-base <RMSE> [--min-ms 21600] [--salvar out.parquet]
+bin/run src/compare.py <id> --promover --aceitar-fragil   # promote a non-significant gain explicitly
+bin/run src/esteira.py add --tipo corretor --receita '{"--pista": true}'   # queue a candidate
+bin/run src/esteira.py status                             # queue throughput, failures, half-B queries
+bin/run -m pytest tests/ -q
 ```
 
-### RAM (medido em 30/09, máquina de 15 GB)
+### Hardware and runtime
 
-Os três processos pesados cabiam mal na máquina: o `submit` levava o `systemd-oomd` a matar
-o processo duas vezes em 30/09. O corte de 30/09 mexeu só em cópias e em memória já solta —
-**nenhum número mudou** (provas no fim da seção):
+Measured on a Xeon E5-2670 v3 (6 physical cores used via `bin/run`, which pins the
+job with `taskset` and lowers its priority) with 15 GB of RAM, CPU only:
 
-| Processo | Antes | Depois | Corrida |
+| Step | Time | Peak RAM | Disk |
 |---|---|---|---|
-| `experiment.py` (base da campeã) | 5,57 GB | **5,25 GB** | `e76_base` → `mem_base_depois` |
-| `stack.py --crossfit --reusar-oof --conjunto` (corretor da esteira) | 7,40 GB | **6,17 GB** | `e76_m1` → `mem_corr_depois2` |
-| o mesmo sem `--conjunto` (só LightGBM) | 7,09 GB | **6,74 GB** | `mem_lgb_antes` → `mem_lgb_depois` |
-| `train.py submit N` (campeã v2, 2 membros) | 8,72 GB | **7,10 GB** | `submit_v33` → `submit_v99` |
+| ADS-B download + cut (427 days) | ~1 day with 10 processes | low | 5.7 GB |
+| `adsb_events.py` (427 days → ~1.26 M take-offs) | not benchmarked | — | 26 MB (`events.parquet`) |
+| `cache.py` (5 splits) | ~3 min | 4.8 GB | ~0.9 GB (`data/cache`) |
+| `experiment.py` (base) | ~9 min | 5.25 GB | — |
+| `stack.py --crossfit` (first member, computes the out-of-block base) | ~50 min | 6.2 GB | out-of-block cache in `data/cache/oof_base/` |
+| `stack.py --crossfit --reusar-oof` (further members) | ~10 min | 6.2 GB | — |
+| `train.py submit N` (full year, 3 members) | ~45 min | 7.10 GB | — |
 
-De onde veio (todas mantêm o resultado bit a bit):
+LightGBM runs with `num_threads=12`, `deterministic` and `force_row_wise`, so the
+same seed reproduces the same numbers on the same machine; only the CatBoost model
+inside `--conjunto` may differ in the last digits. A GPU is optional
+(`PRC_DEVICE=gpu`, `--motor xgb`, `--corretor-xgb`) and was measured to be neither
+faster nor better on this problem (§3).
 
-- `adsb_events.add_features` escreve as nove colunas `adsb_*` no próprio quadro; o
-  `drop` + `merge` copiava o quadro inteiro duas vezes a cada `load_split`.
-- `cache._ler` lê o parquet com `split_blocks`/`self_destruct` do pyarrow: a tabela Arrow
-  é desmontada durante a conversão, em vez de conviver com o quadro pronto.
-- `crossfit.oof_base` não faz mais `.copy()` do recorte de meses — com copy-on-write o
-  recorte já é um quadro próprio, e a cópia só duplicava 1,4 GB por bloco.
-- `stack.na_ordem` põe as cegas na ordem do oof esvaziando a origem coluna a coluna, em vez
-  de manter o quadro velho e o novo vivos ao mesmo tempo (2 × 1,7 GB).
-- `stack.catboost_frame` faz cópia rasa: só as colunas categóricas são reescritas.
-- `stack.tabelas_celula` passa ao `refcel` só as três colunas da chave.
-- `models.colunas_do_treino` recorta o treino antes de filtrar as linhas normais, e todo
-  `Booster` solta o `Dataset` (`free_dataset`) assim que termina de treinar.
-- `memoria.soltar()` (`gc.collect` + `malloc_trim`) depois de cada `del` grande: sem ele o
-  glibc guardava ~1,4 GB do treino no heap até o fim do processo.
-
-Provas de que nada mudou: a base da campeã refeita dá previsões **bit a bit iguais**
-(`runs/20260930-130008-e76_base.parquet`, diferença máxima 0,0); a previsão fora do bloco do
-ano inteiro gravada pelo `submit` tem o **mesmo SHA-256** da gravada pelo código antigo; e o
-corretor sem `--conjunto` (caminho 100 % determinístico, sem o CatBoost da GPU) dá previsões
-bit a bit iguais. Com `--conjunto` só o CatBoost na GPU varia, como já variava entre duas
-corridas do mesmo código.
-
-GPU (medido em 28/09 no nosso dado; pesquisa em `../docs/pesquisa/2026-09-28-gpu-em-ml.md`):
-
-- `PRC_DEVICE=gpu` (`src/dispositivo.py`) põe o LightGBM na GPU via OpenCL do driver, sem
-  instalar nada. Exige `--cat-max 256` na base (a GPU aceita até 256 bins por feature; STAND,
-  ADES, operador e tipo passam disso). Base `base_ctx`: 310,84 na GPU contra 311,18 na CPU (mesmo
-  erro), mas só 15 % mais rápida (o treino continua preso na CPU). **Padrão: CPU** (determinística).
-- `--motor xgb` (experiment.py) troca os dois estágios da base por XGBoost na GPU (CUDA do wheel
-  do PyPI): 318,70, pior que o LightGBM; média 0,8·LGB + 0,2·XGB = 311,11 (empate). Usa 1 núcleo
-  e 82 % da GPU, então pode rodar em paralelo com um job de CPU.
-- `--corretor-xgb` (stack.py, com `--conjunto`) soma um 4º corretor XGBoost: v28 300,85 contra
-  300,64 da v26 (empate, −0,2 s). Nenhuma das três vira padrão.
-
-Todo comando pesado passa pelo `bin/run`, que limita a 6 núcleos físicos e
-prioridade baixa. Limite do placar: 5 envios por dia UTC (zera às 00:00 UTC, 21h em Brasília), 1 GB por bucket. Conta
-a melhor submissão. A organização monitora quem tenta "aprender com o
-placar": testar localmente e enviar só o que melhorou.
-
-## Rotina diária (auditoria e projeção)
-
-O timer `prc-auditoria` (systemd do usuário, 09:00 local, `Persistent=true`: roda ao
-ligar se o PC estava desligado) executa `ferramentas/auditoria.py`, que:
-
-- baixa a foto do placar (`placar/AAAA-MM-DD.json`) e regenera `docs/projecao.md`;
-- confere bucket × `submissions.jsonl` × placar, campeã × `experiments.jsonl` ×
-  código (`src_hash`), README/CONTEXTO citando campeã e melhor nota, `src/` e
-  `ferramentas/` listados no README, idade do `saltos.json`, pytest, git limpo e
-  enviado nos dois repositórios, `events.parquet` em dia, serviços `prc-*` sem falha;
-- grava `docs/auditoria/AAAA-MM-DD.md` com ✅/⚠️ (não faz commit).
-
-Na primeira conversa do dia: ler a auditoria, corrigir as ⚠️ e o texto velho que a
-máquina não pega (roadmap, "Retomar" do CONTEXTO, caixas do plano), atualizar
-`saltos.json` com o que foi medido e fazer commit. Projeção: cortes do 1º/3º/10º/50º
-no prazo em três cenários (parado, desacelerando com meia-vida de 7 dias, ritmo
-atual) e Monte Carlo da nossa nota final sobre a fila de `saltos.json`.
-
-## Esteira de experimentos
-
-Serviço 24/7 que tira candidatos de uma fila, roda o corretor real e decide pela régua.
+## 6. Repository layout
 
 ```
-bin/run src/esteira.py add --tipo corretor --receita '{"--fila": true}' [--prioridade N] [--origem X]
-bin/run src/esteira.py fila       # só o que está na fila (o que já rodou sai em status/docs/esteira.md)
-bin/run src/esteira.py status     # vazão, falhas, consultas à metade B, pausa
-bin/run src/esteira.py pausar | retomar     # trava data/esteira.pausa
-bin/run src/esteira.py gerar      # enfileira vizinhos da campeã (grade de parâmetros e blocos)
-bin/run src/esteira.py familias   # rotula as linhas antigas e mostra o rendimento por família
-bin/run src/esteira.py semente N  # sorteia de novo as metades A/B com a semente N e zera as consultas à metade B (usar quando passar de 50)
-bin/run src/esteira.py revisao "<texto>"    # registra a revisão do agente (com data)
-bin/run src/esteira.py enviado N  # marca a versão N como enviada
-bin/run src/esteira.py trabalhar  # laço do serviço prc-esteira (não rodar à mão)
+bin/run              # hardware budget (taskset + nice) for every heavy command
+src/s3.py            # organiser bucket: ls, download, submit (MinIO)
+src/cache.py         # feature cache for the 5 splits (train2025, holdout2025, blind2025, full2025, ranking2026)
+src/features.py      # features and the P10 reference
+src/models.py        # SingleLGBM, TwoStage, TwoStageNM and the expectation mixture
+src/experiment.py    # one run on the calibrated simulation of the ranking set
+src/compare.py       # paired day-level bootstrap, promotion rule, champion.json
+src/teto.py          # upper bound of the official gain before submitting
+src/train.py         # rebuilds the champion on the full year and writes the submission
+src/adsb.py          # daily adsb.lol cut-out around the 10 airports (ODbL)
+src/adsb_events.py   # take-off and off-block events from ADS-B, matching, adsb_* features
+src/stack.py         # corrector on top of a base run (out-of-fold, or --crossfit)
+src/crossfit.py      # out-of-block base predictions (2-month blocks)
+src/contexto.py      # arrival taxi-in and neighbour features (ctx_*)
+src/externos.py      # EUROCONTROL daily series, OPDI and airline copy rate (ext_*)
+src/plano13.py       # METAR, stand rotation, NM consistency, airline (met_*)
+src/mapa.py          # X-Plane apt.dat geometry (map_*)
+src/refcel.py        # airport × stand × runway cell statistics (cel_*)
+src/superficie.py    # aircraft on the surface at the estimated push-back (sup_*)
+src/pista.py         # runway state (pista_*) and gate retention (ret_*)
+src/roma.py          # T = D − G decomposition at LIRF (roma_*); measured, off by default
+src/campeao.py       # champion v2: members, averaged prediction, run registry
+src/pos_regras.py    # post-rules applied to the final prediction (Rome)
+src/esteira.py       # 24/7 experiment queue; src/regua.py: its acceptance rule
+src/runlog.py        # per-phase progress, ETA, RAM/CPU/GPU and the run registry
+src/memoria.py       # soltar(): gc.collect + malloc_trim after each large del
+src/dispositivo.py   # CPU/GPU selection (PRC_DEVICE)
+ferramentas/auditoria.py  # local daily self-audit of the working machine (output not versioned)
+ferramentas/projecao.py   # local deadline tracking (output not versioned)
+ferramentas/prc-esteira.service   # systemd user unit for the experiment queue
+tests/               # pytest
+experiments.jsonl    # one line per run (versioned)
+submissions.jsonl    # one line per submission: date, reason, simulated and official score
+champion.json        # current champion: base, oof, members, post-rules (versioned)
+docs/diario.md       # work diary (pt-BR), chronological
+docs/esteira.md      # current state of the experiment queue
+docs/research/       # individual studies, including the negative results of §3
+docs/superpowers/    # design documents and executed plans
 ```
 
-Régua (`src/regua.py`): os dias são partidos em duas metades. Na metade **A** o candidato
-só é selecionado com ganho `sem_loteria` ≥ **0,3 s** e IC baixo > **0**; a proposta escolhida
-em A é confirmada cega na metade **B** com ganho > **0** (só o sinal; calibração de 30/09); nos
-dias todos o ganho `sem_loteria` precisa de IC baixo > **0** (o critério que previu o oficial da
-v29 e da v32) e o ganho no completo ≥ **−0,5 s**. B nunca escolhe, só confirma — é o que segura o
-desgaste de testar muita coisa. Propostas de um candidato de corretor: trocar um membro,
-somar ao conjunto ou sozinho.
+## 7. License
 
-**Candidato de base** (revisão 30/09): a base nova não entra mais como um corretor sozinho
-contra a média da campeã (comparação injusta, que quase sempre perde). `executar` roda o
-`experiment.py` da base e depois refaz **todos** os corretores da campeã sobre ela — o
-primeiro calcula o oof fora do bloco (~50 min) e os seguintes o reaproveitam com
-`--reusar-oof` (~10 min cada), ~1 h no total. A régua avalia uma única proposta
-`base_nova` (`regua.avaliar_conjunto`): média completa nova contra média completa velha.
-
-Grade do gerador (revisão 30/09): blocos, bloco de fila e `num_leaves`/`learning_rate`.
-Dos 53 testes da estreia (madrugada de 30/09) os parâmetros deram média −0,10 s e as
-rodadas −0,11 s, com uma única promoção (`num_leaves` 127) — as rodadas, `lambda_l2` e
-`min_data_in_leaf` saíram da grade.
-
-**Prioridade por família** (revisão 30/09): cada candidato leva o rótulo da única diferença
-que o separa do membro de onde saiu — `bloco:--superficie`, `fila:--fila`, `param:num_leaves`,
-`rodadas`, `base`, ou `outro` quando muda mais de uma coisa. A cada passo a esteira recalcula
-a média de ganho em A de cada família e reordena a fila do gerador: família com menos de
-**N_MIN = 3** resultados fica com prioridade 1 (explorar), as demais com `10 × média` limitado
-a [−5, 5]. Família com **N_CORTE = 10** resultados, média negativa e nenhuma promoção é
-cortada: os candidatos dela na fila viram `pulado` e o gerador para de produzi-la. O que foi
-enfileirado à mão (`--origem usuario`/`agente`) e os candidatos de base não são mexidos.
-
-Guardas do trabalhador: ≥ 6,7 GB de RAM livre (corretor com pico de 6,17 GB mais 0,5 de folga;
-era 8 GB antes do corte de RAM de 30/09) para começar um candidato, uma corrida por vez
-e `data/esteira.pausa` para parar sem matar o serviço.
-
-Relatório: `docs/esteira.md` (campeã, fila, últimos vereditos, consultas à metade B e as
-"Revisões" do agente). Serviço: `ferramentas/prc-esteira.service` (systemd do usuário,
-`prc-esteira`). Auditoria diária: `ferramentas/auditoria.py` checa vazão, falhas, consultas
-à metade B e pausa.
-
-**Estreia supervisionada — concluída (30/09 00h57–02h40 -03), serviço habilitado no boot:**
-
-1. [x] Sonda de ruído (repetição da receita do membro 1 da v32, prioridade 9): "A: não seleciona",
-   −0,13 s sem loteria em 9,8 min; conferida contra `compare.py` (sozinha −1,1 s sem loteria).
-2. [x] `esteira.py gerar` e `systemctl --user start prc-esteira` (fila com 36 candidatos).
-3. [x] 10 primeiros: 0 falhas, 8,8–11,3 min cada, pico de RAM ~7,3 GB; todos reprovados em A
-   (melhor: `--superficie` somado, +0,19 s).
-4. [x] Revisão registrada em `docs/esteira.md`: régua mantida — nenhum candidato chegou a 0,3 s em
-   A, então o IC não foi o gargalo (a conferência com o membro da v32, +1,07 s e IC baixo −0,10,
-   segue como ponto a observar se aparecerem candidatos com ganho e IC no limite).
-5. [x] `systemctl --user enable prc-esteira`.
-
-Envio: sempre com ok do usuário.
-
-## Estrutura
+This repository is released under the **GNU General Public License v3.0** — see
+[`LICENSE`](LICENSE). Copyright © 2026 team `outgoing-boat`. Copyright notice and
+third-party data attributions: [`NOTICE`](NOTICE).
 
 ```
-prc-taxiout-2026/
-  bin/run             # orçamento de hardware (taskset + nice) para tudo que é pesado
-  src/s3.py           # listar, baixar e enviar (MinIO)
-  src/runlog.py       # progresso por fase, ETA, RAM/CPU/GPU e registro das corridas
-  src/cache.py        # splits com features prontas (train2025, holdout2025, full2025, ranking)
-  src/features.py     # features e referência P10
-  src/models.py       # SingleLGBM, TwoStage e a combinação por esperança
-  src/experiment.py   # experimento na simulação calibrada
-  src/compare.py      # bootstrap pareado por dia, regra robusta (MELHOR/FRÁGIL) e campeão
-  src/teto.py         # teto do ganho oficial antes de enviar; grava candidato
-  src/train.py        # versão final a partir do campeão (só gera o arquivo)
-  src/adsb.py         # recorte diário do adsb.lol (ODbL) perto dos 10 aeroportos
-  src/adsb_events.py  # decolagens no ADS-B, off-block observado, casamento, features adsb_*
-  src/stack.py        # corretor LightGBM sobre uma corrida base (fora do fold no holdout, ou --crossfit)
-  src/crossfit.py     # previsões da base fora do bloco (meses 2 a 2) para o corretor
-  src/contexto.py     # taxi-in das chegadas e vizinhos de MVT − AOBT_3 (colunas ctx_*, só no corretor)
-  src/externos.py     # dados abertos: taxa de cópia por companhia, séries diárias e OPDI (colunas ext_*)
-  src/plano13.py      # METAR, rotação no stand, consistência NM e companhia (só no corretor, --plano13)
-  src/refcel.py       # mediana, P90, desvio e tamanho da célula aeroporto × stand × pista (--corretor-ref)
-  src/campeao.py      # campeã v2: membros, previsão média e registro do experiments.jsonl
-  src/pos_regras.py   # pós-regras aplicadas ao arquivo de envio (Roma)
-  src/regua.py        # régua da esteira: seleção na metade A, confirmação cega na B
-  src/esteira.py      # fila SQLite, trabalhador 24/7, gerador de vizinhos e relatório
-  src/memoria.py      # soltar(): gc.collect + malloc_trim depois de cada del grande (pico de RAM)
-  ferramentas/projecao.py   # placar do dia e projeção até o prazo (docs/projecao.md)
-  ferramentas/auditoria.py  # auditoria diária (docs/auditoria/)
-  submissions.jsonl   # nossos envios com a nota oficial (versionado)
-  saltos.json         # fila de saltos candidatos: ganho estimado, chance, dias (versionado)
-  placar/             # fotos diárias do placar público (versionado)
-  tests/              # pytest
-  experiments.jsonl   # uma linha por corrida (versionado)
-  champion.json       # campeã v2 (versionado): `base`, `oof`, lista de `membros`
-                      # (id + config de cada corretor), `pos_regras`, `rmse_simulacao`,
-                      # `sem_loteria` e a última `enviada`; a previsão é a média dos membros
-  docs/               # specs, planos e pesquisa
-  data/               # parquet baixados (ignorado pelo git)
-  submissions/        # arquivos gerados (ignorado pelo git)
-  LICENSE             # GPLv3 (exigido para prêmio)
+This program is free software: you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later version.
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
 ```
 
-## Leaderboard
+### Originality
 
-<https://prc-challenge-2026.vercel.app/>. Em 27/09/2026: 186 equipes, 1º 224,50, 3º
-228,59, 10º 242,81, 50º 278,39. Nós: **249,16 s** (v28, 29/09, 25º de 164; antes 251,10, 252,34, 253,95, 256,86, 264,35, 264,74, 266,81, 275,90, 314,76, 331,0,
-338,7 e 384,7). Fotos diárias em `placar/`.
-
-## Referências
-
-- Indicador oficial: <https://www.eurocontrol.int/prudata/dashboard/metadata/additional-taxi-out-time/>
-- Repositórios de equipes 2026 (públicos), ex.:
-  <https://github.com/ahmetabdullahgultekin/prc-taxiout-2026>
-- Edições anteriores: <https://github.com/prc-data-challenge-2024>,
-  <https://github.com/prc-data-challenge-2025>
+All modelling code here is original work by the team. Published competitor
+repositories and the challenge Discord were read for *ideas* — for instance, the
+existence of a hard LOBT window was reported by another team and then re-derived and
+re-implemented from scratch on our own data, and two ideas read that way were
+implemented, measured and **rejected** (§3) — but no third-party competition code was
+copied or adapted.

@@ -11,8 +11,8 @@ embute a subtração que uma árvore não faz sozinha: com as mesmas colunas e o
 o holdout jan+jul de 2025 dá RMSE 643,5 s por `D − Ĝ` contra 1.220,3 s prevendo `T` direto
 (no LIRF sem registro NM, 4.049,5 contra 8.803,5).
 
-Só vale no LIRF: `corr(T, D)` é 0,90 lá e ≤ 0,44 nos outros aeroportos (medição do OpenAir,
-`docs/research/2026-10-01-repos-concorrentes.md`). Fora do LIRF as colunas saem nulas.
+Só vale no LIRF: `corr(T, D)` é 0,90 lá e ≤ 0,44 nos outros aeroportos (medido em
+`docs/research/2026-10-02-roma-t-d-g.md`). Fora do LIRF as colunas saem nulas.
 
 `Ĝ` sozinho **não** bate a campeã (643,5 contra 542,6 no LIRF): a base de dois estágios já
 ancora em `D` e o `AOBT_3` cobre `G` em 98,5 % das linhas. O ganho medido vem de entregar

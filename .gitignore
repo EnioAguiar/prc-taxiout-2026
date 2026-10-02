@@ -10,3 +10,14 @@ runs/
 logs/
 .superpowers/
 catboost_info/
+
+# Notas internas da máquina e de acompanhamento do placar: ficam locais, fora do
+# repositório público. Os geradores continuam rodando (ferramentas/auditoria.py,
+# ferramentas/projecao.py) e escrevendo nestes caminhos.
+docs/auditoria/
+docs/projecao.md
+saltos.json
+placar/
+docs/research/2026-09-26-praticas-ml.md
+docs/research/2026-09-27-concorrentes.md
+docs/research/2026-10-01-repos-concorrentes.md

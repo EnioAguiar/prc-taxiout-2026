@@ -53,7 +53,7 @@ do bloco `b−3` ao `b+2` (dos 30 min antes aos 30 min depois do começo do bloc
 configuração vira uma soma acumulada por pista, e não uma varredura por voo; a "hora
 anterior" é a mesma janela seis blocos atrás.
 
-## Bloco `--retencao` (`colunas_retencao`, ideia de `docs/research/2026-10-01-repos-concorrentes.md`)
+## Bloco `--retencao` (`colunas_retencao`)
 
 O `--pista` e o `--superficie` olham o taxiway; este olha o **portão**, e com o relógio real
 do push (`t = AOBT_3` do voo, presente em 98,5 % das DEP do ranking) no lugar do push

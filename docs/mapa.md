@@ -113,7 +113,7 @@ Três frentes:
    30/09 ~00h57 -03, estreia supervisionada): a fila roda os candidatos baratos do corretor sozinha,
    com seleção na metade A e confirmação cega na B. Dever do agente: auditar os 10 primeiros
    vereditos e calibrar a régua (hoje `GANHO_A = 0,3` com IC baixo > 0 reprovou a própria campeã),
-   registrando em `docs/esteira.md` ("Revisões"). Relatório e comandos: README, "Esteira de experimentos".
+   registrando em `docs/esteira.md` ("Revisões"). Relatório e comandos: `docs/diario.md`, "Esteira de experimentos".
 2. **Informação nova de fora** (LTFM sem ADS-B nem em 2026; Trino do OpenSky proibido, Discord 29/09).
 3. **Loterias** (38 % do erro²) e os itens "grandes" da retrospectiva (folha `dist_lo ≤ 0`,
    registro × sensor, loterias do LFPG sem NM).

@@ -1,0 +1,76 @@
+PRC Data Challenge 2026 — taxi-out time prediction
+Copyright (C) 2026 team `outgoing-boat`
+
+This program is free software: you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this
+program.  If not, see <https://www.gnu.org/licenses/>.  The full text is in the
+file `LICENSE` of this repository.
+
+
+THIRD-PARTY DATA
+================
+
+No third-party dataset is redistributed in this repository.  Every external source
+below is downloaded at run time by the scripts named in `README.md` into `data/`,
+which is not versioned.  The attributions required by each source are reproduced
+here and in `README.md`.
+
+1. Challenge data (12 monthly training files, `ranking.parquet`,
+   `submitting.parquet`)
+   EUROCONTROL Performance Review Commission and the OpenSky Network,
+   PRC Data Challenge 2026.  Distributed by the organisers through a per-team
+   MinIO bucket and NOT redistributed here.
+   <https://ansperformance.eu/study/data-challenge/dc2026/>
+
+2. ADS-B / MLAT traces — adsb.lol global history
+   `globe_history_2025`, `globe_history_2026`.
+   Licensed under the Open Database License (ODbL) v1.0.
+   Contains information from adsb.lol, which is made available under the ODbL
+   <https://opendatacommons.org/licenses/odbl/1-0/>.
+   <https://adsb.lol/> · <https://github.com/adsblol/globe_history_2025>
+
+3. Daily ATFM and pre-departure delay series — EUROCONTROL
+   `atfm_slot_adherence`, `all_pre_departure_delays`, `atc_pre_departure_delays`.
+   Public EUROCONTROL performance data, free to use with attribution.
+   Source: EUROCONTROL Performance Review Unit, <https://ansperformance.eu/csv/>
+
+4. OPDI v0.0.2 flight lists — Open Performance Data Initiative
+   (EUROCONTROL / OpenSky Network).  Open data: "can be freely used, reused and
+   distributed provided that the data source is attributed".
+   Source: Open Performance Data Initiative, <https://www.opdi.aero/>
+
+5. METAR surface observations — Iowa Environmental Mesonet (IEM) ASOS/AWOS/METAR
+   archive, Iowa State University, built on NOAA data.  Public data, free to use
+   with attribution.
+   <https://mesonet.agron.iastate.edu/request/download.phtml>
+
+6. Airport geometry — X-Plane `apt.dat` from the X-Plane Airport Scenery Gateway.
+   The apt.dat airport data is released by the X-Plane Scenery Gateway
+   contributors under the GNU General Public License.  The official file-format
+   specification states:
+
+       "The GNU GPL (General Public License) under which this data is released
+        requires that the copyright notice be maintained with the data."
+
+   Accordingly: X-Plane airport data (`apt.dat`), Copyright (C) Laminar Research
+   and the X-Plane Scenery Gateway contributors, released under the GNU General
+   Public License.  Only derived stand-to-runway distances (`map_*` columns) are
+   computed locally by `src/mapa.py`; no `apt.dat` content is redistributed here.
+   <https://gateway.x-plane.com/> ·
+   <https://developer.x-plane.com/article/airport-data-apt-dat-file-format-specification/>
+
+
+THIRD-PARTY SOFTWARE
+====================
+
+This project depends on, but does not redistribute, the libraries listed in
+`requirements.txt`: pandas, PyArrow, NumPy, SciPy, LightGBM, CatBoost, XGBoost,
+the MinIO Python SDK, python-dotenv, psutil and pytest.  Each is distributed
+under its own license by its own authors.

@@ -71,11 +71,13 @@ def checar_campea() -> None:
     ids = [m["id"] for m in champ["membros"]]
     ok(all(i in reg for i in ids), f"membros da campeã existem no experiments.jsonl ({', '.join(ids)})")
     ok(all(reg[i]["config"]["base"] == champ["base"] for i in ids if i in reg), "membros com a mesma base")
-    readme = (ROOT / "README.md").read_text()
-    ok(all(i in readme for i in ids), "README cita os membros da campeã")
+    # o README é público e em inglês; o diário em pt-BR continua sendo o texto de trabalho
+    readme = "\n".join((ROOT / p).read_text() for p in ("README.md", "docs/diario.md"))
+    ok(all(i in readme for i in ids), "documentação cita os membros da campeã")
     melhor = min(e["oficial"] for e in envios() if e["oficial"] is not None)
+    formas = {f"{melhor:.2f}", f"{melhor:.2f}".replace(".", ","), f"{melhor:.4f}".rstrip("0")}
     txt = f"{melhor:.2f}".replace(".", ",")
-    ok(txt in readme, f"README cita a melhor nota oficial ({txt})")
+    ok(any(f in readme for f in formas), f"documentação cita a melhor nota oficial ({txt})")
     ctx = (PAI / "CONTEXTO.md").read_text()
     ok(txt in ctx, f"CONTEXTO.md cita a melhor nota oficial ({txt})")
 
