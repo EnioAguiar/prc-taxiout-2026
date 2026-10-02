@@ -28,8 +28,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-# Onde ficam os recortes e o events.parquet; em outra máquina, defina PRC_ADSB_RAIZ.
-RAIZ = Path(os.environ.get("PRC_ADSB_RAIZ", "/mnt/c0399cd8-7cca-4664-884d-e89d4a1e81a2/prc-adsb"))
+# Onde ficam os recortes e o events.parquet (~6 GB): `data/adsb` por padrão (pode ser um link
+# para outro disco); PRC_ADSB_RAIZ troca o lugar.
+RAIZ = Path(os.environ.get("PRC_ADSB_RAIZ", Path(__file__).resolve().parents[1] / "data" / "adsb"))
 MESES = ["2025-01", "2025-07", "2026-01", "2026-07"]
 ALT_MAX_FT = 3000
 BOX_DEG = 0.10  # meia largura em latitude (~11 km); longitude corrigida por cos(lat). Cobre a Polderbaan (EHAM).

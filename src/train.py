@@ -88,7 +88,8 @@ def chave_oof(cfg_base: dict) -> str:
         h.update(p.name.encode() + p.read_bytes())
     dados = [*sorted(DATA.glob("*.parquet")), *sorted((DATA / "mapa").glob("*.parquet")),
              ADSB_RAIZ / "events.parquet"]
-    for p in dados:
+    for p in dados:  # caminho resolvido: data/adsb como link para outro disco dá a mesma chave
+        p = p.resolve()
         st = p.stat() if p.exists() else None
         h.update(f"{p}:{st.st_size}:{st.st_mtime_ns}".encode() if st else f"{p}:-".encode())
     return h.hexdigest()[:16]
