@@ -1,0 +1,730 @@
+{
+ "candidatas": [
+  {
+   "spec": [
+    "gdes",
+    "ctx_viz_fut_apt_60",
+    "tipo_apt"
+   ],
+   "nome": "fe_gdes_ctx_viz_fut_apt_60_tipo_apt",
+   "ganho_7": -0.037,
+   "corpo_7": 0.0866,
+   "ganho_1": 0.013,
+   "corpo_1": 0.0826,
+   "min_ganho": -0.037,
+   "min_corpo": 0.0826,
+   "auc": 0.942,
+   "nan_2025": 0.0005,
+   "nan_2026": 0.0003
+  },
+  {
+   "spec": [
+    "gdes",
+    "to_takeoff_from_SCHED_TIME_UTC_mvt",
+    "tipo_apt"
+   ],
+   "nome": "fe_gdes_to_takeoff_from_SCHED_TIME_UTC_mvt_tipo_apt",
+   "ganho_7": -0.0299,
+   "corpo_7": 0.0795,
+   "ganho_1": 0.0145,
+   "corpo_1": 0.0774,
+   "min_ganho": -0.0299,
+   "min_corpo": 0.0774,
+   "auc": 0.9144,
+   "nan_2025": 0.0005,
+   "nan_2026": 0.0003
+  },
+  {
+   "spec": [
+    "gmed",
+    "to_takeoff_from_AOBT_3_flt",
+    "tipo_apt"
+   ],
+   "nome": "fe_gmed_to_takeoff_from_AOBT_3_flt_tipo_apt",
+   "ganho_7": 0.098,
+   "corpo_7": 0.8387,
+   "ganho_1": 0.0046,
+   "corpo_1": 0.0693,
+   "min_ganho": 0.0046,
+   "min_corpo": 0.0693,
+   "auc": 0.9226,
+   "nan_2025": 0.0017,
+   "nan_2026": 0.0015
+  },
+  {
+   "spec": [
+    "gmed",
+    "hour",
+    "tipo_apt"
+   ],
+   "nome": "fe_gmed_hour_tipo_apt",
+   "ganho_7": -0.0482,
+   "corpo_7": 0.064,
+   "ganho_1": 0.0188,
+   "corpo_1": 0.0975,
+   "min_ganho": -0.0482,
+   "min_corpo": 0.064,
+   "auc": 0.9382,
+   "nan_2025": 0.0,
+   "nan_2026": 0.0
+  },
+  {
+   "spec": [
+    "gmed",
+    "ctx_arr_tin_apt_60",
+    "tipo_apt"
+   ],
+   "nome": "fe_gmed_ctx_arr_tin_apt_60_tipo_apt",
+   "ganho_7": -0.0546,
+   "corpo_7": 0.0996,
+   "ganho_1": -0.0001,
+   "corpo_1": 0.061,
+   "min_ganho": -0.0546,
+   "min_corpo": 0.061,
+   "auc": 0.9262,
+   "nan_2025": 0.0,
+   "nan_2026": 0.0
+  },
+  {
+   "spec": [
+    "gmed",
+    "to_takeoff_from_SCHED_TIME_UTC_mvt",
+    "tipo_apt"
+   ],
+   "nome": "fe_gmed_to_takeoff_from_SCHED_TIME_UTC_mvt_tipo_apt",
+   "ganho_7": -0.009,
+   "corpo_7": 0.0666,
+   "ganho_1": 0.0012,
+   "corpo_1": 0.0503,
+   "min_ganho": -0.009,
+   "min_corpo": 0.0503,
+   "auc": 0.9296,
+   "nan_2025": 0.0,
+   "nan_2026": 0.0
+  },
+  {
+   "spec": [
+    "gmed",
+    "ctx_arr_tin_apt_15",
+    "tipo_apt"
+   ],
+   "nome": "fe_gmed_ctx_arr_tin_apt_15_tipo_apt",
+   "ganho_7": -0.0319,
+   "corpo_7": 0.129,
+   "ganho_1": 0.0001,
+   "corpo_1": 0.0502,
+   "min_ganho": -0.0319,
+   "min_corpo": 0.0502,
+   "auc": 0.9358,
+   "nan_2025": 0.0,
+   "nan_2026": 0.0
+  },
+  {
+   "spec": [
+    "gdes",
+    "ctx_stand_ult_tin",
+    "tipo_apt"
+   ],
+   "nome": "fe_gdes_ctx_stand_ult_tin_tipo_apt",
+   "ganho_7": -0.0624,
+   "corpo_7": 0.0953,
+   "ganho_1": -0.0066,
+   "corpo_1": 0.0485,
+   "min_ganho": -0.0624,
+   "min_corpo": 0.0485,
+   "auc": 0.9135,
+   "nan_2025": 0.0008,
+   "nan_2026": 0.0006
+  },
+  {
+   "spec": [
+    "gdes",
+    "to_takeoff_from_AOBT_3_flt",
+    "tipo_apt"
+   ],
+   "nome": "fe_gdes_to_takeoff_from_AOBT_3_flt_tipo_apt",
+   "ganho_7": 0.1133,
+   "corpo_7": 0.7661,
+   "ganho_1": -0.0093,
+   "corpo_1": 0.0432,
+   "min_ganho": -0.0093,
+   "min_corpo": 0.0432,
+   "auc": 0.9161,
+   "nan_2025": 0.0025,
+   "nan_2026": 0.0018
+  },
+  {
+   "spec": [
+    "gdes",
+    "ctx_arr_tin_apt_15",
+    "tipo_apt"
+   ],
+   "nome": "fe_gdes_ctx_arr_tin_apt_15_tipo_apt",
+   "ganho_7": -0.0193,
+   "corpo_7": 0.1342,
+   "ganho_1": 0.0083,
+   "corpo_1": 0.041,
+   "min_ganho": -0.0193,
+   "min_corpo": 0.041,
+   "auc": 0.9304,
+   "nan_2025": 0.0005,
+   "nan_2026": 0.0004
+  },
+  {
+   "spec": [
+    "gdes",
+    "to_takeoff_from_AOBT_3_flt",
+    "cia_apt"
+   ],
+   "nome": "fe_gdes_to_takeoff_from_AOBT_3_flt_cia_apt",
+   "ganho_7": 0.026,
+   "corpo_7": 0.1974,
+   "ganho_1": -0.0027,
+   "corpo_1": 0.034,
+   "min_ganho": -0.0027,
+   "min_corpo": 0.034,
+   "auc": 0.9247,
+   "nan_2025": 0.0172,
+   "nan_2026": 0.0165
+  },
+  {
+   "spec": [
+    "gdes",
+    "ctx_viz_pas_rwy_15",
+    "tipo_apt"
+   ],
+   "nome": "fe_gdes_ctx_viz_pas_rwy_15_tipo_apt",
+   "ganho_7": -0.0627,
+   "corpo_7": 0.03,
+   "ganho_1": 0.0014,
+   "corpo_1": 0.0426,
+   "min_ganho": -0.0627,
+   "min_corpo": 0.03,
+   "auc": 0.9381,
+   "nan_2025": 0.001,
+   "nan_2026": 0.0008
+  },
+  {
+   "spec": [
+    "gmed",
+    "ctx_stand_ult_tin",
+    "tipo_apt"
+   ],
+   "nome": "fe_gmed_ctx_stand_ult_tin_tipo_apt",
+   "ganho_7": -0.0434,
+   "corpo_7": 0.0218,
+   "ganho_1": 0.0116,
+   "corpo_1": 0.0454,
+   "min_ganho": -0.0434,
+   "min_corpo": 0.0218,
+   "auc": 0.9068,
+   "nan_2025": 0.0001,
+   "nan_2026": 0.0001
+  },
+  {
+   "spec": [
+    "gdes",
+    "apt_arr_next_10m",
+    "tipo_apt"
+   ],
+   "nome": "fe_gdes_apt_arr_next_10m_tipo_apt",
+   "ganho_7": -0.0355,
+   "corpo_7": 0.018,
+   "ganho_1": 0.0,
+   "corpo_1": 0.0219,
+   "min_ganho": -0.0355,
+   "min_corpo": 0.018,
+   "auc": 0.9169,
+   "nan_2025": 0.0005,
+   "nan_2026": 0.0003
+  },
+  {
+   "spec": [
+    "gdes",
+    "ctx_arr_tin_apt_60",
+    "tipo_apt"
+   ],
+   "nome": "fe_gdes_ctx_arr_tin_apt_60_tipo_apt",
+   "ganho_7": -0.0499,
+   "corpo_7": 0.0758,
+   "ganho_1": -0.0111,
+   "corpo_1": 0.0126,
+   "min_ganho": -0.0499,
+   "min_corpo": 0.0126,
+   "auc": 0.9412,
+   "nan_2025": 0.0005,
+   "nan_2026": 0.0003
+  },
+  {
+   "spec": [
+    "gpos",
+    "to_takeoff_from_AOBT_3_flt",
+    "dia_apt_hora"
+   ],
+   "nome": "fe_gpos_to_takeoff_from_AOBT_3_flt_dia_apt_hora",
+   "ganho_7": 0.0696,
+   "corpo_7": 0.2887,
+   "ganho_1": -0.0237,
+   "corpo_1": 0.0046,
+   "min_ganho": -0.0237,
+   "min_corpo": 0.0046,
+   "auc": 0.5011,
+   "nan_2025": 0.0158,
+   "nan_2026": 0.0152
+  },
+  {
+   "spec": [
+    "gdes",
+    "ctx_viz_pas_rwy_60",
+    "tipo_apt"
+   ],
+   "nome": "fe_gdes_ctx_viz_pas_rwy_60_tipo_apt",
+   "ganho_7": -0.0404,
+   "corpo_7": 0.0033,
+   "ganho_1": 0.0056,
+   "corpo_1": 0.0219,
+   "min_ganho": -0.0404,
+   "min_corpo": 0.0033,
+   "auc": 0.9343,
+   "nan_2025": 0.0007,
+   "nan_2026": 0.0007
+  },
+  {
+   "spec": [
+    "gmed",
+    "apt_arr_next_10m",
+    "tipo_apt"
+   ],
+   "nome": "fe_gmed_apt_arr_next_10m_tipo_apt",
+   "ganho_7": -0.0543,
+   "corpo_7": 0.0029,
+   "ganho_1": 0.0064,
+   "corpo_1": 0.0308,
+   "min_ganho": -0.0543,
+   "min_corpo": 0.0029,
+   "auc": 0.9238,
+   "nan_2025": 0.0,
+   "nan_2026": 0.0
+  },
+  {
+   "spec": [
+    "gmed",
+    "to_takeoff_from_AOBT_3_flt",
+    "cia_apt"
+   ],
+   "nome": "fe_gmed_to_takeoff_from_AOBT_3_flt_cia_apt",
+   "ganho_7": -0.0005,
+   "corpo_7": 0.1886,
+   "ganho_1": -0.0278,
+   "corpo_1": 0.001,
+   "min_ganho": -0.0278,
+   "min_corpo": 0.001,
+   "auc": 0.9235,
+   "nan_2025": 0.0158,
+   "nan_2026": 0.0152
+  },
+  {
+   "spec": [
+    "gdesr",
+    "ctx_viz_fut_apt_60",
+    "tipo_apt"
+   ],
+   "nome": "fe_gdesr_ctx_viz_fut_apt_60_tipo_apt",
+   "ganho_7": -0.037,
+   "corpo_7": 0.0866,
+   "ganho_1": 0.013,
+   "corpo_1": 0.0826,
+   "min_ganho": -0.037,
+   "min_corpo": 0.0826,
+   "variante_de": "fe_gdes_ctx_viz_fut_apt_60_tipo_apt",
+   "auc": 0.9536,
+   "nan_2025": 0.0005,
+   "nan_2026": 0.0003
+  },
+  {
+   "spec": [
+    "gdesr",
+    "to_takeoff_from_SCHED_TIME_UTC_mvt",
+    "tipo_apt"
+   ],
+   "nome": "fe_gdesr_to_takeoff_from_SCHED_TIME_UTC_mvt_tipo_apt",
+   "ganho_7": -0.0299,
+   "corpo_7": 0.0795,
+   "ganho_1": 0.0145,
+   "corpo_1": 0.0774,
+   "min_ganho": -0.0299,
+   "min_corpo": 0.0774,
+   "variante_de": "fe_gdes_to_takeoff_from_SCHED_TIME_UTC_mvt_tipo_apt",
+   "auc": 0.9249,
+   "nan_2025": 0.0005,
+   "nan_2026": 0.0003
+  },
+  {
+   "spec": [
+    "gmedc",
+    "to_takeoff_from_AOBT_3_flt",
+    "tipo_apt"
+   ],
+   "nome": "fe_gmedc_to_takeoff_from_AOBT_3_flt_tipo_apt",
+   "ganho_7": 0.098,
+   "corpo_7": 0.8387,
+   "ganho_1": 0.0046,
+   "corpo_1": 0.0693,
+   "min_ganho": 0.0046,
+   "min_corpo": 0.0693,
+   "variante_de": "fe_gmed_to_takeoff_from_AOBT_3_flt_tipo_apt",
+   "auc": 0.9301,
+   "nan_2025": 0.0017,
+   "nan_2026": 0.0015
+  },
+  {
+   "spec": [
+    "gmedc",
+    "hour",
+    "tipo_apt"
+   ],
+   "nome": "fe_gmedc_hour_tipo_apt",
+   "ganho_7": -0.0482,
+   "corpo_7": 0.064,
+   "ganho_1": 0.0188,
+   "corpo_1": 0.0975,
+   "min_ganho": -0.0482,
+   "min_corpo": 0.064,
+   "variante_de": "fe_gmed_hour_tipo_apt",
+   "auc": 0.9381,
+   "nan_2025": 0.0,
+   "nan_2026": 0.0
+  },
+  {
+   "spec": [
+    "gmedc",
+    "ctx_arr_tin_apt_60",
+    "tipo_apt"
+   ],
+   "nome": "fe_gmedc_ctx_arr_tin_apt_60_tipo_apt",
+   "ganho_7": -0.0546,
+   "corpo_7": 0.0996,
+   "ganho_1": -0.0001,
+   "corpo_1": 0.061,
+   "min_ganho": -0.0546,
+   "min_corpo": 0.061,
+   "variante_de": "fe_gmed_ctx_arr_tin_apt_60_tipo_apt",
+   "auc": 0.9464,
+   "nan_2025": 0.0,
+   "nan_2026": 0.0
+  },
+  {
+   "spec": [
+    "gmedc",
+    "to_takeoff_from_SCHED_TIME_UTC_mvt",
+    "tipo_apt"
+   ],
+   "nome": "fe_gmedc_to_takeoff_from_SCHED_TIME_UTC_mvt_tipo_apt",
+   "ganho_7": -0.009,
+   "corpo_7": 0.0666,
+   "ganho_1": 0.0012,
+   "corpo_1": 0.0503,
+   "min_ganho": -0.009,
+   "min_corpo": 0.0503,
+   "variante_de": "fe_gmed_to_takeoff_from_SCHED_TIME_UTC_mvt_tipo_apt",
+   "auc": 0.9319,
+   "nan_2025": 0.0,
+   "nan_2026": 0.0
+  },
+  {
+   "spec": [
+    "gmedc",
+    "ctx_arr_tin_apt_15",
+    "tipo_apt"
+   ],
+   "nome": "fe_gmedc_ctx_arr_tin_apt_15_tipo_apt",
+   "ganho_7": -0.0319,
+   "corpo_7": 0.129,
+   "ganho_1": 0.0001,
+   "corpo_1": 0.0502,
+   "min_ganho": -0.0319,
+   "min_corpo": 0.0502,
+   "variante_de": "fe_gmed_ctx_arr_tin_apt_15_tipo_apt",
+   "auc": 0.9425,
+   "nan_2025": 0.0,
+   "nan_2026": 0.0
+  },
+  {
+   "spec": [
+    "gdesr",
+    "ctx_stand_ult_tin",
+    "tipo_apt"
+   ],
+   "nome": "fe_gdesr_ctx_stand_ult_tin_tipo_apt",
+   "ganho_7": -0.0624,
+   "corpo_7": 0.0953,
+   "ganho_1": -0.0066,
+   "corpo_1": 0.0485,
+   "min_ganho": -0.0624,
+   "min_corpo": 0.0485,
+   "variante_de": "fe_gdes_ctx_stand_ult_tin_tipo_apt",
+   "auc": 0.9259,
+   "nan_2025": 0.0008,
+   "nan_2026": 0.0006
+  },
+  {
+   "spec": [
+    "gdesr",
+    "to_takeoff_from_AOBT_3_flt",
+    "tipo_apt"
+   ],
+   "nome": "fe_gdesr_to_takeoff_from_AOBT_3_flt_tipo_apt",
+   "ganho_7": 0.1133,
+   "corpo_7": 0.7661,
+   "ganho_1": -0.0093,
+   "corpo_1": 0.0432,
+   "min_ganho": -0.0093,
+   "min_corpo": 0.0432,
+   "variante_de": "fe_gdes_to_takeoff_from_AOBT_3_flt_tipo_apt",
+   "auc": 0.9152,
+   "nan_2025": 0.0025,
+   "nan_2026": 0.0018
+  },
+  {
+   "spec": [
+    "gdesr",
+    "ctx_arr_tin_apt_15",
+    "tipo_apt"
+   ],
+   "nome": "fe_gdesr_ctx_arr_tin_apt_15_tipo_apt",
+   "ganho_7": -0.0193,
+   "corpo_7": 0.1342,
+   "ganho_1": 0.0083,
+   "corpo_1": 0.041,
+   "min_ganho": -0.0193,
+   "min_corpo": 0.041,
+   "variante_de": "fe_gdes_ctx_arr_tin_apt_15_tipo_apt",
+   "auc": 0.9306,
+   "nan_2025": 0.0005,
+   "nan_2026": 0.0004
+  },
+  {
+   "spec": [
+    "gdesr",
+    "to_takeoff_from_AOBT_3_flt",
+    "cia_apt"
+   ],
+   "nome": "fe_gdesr_to_takeoff_from_AOBT_3_flt_cia_apt",
+   "ganho_7": 0.026,
+   "corpo_7": 0.1974,
+   "ganho_1": -0.0027,
+   "corpo_1": 0.034,
+   "min_ganho": -0.0027,
+   "min_corpo": 0.034,
+   "variante_de": "fe_gdes_to_takeoff_from_AOBT_3_flt_cia_apt",
+   "auc": 0.9227,
+   "nan_2025": 0.0172,
+   "nan_2026": 0.0165
+  },
+  {
+   "spec": [
+    "gdesr",
+    "ctx_viz_pas_rwy_15",
+    "tipo_apt"
+   ],
+   "nome": "fe_gdesr_ctx_viz_pas_rwy_15_tipo_apt",
+   "ganho_7": -0.0627,
+   "corpo_7": 0.03,
+   "ganho_1": 0.0014,
+   "corpo_1": 0.0426,
+   "min_ganho": -0.0627,
+   "min_corpo": 0.03,
+   "variante_de": "fe_gdes_ctx_viz_pas_rwy_15_tipo_apt",
+   "auc": 0.9392,
+   "nan_2025": 0.001,
+   "nan_2026": 0.0008
+  },
+  {
+   "spec": [
+    "gmedc",
+    "ctx_stand_ult_tin",
+    "tipo_apt"
+   ],
+   "nome": "fe_gmedc_ctx_stand_ult_tin_tipo_apt",
+   "ganho_7": -0.0434,
+   "corpo_7": 0.0218,
+   "ganho_1": 0.0116,
+   "corpo_1": 0.0454,
+   "min_ganho": -0.0434,
+   "min_corpo": 0.0218,
+   "variante_de": "fe_gmed_ctx_stand_ult_tin_tipo_apt",
+   "auc": 0.9081,
+   "nan_2025": 0.0001,
+   "nan_2026": 0.0001
+  },
+  {
+   "spec": [
+    "gdesr",
+    "apt_arr_next_10m",
+    "tipo_apt"
+   ],
+   "nome": "fe_gdesr_apt_arr_next_10m_tipo_apt",
+   "ganho_7": -0.0355,
+   "corpo_7": 0.018,
+   "ganho_1": 0.0,
+   "corpo_1": 0.0219,
+   "min_ganho": -0.0355,
+   "min_corpo": 0.018,
+   "variante_de": "fe_gdes_apt_arr_next_10m_tipo_apt",
+   "auc": 0.9235,
+   "nan_2025": 0.0005,
+   "nan_2026": 0.0003
+  },
+  {
+   "spec": [
+    "gdesr",
+    "ctx_arr_tin_apt_60",
+    "tipo_apt"
+   ],
+   "nome": "fe_gdesr_ctx_arr_tin_apt_60_tipo_apt",
+   "ganho_7": -0.0499,
+   "corpo_7": 0.0758,
+   "ganho_1": -0.0111,
+   "corpo_1": 0.0126,
+   "min_ganho": -0.0499,
+   "min_corpo": 0.0126,
+   "variante_de": "fe_gdes_ctx_arr_tin_apt_60_tipo_apt",
+   "auc": 0.941,
+   "nan_2025": 0.0005,
+   "nan_2026": 0.0003
+  },
+  {
+   "spec": [
+    "gdesr",
+    "ctx_viz_pas_rwy_60",
+    "tipo_apt"
+   ],
+   "nome": "fe_gdesr_ctx_viz_pas_rwy_60_tipo_apt",
+   "ganho_7": -0.0404,
+   "corpo_7": 0.0033,
+   "ganho_1": 0.0056,
+   "corpo_1": 0.0219,
+   "min_ganho": -0.0404,
+   "min_corpo": 0.0033,
+   "variante_de": "fe_gdes_ctx_viz_pas_rwy_60_tipo_apt",
+   "auc": 0.9314,
+   "nan_2025": 0.0007,
+   "nan_2026": 0.0007
+  },
+  {
+   "spec": [
+    "gmedc",
+    "apt_arr_next_10m",
+    "tipo_apt"
+   ],
+   "nome": "fe_gmedc_apt_arr_next_10m_tipo_apt",
+   "ganho_7": -0.0543,
+   "corpo_7": 0.0029,
+   "ganho_1": 0.0064,
+   "corpo_1": 0.0308,
+   "min_ganho": -0.0543,
+   "min_corpo": 0.0029,
+   "variante_de": "fe_gmed_apt_arr_next_10m_tipo_apt",
+   "auc": 0.9236,
+   "nan_2025": 0.0,
+   "nan_2026": 0.0
+  },
+  {
+   "spec": [
+    "gmedc",
+    "to_takeoff_from_AOBT_3_flt",
+    "cia_apt"
+   ],
+   "nome": "fe_gmedc_to_takeoff_from_AOBT_3_flt_cia_apt",
+   "ganho_7": -0.0005,
+   "corpo_7": 0.1886,
+   "ganho_1": -0.0278,
+   "corpo_1": 0.001,
+   "min_ganho": -0.0278,
+   "min_corpo": 0.001,
+   "variante_de": "fe_gmed_to_takeoff_from_AOBT_3_flt_cia_apt",
+   "auc": 0.9239,
+   "nan_2025": 0.0158,
+   "nan_2026": 0.0152
+  }
+ ],
+ "referencia": [
+  {
+   "nome": "apt_arr_next_10m",
+   "crua": true,
+   "auc": 0.5041,
+   "nan_2025": 0.0,
+   "nan_2026": 0.0
+  },
+  {
+   "nome": "ctx_arr_tin_apt_15",
+   "crua": true,
+   "auc": 0.5332,
+   "nan_2025": 0.0148,
+   "nan_2026": 0.0146
+  },
+  {
+   "nome": "ctx_arr_tin_apt_60",
+   "crua": true,
+   "auc": 0.5454,
+   "nan_2025": 0.0012,
+   "nan_2026": 0.0012
+  },
+  {
+   "nome": "ctx_stand_ult_idade",
+   "crua": true,
+   "auc": 0.5074,
+   "nan_2025": 0.0243,
+   "nan_2026": 0.0246
+  },
+  {
+   "nome": "ctx_stand_ult_tin",
+   "crua": true,
+   "auc": 0.5177,
+   "nan_2025": 0.0243,
+   "nan_2026": 0.0246
+  },
+  {
+   "nome": "ctx_viz_fut_apt_60",
+   "crua": true,
+   "auc": 0.5494,
+   "nan_2025": 0.0021,
+   "nan_2026": 0.0021
+  },
+  {
+   "nome": "ctx_viz_pas_rwy_15",
+   "crua": true,
+   "auc": 0.5263,
+   "nan_2025": 0.0355,
+   "nan_2026": 0.0372
+  },
+  {
+   "nome": "ctx_viz_pas_rwy_60",
+   "crua": true,
+   "auc": 0.536,
+   "nan_2025": 0.011,
+   "nan_2026": 0.0114
+  },
+  {
+   "nome": "hour",
+   "crua": true,
+   "auc": 0.5059,
+   "nan_2025": 0.0,
+   "nan_2026": 0.0
+  },
+  {
+   "nome": "to_takeoff_from_AOBT_3_flt",
+   "crua": true,
+   "auc": 0.5179,
+   "nan_2025": 0.0158,
+   "nan_2026": 0.0152
+  },
+  {
+   "nome": "to_takeoff_from_SCHED_TIME_UTC_mvt",
+   "crua": true,
+   "auc": 0.5105,
+   "nan_2025": 0.0,
+   "nan_2026": 0.0
+  }
+ ]
+}

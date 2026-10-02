@@ -1,0 +1,29 @@
+{
+ "features": [
+  "fe_gpos_to_takeoff_from_AOBT_3_flt_dia_apt_hora"
+ ],
+ "meses": {
+  "7": {
+   "rmse_base": 268.7742,
+   "rmse_bloco": 268.7453,
+   "ganho": 0.0289,
+   "ganho_corpo": -0.0242,
+   "ganho_cauda": 1.513,
+   "n_corpo": 190057,
+   "n_cauda": 656,
+   "ganho_sem_top20": 0.0197,
+   "parte_top20": 0.3203
+  },
+  "1": {
+   "rmse_base": 328.4446,
+   "rmse_bloco": 328.4556,
+   "ganho": -0.011,
+   "ganho_corpo": 0.0669,
+   "ganho_cauda": -1.233,
+   "n_corpo": 153381,
+   "n_cauda": 325,
+   "ganho_sem_top20": 0.0134,
+   "parte_top20": 2.2193
+  }
+ }
+}

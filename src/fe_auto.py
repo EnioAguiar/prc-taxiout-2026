@@ -57,6 +57,12 @@ CHAVES: dict[str, tuple[str, ...]] = {
 }
 PARES = ("raz", "dif", "pro")
 GRUPO = ("gmed", "gdes", "gdif", "gz", "gpos")
+# Variante sem deriva de cada agregação de nível: a média do grupo menos a média do quadro
+# e o desvio do grupo em desvios do quadro. Dentro de um quadro são a mesma coluna a menos
+# de deslocamento/escala — nenhuma árvore distingue as duas, e o ganho medido na peneira
+# vale igual —, mas entre quadros diferentes (cegas de 10 meses × holdout × ranking 2026) a
+# versão crua carrega o nível do próprio quadro, que é o que a AUC adversarial pega (0,92).
+SEM_DERIVA = {"gmed": "gmedc", "gdes": "gdesr"}
 EPS = 1e-6
 
 
@@ -122,6 +128,11 @@ def valores(df: pd.DataFrame, spec: tuple, cache: dict | None = None) -> np.ndar
         return media
     if op == "gdes":
         return desvio
+    if op == "gmedc":  # média do grupo menos a média do quadro: mesma árvore, sem a deriva
+        return media - np.nanmean(x) if np.isfinite(x).any() else media
+    if op == "gdesr":  # desvio do grupo em desvios do quadro
+        s = float(np.nanstd(x)) if np.isfinite(x).any() else 0.0
+        return desvio / s if s > EPS else np.full(len(desvio), np.nan)
     if op == "gdif":
         return x - media
     if op == "gz":
@@ -150,8 +161,13 @@ def candidatas(numericas: Sequence[str], chaves: Iterable[str] = (),
     return saida
 
 
-# Sobreviventes do estudo de 03/10 (ver o docstring e `docs/research/2026-10-03-fe-auto.md`).
-ESCOLHIDAS: tuple[tuple, ...] = ()
+# Sobreviventes do estudo de 03/10 (`docs/research/2026-10-03-fe-auto.md`): de 755
+# candidatas, **uma** passa nos três portões (ganho no corpo em jan e em jul, ganho
+# completo acima do placebo, AUC adversarial 2025×2026 ≤ 0,6). É o posto do tempo medido
+# entre o push real e a decolagem (`MVT − AOBT_3`) dentro do dia × aeroporto × hora: se o
+# voo está entre os rápidos ou os lentos da hora dele naquele aeroporto, sem depender do
+# nível absoluto — que é justamente o que faz as médias por grupo reprovarem na deriva.
+ESCOLHIDAS: tuple[tuple, ...] = (("gpos", "to_takeoff_from_AOBT_3_flt", "dia_apt_hora"),)
 
 
 def colunas(df: pd.DataFrame) -> dict[str, np.ndarray]:

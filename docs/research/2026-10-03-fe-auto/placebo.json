@@ -1,0 +1,377 @@
+{
+ "n": 40,
+ "min_ganho": {
+  "p50": -0.13405,
+  "p95": -0.03196000000000003,
+  "max": -0.0121
+ },
+ "min_corpo": {
+  "p50": -0.16349999999999998,
+  "p95": -0.04910000000000002,
+  "max": -0.0295
+ },
+ "positivos_nos_dois": 0,
+ "corpo_positivo_nos_dois": 0,
+ "corridas": [
+  {
+   "nome": "fe_gmed_ctx_stand_ult_idade_tipo_apt",
+   "ganho_7": -0.0501,
+   "corpo_7": -0.0584,
+   "ganho_1": -0.0419,
+   "corpo_1": -0.0945,
+   "min_ganho": -0.0501,
+   "min_corpo": -0.0945
+  },
+  {
+   "nome": "fe_gdes_to_takeoff_from_SCHED_TIME_UTC_mvt_cia_apt",
+   "ganho_7": -0.0132,
+   "corpo_7": -0.0258,
+   "ganho_1": -0.0217,
+   "corpo_1": -0.0494,
+   "min_ganho": -0.0217,
+   "min_corpo": -0.0494
+  },
+  {
+   "nome": "fe_gmed_ctx_viz_pas_rwy_60_apt_rwy",
+   "ganho_7": -0.0473,
+   "corpo_7": -0.0612,
+   "ganho_1": -0.0097,
+   "corpo_1": -0.0336,
+   "min_ganho": -0.0473,
+   "min_corpo": -0.0612
+  },
+  {
+   "nome": "fe_gmed_ctx_arr_tin_apt_60_apt_rwy",
+   "ganho_7": -0.0025,
+   "corpo_7": -0.0186,
+   "ganho_1": -0.0121,
+   "corpo_1": -0.0295,
+   "min_ganho": -0.0121,
+   "min_corpo": -0.0295
+  },
+  {
+   "nome": "fe_gpos_ctx_viz_fut_apt_15_cia_apt",
+   "ganho_7": -0.1438,
+   "corpo_7": -0.1818,
+   "ganho_1": -0.0373,
+   "corpo_1": -0.0695,
+   "min_ganho": -0.1438,
+   "min_corpo": -0.1818
+  },
+  {
+   "nome": "fe_pro_ctx_viz_pas_rwy_15_ctx_viz_fut_apt_15",
+   "ganho_7": -0.188,
+   "corpo_7": -0.2163,
+   "ganho_1": -0.0359,
+   "corpo_1": -0.0655,
+   "min_ganho": -0.188,
+   "min_corpo": -0.2163
+  },
+  {
+   "nome": "fe_gmed_ctx_viz_fut_apt_60_cia_apt",
+   "ganho_7": -0.0923,
+   "corpo_7": -0.1099,
+   "ganho_1": -0.0272,
+   "corpo_1": -0.0576,
+   "min_ganho": -0.0923,
+   "min_corpo": -0.1099
+  },
+  {
+   "nome": "fe_gz_ctx_stand_ult_tin_apt_rwy",
+   "ganho_7": -0.1332,
+   "corpo_7": -0.1731,
+   "ganho_1": -0.0219,
+   "corpo_1": -0.0473,
+   "min_ganho": -0.1332,
+   "min_corpo": -0.1731
+  },
+  {
+   "nome": "fe_gpos_ctx_arr_tin_apt_60_dia_apt_hora",
+   "ganho_7": -0.0325,
+   "corpo_7": -0.0434,
+   "ganho_1": -0.0006,
+   "corpo_1": -0.0185,
+   "min_ganho": -0.0325,
+   "min_corpo": -0.0434
+  },
+  {
+   "nome": "fe_gdes_to_takeoff_from_AOBT_3_flt_dia_apt_rwy",
+   "ganho_7": -0.144,
+   "corpo_7": -0.1765,
+   "ganho_1": -0.0628,
+   "corpo_1": -0.097,
+   "min_ganho": -0.144,
+   "min_corpo": -0.1765
+  },
+  {
+   "nome": "fe_pro_ctx_viz_pas_rwy_15_to_takeoff_from_AOBT_3_flt",
+   "ganho_7": -0.1381,
+   "corpo_7": -0.1847,
+   "ganho_1": -0.0225,
+   "corpo_1": -0.0666,
+   "min_ganho": -0.1381,
+   "min_corpo": -0.1847
+  },
+  {
+   "nome": "fe_dif_to_takeoff_from_SCHED_TIME_UTC_mvt_ctx_arr_tin_apt_15",
+   "ganho_7": -0.1675,
+   "corpo_7": -0.1941,
+   "ganho_1": -0.0372,
+   "corpo_1": -0.0821,
+   "min_ganho": -0.1675,
+   "min_corpo": -0.1941
+  },
+  {
+   "nome": "fe_gpos_ctx_arr_tin_apt_15_apt_stand",
+   "ganho_7": -0.1241,
+   "corpo_7": -0.1472,
+   "ganho_1": -0.0463,
+   "corpo_1": -0.0687,
+   "min_ganho": -0.1241,
+   "min_corpo": -0.1472
+  },
+  {
+   "nome": "fe_gpos_apt_arr_next_10m_cia_apt",
+   "ganho_7": -0.0721,
+   "corpo_7": -0.0839,
+   "ganho_1": -0.0356,
+   "corpo_1": -0.0635,
+   "min_ganho": -0.0721,
+   "min_corpo": -0.0839
+  },
+  {
+   "nome": "fe_pro_ctx_arr_tin_apt_60_ctx_viz_fut_rwy_15",
+   "ganho_7": -0.1239,
+   "corpo_7": -0.1471,
+   "ganho_1": -0.0103,
+   "corpo_1": -0.045,
+   "min_ganho": -0.1239,
+   "min_corpo": -0.1471
+  },
+  {
+   "nome": "fe_dif_to_takeoff_from_SCHED_TIME_UTC_mvt_ctx_viz_pas_rwy_15",
+   "ganho_7": -0.0984,
+   "corpo_7": -0.15,
+   "ganho_1": -0.0368,
+   "corpo_1": -0.0705,
+   "min_ganho": -0.0984,
+   "min_corpo": -0.15
+  },
+  {
+   "nome": "fe_gz_hour_apt_rwy",
+   "ganho_7": -0.1659,
+   "corpo_7": -0.1922,
+   "ganho_1": -0.0572,
+   "corpo_1": -0.0843,
+   "min_ganho": -0.1659,
+   "min_corpo": -0.1922
+  },
+  {
+   "nome": "fe_dif_apt_arr_next_10m_ctx_viz_fut_apt_60",
+   "ganho_7": -0.1394,
+   "corpo_7": -0.1668,
+   "ganho_1": -0.0406,
+   "corpo_1": -0.0764,
+   "min_ganho": -0.1394,
+   "min_corpo": -0.1668
+  },
+  {
+   "nome": "fe_pro_ctx_stand_ult_idade_hour",
+   "ganho_7": -0.1134,
+   "corpo_7": -0.1653,
+   "ganho_1": -0.0351,
+   "corpo_1": -0.0662,
+   "min_ganho": -0.1134,
+   "min_corpo": -0.1653
+  },
+  {
+   "nome": "fe_gmed_ctx_arr_tin_apt_60_apt_hora",
+   "ganho_7": -0.1349,
+   "corpo_7": -0.1606,
+   "ganho_1": -0.0254,
+   "corpo_1": -0.0614,
+   "min_ganho": -0.1349,
+   "min_corpo": -0.1606
+  },
+  {
+   "nome": "fe_raz_ctx_stand_ult_tin_ctx_viz_fut_apt_15",
+   "ganho_7": -0.1401,
+   "corpo_7": -0.1631,
+   "ganho_1": -0.0354,
+   "corpo_1": -0.0596,
+   "min_ganho": -0.1401,
+   "min_corpo": -0.1631
+  },
+  {
+   "nome": "fe_gz_to_takeoff_from_AOBT_3_flt_apt_rwy",
+   "ganho_7": -0.1995,
+   "corpo_7": -0.2462,
+   "ganho_1": -0.0363,
+   "corpo_1": -0.0536,
+   "min_ganho": -0.1995,
+   "min_corpo": -0.2462
+  },
+  {
+   "nome": "fe_raz_ctx_viz_pas_rwy_15_apt_arr_next_10m",
+   "ganho_7": -0.1442,
+   "corpo_7": -0.1796,
+   "ganho_1": -0.0325,
+   "corpo_1": -0.0779,
+   "min_ganho": -0.1442,
+   "min_corpo": -0.1796
+  },
+  {
+   "nome": "fe_gz_to_takeoff_from_SCHED_TIME_UTC_mvt_dia_apt",
+   "ganho_7": -0.1197,
+   "corpo_7": -0.1639,
+   "ganho_1": -0.0315,
+   "corpo_1": -0.0641,
+   "min_ganho": -0.1197,
+   "min_corpo": -0.1639
+  },
+  {
+   "nome": "fe_gpos_apt_arr_next_10m_apt_rwy",
+   "ganho_7": -0.1588,
+   "corpo_7": -0.1916,
+   "ganho_1": -0.0328,
+   "corpo_1": -0.0575,
+   "min_ganho": -0.1588,
+   "min_corpo": -0.1916
+  },
+  {
+   "nome": "fe_gz_ctx_viz_fut_apt_60_cia_apt",
+   "ganho_7": -0.1525,
+   "corpo_7": -0.1809,
+   "ganho_1": -0.0396,
+   "corpo_1": -0.0706,
+   "min_ganho": -0.1525,
+   "min_corpo": -0.1809
+  },
+  {
+   "nome": "fe_gmed_ctx_stand_ult_idade_cia_apt",
+   "ganho_7": -0.1982,
+   "corpo_7": -0.2595,
+   "ganho_1": -0.0374,
+   "corpo_1": -0.0626,
+   "min_ganho": -0.1982,
+   "min_corpo": -0.2595
+  },
+  {
+   "nome": "fe_dif_ctx_arr_tin_apt_15_ctx_viz_fut_apt_60",
+   "ganho_7": -0.1253,
+   "corpo_7": -0.1475,
+   "ganho_1": -0.0369,
+   "corpo_1": -0.0836,
+   "min_ganho": -0.1253,
+   "min_corpo": -0.1475
+  },
+  {
+   "nome": "fe_gz_hour_apt_stand",
+   "ganho_7": -0.1678,
+   "corpo_7": -0.1968,
+   "ganho_1": -0.0336,
+   "corpo_1": -0.0609,
+   "min_ganho": -0.1678,
+   "min_corpo": -0.1968
+  },
+  {
+   "nome": "fe_gpos_ctx_viz_fut_apt_60_dia_apt_rwy",
+   "ganho_7": -0.1407,
+   "corpo_7": -0.1607,
+   "ganho_1": -0.0419,
+   "corpo_1": -0.0737,
+   "min_ganho": -0.1407,
+   "min_corpo": -0.1607
+  },
+  {
+   "nome": "fe_pro_ctx_viz_pas_rwy_15_apt_arr_next_10m",
+   "ganho_7": -0.1509,
+   "corpo_7": -0.1853,
+   "ganho_1": -0.0389,
+   "corpo_1": -0.0539,
+   "min_ganho": -0.1509,
+   "min_corpo": -0.1853
+  },
+  {
+   "nome": "fe_gmed_ctx_stand_ult_idade_dia_apt",
+   "ganho_7": -0.1231,
+   "corpo_7": -0.1549,
+   "ganho_1": -0.0188,
+   "corpo_1": -0.0622,
+   "min_ganho": -0.1231,
+   "min_corpo": -0.1549
+  },
+  {
+   "nome": "fe_pro_apt_dep_next_60m_ctx_viz_fut_rwy_15",
+   "ganho_7": -0.1233,
+   "corpo_7": -0.1539,
+   "ganho_1": -0.0542,
+   "corpo_1": -0.0784,
+   "min_ganho": -0.1233,
+   "min_corpo": -0.1539
+  },
+  {
+   "nome": "fe_dif_ctx_viz_pas_rwy_60_ctx_viz_fut_apt_60",
+   "ganho_7": -0.12,
+   "corpo_7": -0.1532,
+   "ganho_1": -0.0433,
+   "corpo_1": -0.0876,
+   "min_ganho": -0.12,
+   "min_corpo": -0.1532
+  },
+  {
+   "nome": "fe_pro_ctx_stand_ult_idade_ctx_arr_tin_apt_60",
+   "ganho_7": -0.1579,
+   "corpo_7": -0.2139,
+   "ganho_1": -0.023,
+   "corpo_1": -0.0557,
+   "min_ganho": -0.1579,
+   "min_corpo": -0.2139
+  },
+  {
+   "nome": "fe_gpos_apt_arr_next_10m_apt_stand",
+   "ganho_7": -0.1218,
+   "corpo_7": -0.1459,
+   "ganho_1": -0.0393,
+   "corpo_1": -0.0721,
+   "min_ganho": -0.1218,
+   "min_corpo": -0.1459
+  },
+  {
+   "nome": "fe_raz_ctx_viz_pas_rwy_60_apt_dep_next_60m",
+   "ganho_7": -0.1806,
+   "corpo_7": -0.232,
+   "ganho_1": -0.0472,
+   "corpo_1": -0.0939,
+   "min_ganho": -0.1806,
+   "min_corpo": -0.232
+  },
+  {
+   "nome": "fe_gmed_ctx_viz_fut_apt_15_apt_hora",
+   "ganho_7": -0.1235,
+   "corpo_7": -0.1508,
+   "ganho_1": -0.0422,
+   "corpo_1": -0.0714,
+   "min_ganho": -0.1235,
+   "min_corpo": -0.1508
+  },
+  {
+   "nome": "fe_gdes_ctx_stand_ult_idade_dia_apt_hora",
+   "ganho_7": -0.024,
+   "corpo_7": -0.0272,
+   "ganho_1": -0.0416,
+   "corpo_1": -0.075,
+   "min_ganho": -0.0416,
+   "min_corpo": -0.075
+  },
+  {
+   "nome": "fe_gpos_ctx_stand_ult_tin_cia_apt",
+   "ganho_7": -0.1799,
+   "corpo_7": -0.1996,
+   "ganho_1": -0.0369,
+   "corpo_1": -0.0828,
+   "min_ganho": -0.1799,
+   "min_corpo": -0.1996
+  }
+ ]
+}

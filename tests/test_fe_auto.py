@@ -119,13 +119,21 @@ def test_cache_de_codigos_e_reusado_entre_candidatas_da_mesma_chave():
 
 def test_colunas_devolve_exatamente_as_escolhidas_com_uma_linha_por_voo():
     df = _voos((3, 2))
-    for spec in fe_auto.ESCOLHIDAS:
-        for col in spec[1:]:
-            assert col in fe_auto.CHAVES or col in df.columns or col == "x", col
-    out = fe_auto.colunas(df.assign(**{c: 1.0 for c in _fontes(fe_auto.ESCOLHIDAS)
-                                       if c not in df.columns}))
+    df = df.assign(**{c: np.arange(len(df), dtype=float)
+                      for c in _fontes(fe_auto.ESCOLHIDAS) if c not in df.columns})
+    out = fe_auto.colunas(df)
     assert list(out) == [fe_auto.nome(s) for s in fe_auto.ESCOLHIDAS]
-    assert all(len(v) == len(df) for v in out.values())
+    assert all(len(v) == len(df) and np.isfinite(v).all() for v in out.values())
+
+
+def test_as_escolhidas_so_usam_chaves_e_colunas_que_o_quadro_do_corretor_tem():
+    """As fontes precisam existir no holdout e no ranking — senão o corretor quebra no envio."""
+    colunas_do_quadro = set(_voos((1, 1)).columns) | {"to_takeoff_from_AOBT_3_flt"}
+    for spec in fe_auto.ESCOLHIDAS:
+        assert spec[0] in fe_auto.PARES + fe_auto.GRUPO + ("gcont",), spec
+        assert spec[-1] in fe_auto.CHAVES or spec[0] in fe_auto.PARES, spec
+        for col in spec[1:]:
+            assert col in fe_auto.CHAVES or col in colunas_do_quadro, col
 
 
 def _fontes(specs) -> set[str]:

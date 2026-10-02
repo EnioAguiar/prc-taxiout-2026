@@ -194,6 +194,7 @@ base (`--cls-peso quad`) and still took the holdout simulation from 295.63 to 29
 | `src/pista.py` | `pista_*` (`--pista`) | runway configuration of the airport in a ±60 min window and whether it changed in the last hour, dominant runway, same-runway queue between `AOBT_3` and take-off weighted by wake category, cadence of the last 20 departures |
 | `src/pista.py` | `ret_*` (`--retencao`) | gate retention at the *real* push clock (`AOBT_3`): departures already past their EOBT that have not pushed, departures active on the same runway, mean `AOBT_3 − SCHED` of the previous 15 min, EWMA of departures |
 | `src/roma.py` | `roma_*` (`--roma-tdg`) | `T = D − G` decomposition at LIRF — **measured and switched off**, see §3 |
+| `src/fe_auto.py` | `fe_*` (`--fe-auto`) | automatically generated features (OpenFE-style operators) that survived out-of-month screening, a placebo band and the 2025×2026 adversarial gate — **one** column out of 755 candidates, see [`docs/research/2026-10-03-fe-auto.md`](docs/research/2026-10-03-fe-auto.md) |
 
 Two flags change *what is trained on* rather than what is read:
 
