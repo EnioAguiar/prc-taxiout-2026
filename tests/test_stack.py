@@ -295,6 +295,12 @@ def test_o_catboost_recebe_todas_as_categoricas_em_texto():
     assert not stack.colunas_cat(Xc)
 
 
+def test_categoria_ausente_chega_ao_catboost_como_texto():
+    """Voo de 2026 com categoria que 2025 não tem fica NaN ao alinhar; o CatBoost só aceita texto."""
+    X = pd.DataFrame({F.AIRPORT: pd.Categorical(["LIRF", None]), "x": [1.0, 2.0]})
+
+    assert stack.catboost_frame(X)[F.AIRPORT].tolist() == ["LIRF", "nan"]
+
 def test_com_roma_o_corretor_ganha_as_colunas_e_a_distancia_ate_o_taxi_reconstruido():
     df = _voos()
     pred = np.array([800.0, 900.0, 1000.0])

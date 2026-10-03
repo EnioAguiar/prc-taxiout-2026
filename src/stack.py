@@ -324,8 +324,8 @@ def catboost_frame(X: pd.DataFrame) -> pd.DataFrame:
     inteiro do corretor (~1,4 GB nas cegas) para trocar duas colunas.
     """
     Xc = X.copy(deep=False)
-    for col in colunas_cat(X):
-        Xc[col] = Xc[col].astype(str)
+    for col in colunas_cat(X):  # no pandas 3 o astype(str) mantém o NaN: vira o texto "nan", como antes
+        Xc[col] = Xc[col].astype(str).fillna("nan")
     return Xc
 
 
