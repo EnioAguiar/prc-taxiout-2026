@@ -476,7 +476,7 @@ def simulacao_folds(
         base = pd.read_parquet(RUNS / f"{base_id}.parquet")
         hold = holdout_da_base(base)
         X = corrector_frame(hold, base["pred"].to_numpy(float), adsb, sem=sem)
-        if adsb:
+        if adsb and "adsb_taxi" in X:  # a ablação --corretor-sem-feature adsb_taxi tira a coluna
             run.log(f"adsb: {X['adsb_taxi'].notna().mean():.1%} dos voos com evento")
     with run.phase("treino", 0.6):
         pred = oof_correction(X, hold[TRUTH].to_numpy(float), base["pred"].to_numpy(float),
@@ -654,7 +654,7 @@ def simulacao_crossfit(
                                 roma_cegas, fe_auto, exigir=sem_cor)
         del cegas
         memoria.soltar()
-        if adsb:
+        if adsb and "adsb_taxi" in X_oof:  # idem
             run.log(f"adsb no treino do corretor: {X_oof['adsb_taxi'].notna().mean():.1%}")
         alvo_oof, treino_oof = oof[TRUTH].to_numpy(float), pred_oof
         if regra_cegas is not None:

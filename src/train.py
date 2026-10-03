@@ -174,7 +174,7 @@ def corretor_final(cfg_bloco: dict, adsb: bool, full: pd.DataFrame, rk: pd.DataF
                         roma_cegas, fe_auto)
     del cegas
     memoria.soltar()
-    if adsb:
+    if adsb and "adsb_taxi" in X:  # a ablação --corretor-sem-feature adsb_taxi tira a coluna
         run.log(f"adsb no treino do corretor: {X['adsb_taxi'].notna().mean():.1%}")
     alvo = oof[TRUTH].to_numpy(float)
     if regra is not None:
