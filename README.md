@@ -12,8 +12,8 @@ Metric: RMSE in seconds on the ranking set (January and July 2026 movements).
 
 | | |
 |---|---|
-| Best official score | **243.9755 s** (v36) |
-| Simulation of the same model (Jan+Jul 2025) | 295.63 s full · 228.69 s without the lotteries |
+| Best official score | **243.9532 s** (v37) |
+| Simulation of the same model (Jan+Jul 2025) | 294.86 s full · 227.74 s without the lotteries |
 | Airports | EDDF, EDDM, EGLL, EHAM, LEBL, LEMD, LFPG, LIRF, LTFM, LSZH |
 | Stack | Python 3, pandas/pyarrow, LightGBM, CatBoost (XGBoost optional) |
 | Hardware | 6 physical cores, 15 GB RAM, no GPU required |
@@ -41,7 +41,8 @@ of `submissions.jsonl`, with the date, the reason and the simulated score it was
 | v33 | base with weather/rotation/NM-consistency features, both correctors rebuilt on it | 244.89 |
 | v34 | gate-retention block (`--retencao`) in corrector 1 | 244.18 |
 | v35 | corrector 1 no longer trains on the rule-served rows (`--corretor-sem-regra`) | 244.13 |
-| v36 | third corrector member (`--pista --retencao --corretor-sem-regra`) | **243.9755** |
+| v36 | third corrector member (`--pista --retencao --corretor-sem-regra`) | 243.9755 |
+| v37 | fourth member over a second base (`--cls-peso quad`) | **243.9532** |
 
 ## 1. Model design
 
@@ -175,9 +176,11 @@ Equal weights are a decision, not an oversight: fitted blend weights were tested
 members are strongly correlated, so a fitted weight buys noise. What the ensemble is
 actually exploiting is *decorrelation of the blocks* — each member reads a different part of
 the airport state. Adding a member over a **different base** is the same idea one level
-down, and it is where the last gain came from: the fourth member above only changes the
-base (`--cls-peso quad`) and still took the holdout simulation from 295.63 to 294.86
-(no-lottery 228.69 → 227.74).
+down: the fourth member above only changes the base (`--cls-peso quad`) and took the
+holdout simulation from 295.63 to 294.86 (no-lottery 228.69 → 227.74). **It did not
+transfer**: v37 scored 243.9532 against 243.9755 for v36 (−0.02 s). 129 % of the simulated
+gain came from 20 flights of the tail, and the member was picked among 266 saved runs on the
+same holdout. That failure is what produced the transfer gate of §2.4.
 
 ### 1.4 The feature blocks
 
@@ -412,8 +415,8 @@ bin/run src/stack.py m2 --crossfit --base <base-id> --corretor-rounds 500 \
 bin/run src/compare.py <run-id> --promover
 
 # 6. Rebuild the champion on the full year and write the submission file
-bin/run src/train.py submit 36             # → submissions/<TEAM_NAME>_v36.parquet
-.venv/bin/python src/s3.py submit submissions/<TEAM_NAME>_v36.parquet
+bin/run src/train.py submit 37             # → submissions/<TEAM_NAME>_v37.parquet
+.venv/bin/python src/s3.py submit submissions/<TEAM_NAME>_v37.parquet
 ```
 
 `champion.json` is versioned, so steps 3–5 can be skipped: `src/train.py submit N`

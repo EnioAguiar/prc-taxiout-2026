@@ -60,24 +60,17 @@ documentação depois do prazo não conta.
 
 ## Pendências antes de publicar
 
-- [ ] **Virar a visibilidade para pública** em `https://github.com/EnioAguiar/prc-taxiout-2026`
-  (hoje privado) **entre 08 e 10/10**, e confirmar que a organização do desafio vai forkar
-  esse endereço. Nada foi empurrado para o GitHub nesta preparação.
-- [ ] **Caminho pessoal em `experiments.jsonl`**: 18 ocorrências de `/home/enio` (campos de
-  caminho de arquivos de corrida). Decidir entre limpar os caminhos ou aceitar que o nome de
-  usuário apareça. Não é segredo; é só exposição do nome da conta local.
+- [x] **Visibilidade pública** em `https://github.com/EnioAguiar/prc-taxiout-2026`: publicado em 03/10, antes do
+  prazo, por decisão do usuário (trabalho encerrado; campeã final = v37).
+- [x] **Caminho pessoal em `experiments.jsonl`**: 18 ocorrências de `/home/enio`, aceitas (não é segredo, só o nome
+  da conta local).
 - [x] **Material interno misturado a conteúdo técnico (decidido em 02/10):** o repositório abre com
   todo o histórico, então essas leituras já ficam visíveis nos commits antigos. Sai da versão final
   só `docs/research/2026-09-24-competicoes-e-placar.md` (foto do placar e leitura de READMEs de
   outras equipes; fica no disco, no `.gitignore`). **Ficam**, porque mostram de onde veio cada
   passo do método: o spec do pipeline, os planos 4 e 8–12, `literatura-taxiout.md`,
   `forense-dados.md`, `diagnostico-v4.md`, `docs/mapa.md` e `ferramentas/projecao.py`.
-- [ ] **Atualizar a campeã e o README entre 08 e 10/10**: se a esteira promover membros
-  novos até lá, refazer §1.3 (`champion.json`), a tabela de versões e a nota oficial do
-  `README.md` **antes** do prazo — o organizador usa o último commit anterior a 11/10.
-- [ ] **Último passo antes de abrir**: rodar `bin/run -m pytest tests/ -q` e
-  `ferramentas/auditoria.py`, conferir que o `champion.json` publicado corresponde à melhor
-  nota enviada e repetir o grep de credenciais. Hoje
-  `git ls-files -z | xargs -0 grep -lniE 'secret|access_key|token'` devolve
-  `.env.example`, `README.md`, `docs/publico/checklist.md` e `src/s3.py` — todos só com
-  **nomes** de variáveis, nenhum valor.
+- [x] **Campeã e README** atualizados para a v37 (243,9532) em 03/10; a esteira está pausada, então não muda mais.
+- [x] **Último passo antes de abrir** (03/10): 322 testes verdes, `champion.json` = membros da v37, e
+  `git ls-files -z | xargs -0 grep -lniE 'secret|access_key|token'` devolve só `.env.example`, `README.md`,
+  `docs/publico/checklist.md` e `src/s3.py`, todos com **nomes** de variáveis e nenhum valor.
